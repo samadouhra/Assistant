@@ -1,10 +1,12 @@
 const path = require("path");
 const CopyPlugin = require("copy-webpack-plugin");
+const DotenvWepack = require("dotenv-webpack");
 
 module.exports = {
   mode: "production",
   entry:  {
-    background: path.resolve(__dirname, "..", "src", "background.ts")
+    background: path.resolve(__dirname, "..", "src", "background.ts"),
+    "paste-detector": path.resolve(__dirname, "..", "src", "paste-detector.ts")
   },
   output: {
     path: path.join(__dirname, "../dist")
@@ -22,6 +24,10 @@ module.exports = {
     ]
   },
   plugins: [
+    new DotenvWepack({
+      path: "./.env",
+      safe: true
+    }),
     new CopyPlugin({
       patterns: [
         {

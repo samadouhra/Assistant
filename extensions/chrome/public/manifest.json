@@ -31,8 +31,18 @@
     "activeTab",
     "contextMenus",
     "scripting",
-    "windows"
+    "windows",
+    "storage"
   ],
+  "content_scripts": [
+    {
+      "matches": ["http://*/*", "https://*/*"],
+      "js": ["paste-detector.js"]
+    }
+  ],
+  "externally_connectable": {
+    "matches": ["http://*/*", "https://*/*"]
+  },
   "short_name": "1Cademy Assistant Helper",
   "update_url": "https://clients2.google.com/service/update2/crx",
   "version": "0.0.1",
@@ -40,8 +50,7 @@
   "web_accessible_resources": [
     {
       "resources": [
-        "popover.html",
-        "content-script.js",
+        "paste-detector.js",
         "images/icon-2x.png",
         "images/icon-3x.png",
         "icon-8x.png",

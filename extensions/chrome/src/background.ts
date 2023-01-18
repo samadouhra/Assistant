@@ -1,8 +1,20 @@
-const PARAPHRASE_MENUITEM_ID: string = "1cademy-assitant-ctx-mt-paraphrase";
-const IMPROVE_MENUITEM_ID: string = "1cademy-assitant-ctx-mt-improve";
-const L_REVIEW_MENUITEM_ID: string = "1cademy-assitant-ctx-mt-l-review";
+import { db } from "./lib/firebase";
+import { doc, writeBatch, collection } from "firebase/firestore";
+
+const MAIN_MENUITEM_ID: string = "1cademy-assitant-ctx-mt";
+const PARAPHRASE_MENUITEM_ID: string = `${MAIN_MENUITEM_ID}-paraphrase`;
+const IMPROVE_MENUITEM_ID: string = `${MAIN_MENUITEM_ID}-improve`;
+const L_REVIEW_MENUITEM_ID: string = `${MAIN_MENUITEM_ID}-l-review`;
 
 const tryParaphrasingUsingChatGPT = async (paragraph: string, type: "Improve" | "Paraphrase" | "Literature") => {
+
+  const menuItemType = type === "Improve" ? "Improve-CGPT" : (type === "Literature" ? "Literature-CGPT" : "Paraphrase-CGPT");
+  const [currentTab] = await chrome.tabs.query({
+    active: true,
+    currentWindow: true,
+  });
+  const fromUrl = currentTab?.url || "";
+
   let tabId: number = 0;
   // try to find chat gpt tab
   const tabs = await chrome.tabs.query({
@@ -29,8 +41,11 @@ const tryParaphrasingUsingChatGPT = async (paragraph: string, type: "Improve" | 
     focused: true
   });
 
+  // adding this to stop memory leak
+  const startedAt = new Date().getTime();
+
   const waitUntilChatGPTLogin = () => {
-    return new Promise((resolve) => {
+    return new Promise((resolve, reject) => {
       const checker = () => {
         chrome.scripting.executeScript<any, boolean>({
           target: {
@@ -46,6 +61,14 @@ const tryParaphrasingUsingChatGPT = async (paragraph: string, type: "Improve" | 
               resolve(true);
               return;
             }
+
+            // checking memory leak
+            const currentTime = new Date().getTime();
+            const timeDiff = (startedAt - currentTime) / 1000;
+            if(timeDiff >= 180) {
+              reject("Stopped due to memory leak");
+              return; // don't run recursion
+            }
           }
           setTimeout(checker, 1000)
         })
@@ -57,7 +80,7 @@ const tryParaphrasingUsingChatGPT = async (paragraph: string, type: "Improve" | 
   await waitUntilChatGPTLogin();
 
   // run logic to trigger paraphrase on ChatGPT UI if login
-  await chrome.scripting.executeScript<any, any>({
+  const chatGPTResponse = await chrome.scripting.executeScript<any, any>({
     target: {
       tabId
     },
@@ -136,8 +159,11 @@ const tryParaphrasingUsingChatGPT = async (paragraph: string, type: "Improve" | 
       if(!gptActionBtn) return;
       gptActionBtn.click();
 
+      // adding this to stop memory leak
+      const startedAt = new Date().getTime();
+
       const waitUntilProcessed = (killOnGeneration: boolean) => {
-        return new Promise((resolve) => {
+        return new Promise((resolve, reject) => {
           const checker = () => {
             const buttons = document.querySelectorAll("form button");
             if(buttons.length) {
@@ -151,6 +177,14 @@ const tryParaphrasingUsingChatGPT = async (paragraph: string, type: "Improve" | 
                 // killing recurrsion
                 resolve(true);
                 return;
+              }
+
+              // checking memory leak
+              const currentTime = new Date().getTime();
+              const timeDiff = (startedAt - currentTime) / 1000;
+              if(timeDiff >= 300) {
+                reject("Stopped due to memory leak");
+                return; // don't run recursion
               }
             }
             
@@ -182,49 +216,112 @@ const tryParaphrasingUsingChatGPT = async (paragraph: string, type: "Improve" | 
                 } catch(e) {
                   createToaster("Error", "Please allow clipboard to ChatGPT.")
                 }
+                // return result from chat gpt
+                return paraphrased;
               }
             }
           }
+          // return empty string if there was not result
+          return "";
         })
       })
     }
   })
+
+  let cGPTResponse = "";
+  if(chatGPTResponse.length) {
+    cGPTResponse = chatGPTResponse[0].result
+  }
+  
+  // saving actions in assistant actions collection
+  const colRef = collection(db, "assistantActions")
+  const actionRef = doc(colRef);
+  const batch = writeBatch(db);
+  batch.set(actionRef, {
+    url: fromUrl,
+    menuItem: menuItemType,
+    text: paragraph,
+    response: cGPTResponse,
+    pasted: false,
+    createdAt: new Date()
+  })
+  try {
+    await batch.commit();
+    // saving this to rewrite log for paste option
+    await chrome.storage.local.set({
+      lastActionId: actionRef.id,
+      lastActionTime: new Date().getTime()
+    })
+  } catch(e) {}
+
 }
 
 const onParaphraseRequest = (onClickData: chrome.contextMenus.OnClickData) => {
   const mItemId = String(onClickData.menuItemId);
   if(![PARAPHRASE_MENUITEM_ID, IMPROVE_MENUITEM_ID, L_REVIEW_MENUITEM_ID].includes(mItemId)) return;
+  
   tryParaphrasingUsingChatGPT(
     String(onClickData.selectionText),
     mItemId === IMPROVE_MENUITEM_ID ? "Improve" : (L_REVIEW_MENUITEM_ID === mItemId ? "Literature" : "Paraphrase")
   );
 }
 
-const mainContextItem = chrome.contextMenus.create({
-  id: "1cademy-assitant-ctx-mt",
+const onPasteDetection = (message: any) => {
+  return (async() => {
+    if(message === "paste-done") {
+      const storagedActions = await chrome.storage.local.get(["lastActionId", "lastActionTime"])
+      if(storagedActions?.lastActionId) {
+        const lastAction = parseInt(storagedActions?.lastActionTime);
+        const currentTime = new Date().getTime();
+        const timeDiff = (lastAction - currentTime) / 1000;
+        // should be less than or equal to 20 mints
+        if(timeDiff > 1200) return;
+        
+        // saving paste status to last action document
+        const colRef = collection(db, "assistantActions")
+        const actionRef = doc(colRef, storagedActions?.lastActionId);
+        const batch = writeBatch(db);
+        batch.update(actionRef, {
+          pasted: true,
+          updatedAt: new Date()
+        })
+        try {
+          await batch.commit();
+          // reseting local storage
+          await chrome.storage.local.remove(["lastActionId", "lastActionTime"])
+        } catch(e) {}
+      }
+    }
+  })()
+}
+
+chrome.contextMenus.create({
+  id: MAIN_MENUITEM_ID,
   title: "1Cademy Assistant",
   contexts: ["selection"]
 })
 
-const paraphraseItem = chrome.contextMenus.create({
+chrome.contextMenus.create({
   id: PARAPHRASE_MENUITEM_ID,
   title: "Paraphrase by ChatGPT",
-  parentId: mainContextItem,
+  parentId: MAIN_MENUITEM_ID,
   contexts: ["selection"]
 });
 
-const improveItem = chrome.contextMenus.create({
+chrome.contextMenus.create({
   id: IMPROVE_MENUITEM_ID,
   title: "Improve by ChatGPT",
-  parentId: mainContextItem,
+  parentId: MAIN_MENUITEM_ID,
   contexts: ["selection"]
 });
 
-const reviewItem = chrome.contextMenus.create({
+chrome.contextMenus.create({
   id: L_REVIEW_MENUITEM_ID,
   title: "Literature review by ChatGPT",
-  parentId: mainContextItem,
+  parentId: MAIN_MENUITEM_ID,
   contexts: ["selection"]
 });
 
 chrome.contextMenus.onClicked.addListener(onParaphraseRequest)
+
+chrome.runtime.onMessage.addListener(onPasteDetection)
