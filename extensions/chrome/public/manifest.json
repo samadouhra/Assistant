@@ -1,0 +1,62 @@
+{
+  "author": "1Cademy",
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_icon": {
+      "19": "images/icon.png",
+      "38": "images/icon-2x.png"
+    },
+    "default_title": "1Cademy Assistant Helper"
+  },
+  "description": "1Cademy Assistant Helper allows users to paraphrase or improve content using ChatGPT",
+  "icons": {
+    "128": "images/icon-8x.png",
+    "16": "images/icon.png",
+    "32": "images/icon-2x.png",
+    "48": "images/icon-3x.png"
+  },
+  "manifest_version": 3,
+  "minimum_chrome_version": "18.0",
+  "name": "1Cademy Assistant Helper",
+  "omnibox": {
+    "keyword": "1cademy"
+  },
+  "host_permissions": [
+    "http://*/*", "https://*/*", "chrome://favicon/*"
+  ],
+  "permissions": [
+    "tabs",
+    "activeTab",
+    "contextMenus",
+    "scripting",
+    "windows",
+    "storage"
+  ],
+  "content_scripts": [
+    {
+      "matches": ["http://*/*", "https://*/*"],
+      "js": ["paste-detector.js"]
+    }
+  ],
+  "externally_connectable": {
+    "matches": ["http://*/*", "https://*/*"]
+  },
+  "short_name": "1Cademy Assistant Helper",
+  "update_url": "https://clients2.google.com/service/update2/crx",
+  "version": "0.0.0.1",
+  "version_name": "0.0.0.1",
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "paste-detector.js",
+        "images/icon-2x.png",
+        "images/icon-3x.png",
+        "icon-8x.png",
+        "icon.png"
+      ],
+      "matches": ["http://*/*", "https://*/*"]
+    }
+  ]
+}
