@@ -86,9 +86,10 @@ const tryParaphrasingUsingChatGPT = async (paragraph: string, type: "Improve" | 
     },
     args: [
       paragraph,
-      type
+      type,
+      startedAt
     ],
-    func: (paragraph, type) => {
+    func: (paragraph, type, startedIndex) => {
       // add toast alert on chat gpt
       const TOASTER_WRAP_ID = "one-toaster-wrap";
 
@@ -212,6 +213,24 @@ const tryParaphrasingUsingChatGPT = async (paragraph: string, type: "Improve" | 
                 const paraphrased = el.innerText.trim();
                 try {
                   navigator.clipboard.writeText(paraphrased);
+                  
+                  // adding event listener to like and dislike button
+                  const likeSvgs = document.querySelectorAll("[d=\"M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3\"]");
+                  const disLikeSvgs = document.querySelectorAll("[d=\"M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3zm7-13h2.67A2.31 2.31 0 0 1 22 4v7a2.31 2.31 0 0 1-2.33 2H17\"]");
+                  if(likeSvgs.length && disLikeSvgs.length) {
+                    const lastLikeButton = likeSvgs[likeSvgs.length - 1].closest("button");
+                    const lastDislikeButton = disLikeSvgs[disLikeSvgs.length - 1].closest("button");
+                    if(lastLikeButton && lastDislikeButton) {
+                      lastLikeButton.addEventListener("click", () => {
+                        chrome.runtime.sendMessage("oa-gpt-like-clicked-" + startedIndex)
+                      })
+
+                      lastDislikeButton.addEventListener("click", () => {
+                        chrome.runtime.sendMessage("oa-gpt-dislike-clicked-" + startedIndex)
+                      })
+                    }
+                  }
+
                   createToaster("Success", "Text is copied to clipboard.")
                 } catch(e) {
                   createToaster("Error", "Please allow clipboard to ChatGPT.")
@@ -233,6 +252,21 @@ const tryParaphrasingUsingChatGPT = async (paragraph: string, type: "Improve" | 
     cGPTResponse = chatGPTResponse[0].result
   }
   
+  const clientStorage = await chrome.storage.local.get(["clientInfo", "onecademyUname"]);
+  let clientInfo = clientStorage?.clientInfo;
+  // fetching client info
+  if(!clientInfo) {
+    clientInfo = (await (await fetch("https://www.cloudflare.com/cdn-cgi/trace")).text()).split("\n").filter((p) => p).reduce((c: any, d) => {
+      const _ps = d.split("=")
+      const paramName = _ps.shift() as string;
+      const paramValue = _ps.join("=");
+      return {...c, [paramName]: paramValue};
+    },{});
+
+    await chrome.storage.local.set({
+      clientInfo
+    })
+  }
   // saving actions in assistant actions collection
   const colRef = collection(db, "assistantActions")
   const actionRef = doc(colRef);
@@ -242,6 +276,12 @@ const tryParaphrasingUsingChatGPT = async (paragraph: string, type: "Improve" | 
     menuItem: menuItemType,
     text: paragraph,
     response: cGPTResponse,
+    clientInfo: {
+      country: clientInfo?.loc || "",
+      ip: clientInfo?.ip || "",
+      uag: clientInfo?.uag || ""
+    },
+    uname: clientStorage?.onecademyUname || "",
     pasted: false,
     createdAt: new Date()
   })
@@ -250,7 +290,8 @@ const tryParaphrasingUsingChatGPT = async (paragraph: string, type: "Improve" | 
     // saving this to rewrite log for paste option
     await chrome.storage.local.set({
       lastActionId: actionRef.id,
-      lastActionTime: new Date().getTime()
+      lastActionTime: new Date().getTime(),
+      startedIndex: String(startedAt)
     })
   } catch(e) {}
 
@@ -283,14 +324,70 @@ const onPasteDetection = (message: any) => {
         const batch = writeBatch(db);
         batch.update(actionRef, {
           pasted: true,
-          updatedAt: new Date()
+          pastedAt: new Date()
         })
         try {
           await batch.commit();
           // reseting local storage
-          await chrome.storage.local.remove(["lastActionId", "lastActionTime"])
+          // await chrome.storage.local.remove(["lastActionId", "lastActionTime"])
         } catch(e) {}
       }
+    }
+  })()
+}
+
+const onUnameDetection = (message: any, sender: chrome.runtime.MessageSender) => {
+  if(typeof message !== "string") return;
+
+  const url = sender.url || "";
+  if(!url.match(/(1cademy|knowledge\-dev|localhost)/)) return;
+
+  if(!message.startsWith("onecademy-user-")) return;
+
+  const uname = message.replace(/^onecademy-user-/, "");
+
+  return (async () => {
+    await chrome.storage.local.set({
+      onecademyUname: uname
+    })
+  })();
+}
+
+const onVoteDetection = (message: any, sender: chrome.runtime.MessageSender) => {
+  if(typeof message !== "string") return;
+
+  const url = sender.url || "";
+  if(!url.match(/chat\.openai\.com/)) return;
+
+  if(!message.startsWith("oa-gpt-")) return;
+
+  let startedIndex = "";
+  let vote = 0;
+
+  // on like clicked
+  if(message.match(/^oa-gpt-like-clicked-/)) {
+    startedIndex = message.replace(/^oa-gpt-like-clicked-/, "");
+    vote = 1;
+  } else if(message.match(/^oa-gpt-dislike-clicked-/)) {
+    // on dislike clicked
+    startedIndex = message.replace(/^oa-gpt-dislike-clicked-/, "");
+  }
+
+  (async () => {
+    const storagedActions = await chrome.storage.local.get(["lastActionId", "startedIndex"])
+    if(startedIndex === storagedActions?.startedIndex && storagedActions?.lastActionId) {
+      const colRef = collection(db, "assistantActions")
+      const actionRef = doc(colRef, storagedActions.lastActionId);
+      const batch = writeBatch(db);
+      batch.update(actionRef, {
+        vote,
+        votedAt: new Date()
+      })
+      try {
+        await batch.commit();
+        // reseting local storage
+        await chrome.storage.local.remove(["startedIndex"])
+      } catch(e) {}
     }
   })()
 }
@@ -325,3 +422,9 @@ chrome.contextMenus.create({
 chrome.contextMenus.onClicked.addListener(onParaphraseRequest)
 
 chrome.runtime.onMessage.addListener(onPasteDetection)
+
+// to detect uname from 1cademy.com
+chrome.runtime.onMessage.addListener(onUnameDetection)
+
+// to detect like or dislike on response
+chrome.runtime.onMessage.addListener(onVoteDetection)
