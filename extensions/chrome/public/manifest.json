@@ -32,7 +32,8 @@
     "contextMenus",
     "scripting",
     "windows",
-    "storage"
+    "storage",
+    "commands"
   ],
   "content_scripts": [
     {
@@ -58,5 +59,25 @@
       ],
       "matches": ["http://*/*", "https://*/*"]
     }
-  ]
+  ],
+  "commands": {
+    "oa-paraphrase-cgpt": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+F"
+      },
+      "description": "Paraphrase using ChatGPT"
+    },
+    "oa-improve-cgpt": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+Y"
+      },
+      "description": "Improve using ChatGPT"
+    },
+    "oa-literature-cgpt": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+U"
+      },
+      "description": "Literature using ChatGPT"
+    }
+  }
 }

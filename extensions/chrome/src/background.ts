@@ -428,3 +428,34 @@ chrome.runtime.onMessage.addListener(onUnameDetection)
 
 // to detect like or dislike on response
 chrome.runtime.onMessage.addListener(onVoteDetection)
+
+// shortcut handles
+chrome.commands.onCommand.addListener((command, tab) => {
+  if(!["oa-paraphrase-cgpt", "oa-improve-cgpt", "oa-literature-cgpt"].includes(command)) return;
+
+  (async () => {
+    const responses = await chrome.scripting.executeScript({
+      target: {
+        tabId: tab.id || 0,
+        allFrames: true
+      },
+      func: () => {
+        const selection = window.getSelection() || { rangeCount: 0 };
+        return (selection.rangeCount > 0) ? selection.toString() : '';
+      }
+    });
+    const _responses = responses.filter((response) => response.result);
+    if(!_responses.length) {
+      return;
+    }
+    const selectedText = _responses[0].result;
+
+    if(command === "oa-paraphrase-cgpt") {
+      await tryParaphrasingUsingChatGPT(selectedText, "Paraphrase");
+    } else if(command === "oa-improve-cgpt") {
+      await tryParaphrasingUsingChatGPT(selectedText, "Improve");
+    } else if(command === "oa-literature-cgpt") {
+      await tryParaphrasingUsingChatGPT(selectedText, "Literature");
+    }
+  })()
+})
