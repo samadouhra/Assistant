@@ -37,8 +37,16 @@
   ],
   "content_scripts": [
     {
+      "matches": ["https://chat.openai.com/chat*"],
+      "js": ["createToaster.js"]
+    },
+    {
       "matches": ["http://*/*", "https://*/*"],
       "js": ["paste-detector.js"]
+    },
+    {
+      "matches": ["https://chat.openai.com/chat*"],
+      "js": ["app.js"]
     }
   ],
   "externally_connectable": {
@@ -54,8 +62,9 @@
         "paste-detector.js",
         "images/icon-2x.png",
         "images/icon-3x.png",
-        "icon-8x.png",
-        "icon.png"
+        "images/icon-8x.png",
+        "images/icon.png",
+        "images/icon.svg"
       ],
       "matches": ["http://*/*", "https://*/*"]
     }
@@ -63,21 +72,27 @@
   "commands": {
     "oa-paraphrase-cgpt": {
       "suggested_key": {
-        "default": "Ctrl+Shift+F"
+        "default": "Alt+Shift+E"
       },
       "description": "Paraphrase using ChatGPT"
     },
     "oa-improve-cgpt": {
       "suggested_key": {
-        "default": "Ctrl+Shift+Y"
+        "default": "Alt+Shift+O"
       },
       "description": "Improve using ChatGPT"
     },
-    "oa-literature-cgpt": {
+    "oa-shorten-cgpt": {
       "suggested_key": {
-        "default": "Ctrl+Shift+U"
+        "default": "Alt+Shift+Q"
       },
-      "description": "Literature using ChatGPT"
+      "description": "Shorten using ChatGPT"
+    },
+    "oa-mcq-cgpt": {
+      "suggested_key": {
+        "default": "Alt+Shift+W"
+      },
+      "description": "Generate MCQ using ChatGPT"
     }
   }
 }

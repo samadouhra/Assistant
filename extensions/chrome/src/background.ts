@@ -1,14 +1,36 @@
 import { db } from "./lib/firebase";
 import { doc, writeBatch, collection } from "firebase/firestore";
+import { doesReloadRequired } from "./helpers/chatgpt";
+declare const createToaster: (toasterType: string, message: string) => void;
 
 const MAIN_MENUITEM_ID: string = "1cademy-assitant-ctx-mt";
 const PARAPHRASE_MENUITEM_ID: string = `${MAIN_MENUITEM_ID}-paraphrase`;
 const IMPROVE_MENUITEM_ID: string = `${MAIN_MENUITEM_ID}-improve`;
 const L_REVIEW_MENUITEM_ID: string = `${MAIN_MENUITEM_ID}-l-review`;
+const SHORTEN_MENUITEM_ID: string = `${MAIN_MENUITEM_ID}-shorten`;
+const MCQ_MENUITEM_ID: string = `${MAIN_MENUITEM_ID}-mcq`;
+const SOCIALLY_MENUITEM_ID: string = `${MAIN_MENUITEM_ID}-socially`;
+const ANALYZE_MENUITEM_ID: string = `${MAIN_MENUITEM_ID}-analyze`;
+const TEACH_MENUITEM_ID: string = `${MAIN_MENUITEM_ID}-teach`;
 
-const tryParaphrasingUsingChatGPT = async (paragraph: string, type: "Improve" | "Paraphrase" | "Literature") => {
+type ICommandType = "Improve-CGPT" | "Literature-CGPT"
+  | "Paraphrase-CGPT" | "Shorten-CGPT" | "MCQ-CGPT"
+  | "Socially-Judge-CGPT" | "Analyze-CGPT" | "Teach-CGPT";
 
-  const menuItemType = type === "Improve" ? "Improve-CGPT" : (type === "Literature" ? "Literature-CGPT" : "Paraphrase-CGPT");
+const menuItems: {
+  [menuItemId: string]: [ICommandType, string]
+} = {
+  [PARAPHRASE_MENUITEM_ID]: ["Paraphrase-CGPT", "Paraphrase by ChatGPT"],
+  [IMPROVE_MENUITEM_ID]: ["Improve-CGPT", "Improve by ChatGPT"],
+  [L_REVIEW_MENUITEM_ID]: ["Literature-CGPT", "Review literature by ChatGPT"],
+  [SHORTEN_MENUITEM_ID]: ["Shorten-CGPT", "Shorten by ChatGPT"],
+  [MCQ_MENUITEM_ID]: ["MCQ-CGPT", "Generate MCQ by ChatGPT"],
+  [SOCIALLY_MENUITEM_ID]: ["Socially-Judge-CGPT", "Socially Judge by ChatGPT"],
+  [ANALYZE_MENUITEM_ID]: ["Analyze-CGPT", "Analyze by ChatGPT"],
+  [TEACH_MENUITEM_ID]: ["Teach-CGPT", "Teach stepwise by ChatGPT"]
+};
+
+const tryExecutionUsingChatGPT = async (paragraph: string, commandType: ICommandType) => {
   const [currentTab] = await chrome.tabs.query({
     active: true,
     currentWindow: true,
@@ -43,6 +65,21 @@ const tryParaphrasingUsingChatGPT = async (paragraph: string, type: "Improve" | 
 
   // adding this to stop memory leak
   const startedAt = new Date().getTime();
+
+  const reloadRequired = await doesReloadRequired(tabId);
+  if(reloadRequired) {
+    const chatgpt = await chrome.tabs.get(tabId);
+    await chrome.tabs.update(tabId, {url: chatgpt.url}); // reloading tab
+  }
+
+  // waiting until chatgpt tab is loaded
+  let isLoadingComplete = false;
+  while(!isLoadingComplete) {
+    const chatgpt = await chrome.tabs.get(tabId);
+    if(chatgpt.status === "complete") {
+      isLoadingComplete = true;
+    }
+  }
 
   const waitUntilChatGPTLogin = () => {
     return new Promise((resolve, reject) => {
@@ -86,74 +123,42 @@ const tryParaphrasingUsingChatGPT = async (paragraph: string, type: "Improve" | 
     },
     args: [
       paragraph,
-      type,
+      commandType,
       startedAt
     ],
-    func: (paragraph, type, startedIndex) => {
-      // add toast alert on chat gpt
-      const TOASTER_WRAP_ID = "one-toaster-wrap";
-
-      function createToaster(toastType: "Error" | "Success", message: string) {
-        // creating toaster wrap if it doesn't exists
-        if(!document.querySelector(`#${TOASTER_WRAP_ID}`)) {
-          const wrapDiv = document.createElement("div");
-          wrapDiv.setAttribute("id", TOASTER_WRAP_ID);
-          document.body.appendChild(wrapDiv);
-
-          // appending styling to website
-          const styleEl = document.createElement("style");
-          styleEl.innerHTML = `
-          @keyframes fadeInOut {
-            0% {opacity: 0;}
-            10% {opacity: 1;}
-            90% {opacity: 1;}
-            100% {opacity: 0;}
-          }
-
-          #${TOASTER_WRAP_ID} {
-            position: fixed;
-            top: 10px;
-            right: 10px;
-          }
-
-          #${TOASTER_WRAP_ID} .toasterItem {
-            color: #fff;
-            padding: 5px 10px;
-            border-radius: 2px;
-            opacity: 0;
-            animation: fadeInOut 3s;
-          }
-
-          #${TOASTER_WRAP_ID} .toasterItem.toast-success {
-            background-color: #16a34a;
-          }
-
-          #${TOASTER_WRAP_ID} .toasterItem.toast-error {
-            background-color: #be123c;
-          }
-          `;
-          document.body.appendChild(styleEl);
-        }
-
-        const toasterEl = document.getElementById(TOASTER_WRAP_ID);
-
-        // create toast message
-        const toasterDiv = document.createElement("div")
-        toasterDiv.setAttribute("class", `toasterItem ${toastType === "Error" ? "toast-error" : "toast-success"}`);
-        toasterDiv.innerHTML = `<p>${message}</p>`;
-        toasterEl!.append(toasterDiv);
-
-        setTimeout(() => {
-          toasterEl!.removeChild(toasterDiv);
-        }, 3100)
-      }
-      
+    func: (paragraph, commandType: ICommandType, startedIndex) => {
       // input paraphrase text in gpt
       const gptTextInput = document.querySelector("textarea");
       if(!gptTextInput) return;
-      gptTextInput.value = (
-        type === "Improve" ? "improve " : (type === "Paraphrase" ? "paraphrase " : "Literature review ")
-      ) + JSON.stringify(paragraph);
+      let commandText: string = "";
+      switch(commandType) {
+        case "Improve-CGPT":
+          commandText += "Improve the following sentences and explain what grammar, spelling, mistakes you have corrected, including an explanation of the rule in question? ";
+          break;
+        case "Paraphrase-CGPT":
+          commandText += "paraphrase ";
+          break;
+        case "Literature-CGPT":
+          commandText += "Comprehensively review the literature with citations on the following double-quoted text. Then generate the list of references you cited. ";
+          break;
+        case "Shorten-CGPT":
+          commandText += "Shorten the following sentences? Then, list the key points that you included and the peripheral points that you omitted in a bulleted list ";
+          break;
+        case "MCQ-CGPT":
+          commandText += "Generate a multiple-choice question about the following sentences, with one or more correct choices. Then, for each choice, separately write the word \"CORRECT\" or \"WRONG\" and explain why it is correct or wrong. ";
+          break;
+        case "Socially-Judge-CGPT":
+          commandText += "Is it socially appropriate to say the following sentences? ";
+          break;
+        case "Analyze-CGPT":
+          commandText += "Write a report on the following sentences. The report should include document statistics, vocabulary statistics, readability score, tone type (available options are Formal, Informal, Optimistic, Worried, Friendly, Curious, Assertive, Encouraging, Surprised, or Cooperative), intent type (available options are Inform, Describe, Convince, or Tell A Story), audience type (available options are General, Knowledgeable, or Expert), style type (available options are Formal or Informal), emotion type (available options are Mild or Strong), and domain type (available options are General, Academic, Business, Technical, Creative, or Casual). ";
+          break;
+        case "Teach-CGPT":
+          commandText += "List every concept that one can learn from the double-quoted text below. The list should include as many concepts as possible. The concepts should be of all types, including simple and complex, verbatim and inferential, ... concepts. Include the details and don't miss any concept. Each item in the list should include the title, followed by the explanation of that concept. ";
+          break;
+      }
+      commandText += JSON.stringify(paragraph);
+      gptTextInput.value = commandText;
       const gptInputParent = gptTextInput.parentElement;
       if(!gptInputParent) return;
       const gptActionBtn = gptInputParent.querySelector("button");
@@ -199,6 +204,40 @@ const tryParaphrasingUsingChatGPT = async (paragraph: string, type: "Improve" | 
         });
       }
 
+      // process output of command
+      const processOutput = (output: string) => {
+        // don't copy to clipboard
+        if(["Analyze-CGPT", "Socially-Judge-CGPT", "Teach-CGPT"].includes(commandType)) return;
+        if(commandType === "Improve-CGPT" || commandType === "Shorten-CGPT") {
+          let quote1 = output.indexOf("\"");
+          if(quote1 === -1) return output;
+          else quote1 += 1;
+          while(output[quote1-1] === "\\") {
+            quote1 = output.indexOf("\"", quote1);
+            if(quote1 === -1) return output;
+            else quote1 += 1;
+          }
+
+          let quote2 = output.indexOf("\"", quote1);
+          if(quote2 === -1) return output;
+          while(output[quote2-1] === "\\") {
+            quote2 = output.indexOf("\"", quote2);
+            if(quote2 === -1) return output;
+          }
+
+          if(quote1 > 100) return output; // if quote is after alot of letters
+          return output.substring(quote1, quote2);
+        } else if(commandType === "MCQ-CGPT") {
+          let questionStart = output.toLowerCase().indexOf("question:")
+          if(questionStart === -1) questionStart = 0;
+          else questionStart += "question:".length;
+          let questionEnd = output.indexOf("?")
+          if(questionEnd === -1) return output;
+          return output.substring(questionStart, questionEnd + 1).trim()
+        }
+        return output;
+      }
+
       // wait until api started generation
       return waitUntilProcessed(true).then(() => {
         // wait until chat gpt is processing/animating response
@@ -212,7 +251,11 @@ const tryParaphrasingUsingChatGPT = async (paragraph: string, type: "Improve" | 
               if(el) {
                 const paraphrased = el.innerText.trim();
                 try {
-                  navigator.clipboard.writeText(paraphrased);
+                  const output = processOutput(paraphrased);
+                  if(output) {
+                    navigator.clipboard.writeText(output);
+                    createToaster("Success", "Text is copied to clipboard.");
+                  }
                   
                   // adding event listener to like and dislike button
                   const likeSvgs = document.querySelectorAll("[d=\"M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3\"]");
@@ -230,8 +273,6 @@ const tryParaphrasingUsingChatGPT = async (paragraph: string, type: "Improve" | 
                       })
                     }
                   }
-
-                  createToaster("Success", "Text is copied to clipboard.")
                 } catch(e) {
                   createToaster("Error", "Please allow clipboard to ChatGPT.")
                 }
@@ -273,7 +314,7 @@ const tryParaphrasingUsingChatGPT = async (paragraph: string, type: "Improve" | 
   const batch = writeBatch(db);
   batch.set(actionRef, {
     url: fromUrl,
-    menuItem: menuItemType,
+    menuItem: commandType,
     text: paragraph,
     response: cGPTResponse,
     clientInfo: {
@@ -299,11 +340,12 @@ const tryParaphrasingUsingChatGPT = async (paragraph: string, type: "Improve" | 
 
 const onParaphraseRequest = (onClickData: chrome.contextMenus.OnClickData) => {
   const mItemId = String(onClickData.menuItemId);
-  if(![PARAPHRASE_MENUITEM_ID, IMPROVE_MENUITEM_ID, L_REVIEW_MENUITEM_ID].includes(mItemId)) return;
+  const menuItemIds = Object.keys(menuItems);
+  if(!menuItemIds.includes(mItemId)) return;
   
-  tryParaphrasingUsingChatGPT(
+  tryExecutionUsingChatGPT(
     String(onClickData.selectionText),
-    mItemId === IMPROVE_MENUITEM_ID ? "Improve" : (L_REVIEW_MENUITEM_ID === mItemId ? "Literature" : "Paraphrase")
+    menuItems[mItemId][0]
   );
 }
 
@@ -398,26 +440,15 @@ chrome.contextMenus.create({
   contexts: ["selection"]
 })
 
-chrome.contextMenus.create({
-  id: PARAPHRASE_MENUITEM_ID,
-  title: "Paraphrase by ChatGPT",
-  parentId: MAIN_MENUITEM_ID,
-  contexts: ["selection"]
-});
-
-chrome.contextMenus.create({
-  id: IMPROVE_MENUITEM_ID,
-  title: "Improve by ChatGPT",
-  parentId: MAIN_MENUITEM_ID,
-  contexts: ["selection"]
-});
-
-chrome.contextMenus.create({
-  id: L_REVIEW_MENUITEM_ID,
-  title: "Literature review by ChatGPT",
-  parentId: MAIN_MENUITEM_ID,
-  contexts: ["selection"]
-});
+for(const menuItemId in menuItems) {
+  const menuItem = menuItems[menuItemId];
+  chrome.contextMenus.create({
+    id: menuItemId,
+    title: menuItem[1],
+    parentId: MAIN_MENUITEM_ID,
+    contexts: ["selection"]
+  });
+}
 
 chrome.contextMenus.onClicked.addListener(onParaphraseRequest)
 
@@ -429,9 +460,22 @@ chrome.runtime.onMessage.addListener(onUnameDetection)
 // to detect like or dislike on response
 chrome.runtime.onMessage.addListener(onVoteDetection)
 
+const shortcutCommands: {
+  [commandName: string]: ICommandType
+} = {
+  "oa-paraphrase-cgpt": "Paraphrase-CGPT",
+  "oa-improve-cgpt": "Improve-CGPT",
+  // "oa-literature-cgpt": "Literature-CGPT",
+  "oa-shorten-cgpt": "Shorten-CGPT",
+  "oa-mcq-cgpt": "MCQ-CGPT",
+  // "oa-socially-judge-cgpt": "Socially-Judge-CGPT",
+  // "oa-analyze-cgpt": "Analyze-CGPT",
+  // "oa-teach-cgpt": "Teach-CGPT"
+};
+
 // shortcut handles
 chrome.commands.onCommand.addListener((command, tab) => {
-  if(!["oa-paraphrase-cgpt", "oa-improve-cgpt", "oa-literature-cgpt"].includes(command)) return;
+  if(!shortcutCommands.hasOwnProperty(command)) return;
 
   (async () => {
     const responses = await chrome.scripting.executeScript({
@@ -450,12 +494,6 @@ chrome.commands.onCommand.addListener((command, tab) => {
     }
     const selectedText = _responses[0].result;
 
-    if(command === "oa-paraphrase-cgpt") {
-      await tryParaphrasingUsingChatGPT(selectedText, "Paraphrase");
-    } else if(command === "oa-improve-cgpt") {
-      await tryParaphrasingUsingChatGPT(selectedText, "Improve");
-    } else if(command === "oa-literature-cgpt") {
-      await tryParaphrasingUsingChatGPT(selectedText, "Literature");
-    }
+    await tryExecutionUsingChatGPT(selectedText, shortcutCommands[command]);
   })()
 })
