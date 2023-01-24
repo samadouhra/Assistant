@@ -6,7 +6,7 @@ import ThumbDownIcon from '@mui/icons-material/ThumbDown';
 import ThumbDownOffAltIcon from '@mui/icons-material/ThumbDownOffAlt';
 import React, { useCallback, useEffect, useId, useMemo, useState } from "react";
 import { db } from "../lib/firebase";
-import { collection, doc, getDocs, onSnapshot, query, writeBatch } from "firebase/firestore";
+import { collection, doc, onSnapshot, query, writeBatch } from "firebase/firestore";
 import { fetchClientInfo } from "../helpers/chatgpt";
 import { TAssistantStat } from "../types/TAssistantStat";
 import { abbreviate } from "../helpers/common";
@@ -141,7 +141,7 @@ const FeedbackPopup = () => {
           >
              <Box sx={{
               paddingRight: "2px",
-              paddingTop: "4px",
+              paddingTop: "2px",
               display: "flex",
               fontFamily: "sans-serif"
             }}>{likes ? `${abbreviate(likes, 2, false, false)} ` : ""}</Box> {vote === true ? (<ThumbUpIcon />) : (<ThumbUpOffAltIcon />)}
@@ -164,12 +164,12 @@ const FeedbackPopup = () => {
       }}>
         {processing ? (
           <CircularProgress
-            size={68}
+            size={40}
             sx={{
               color: theme.palette.success.light,
               position: 'absolute',
-              top: -6,
-              left: -6,
+              top: 0,
+              left: 0,
               zIndex: 1,
             }}
           />
