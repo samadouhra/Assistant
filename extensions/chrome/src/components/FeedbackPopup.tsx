@@ -4,20 +4,33 @@ import ThumbUpIcon from '@mui/icons-material/ThumbUp';
 import ThumbUpOffAltIcon from '@mui/icons-material/ThumbUpOffAlt';
 import ThumbDownIcon from '@mui/icons-material/ThumbDown';
 import ThumbDownOffAltIcon from '@mui/icons-material/ThumbDownOffAlt';
-import React, { useCallback, useId, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useId, useMemo, useState } from "react";
 import { db } from "../lib/firebase";
-import { collection, doc, writeBatch } from "firebase/firestore";
+import { collection, doc, getDocs, onSnapshot, query, writeBatch } from "firebase/firestore";
 import { fetchClientInfo } from "../helpers/chatgpt";
+import { TAssistantStat } from "../types/TAssistantStat";
+import { abbreviate } from "../helpers/common";
 
 declare const createToaster: (toasterType: string, message: string) => void;
 
 const FeedbackPopup = () => {
   const [feedback, setFeedback] = useState("");
   const [hasError, setHasError] = useState<boolean>(false);
+  const [likes, setLikes] = useState<number>(0);
   const [processing, setProcessing] = useState<boolean>(false);
   const [vote, setVote] = useState<boolean|null>(null);
   const theme = useTheme();
   const feedbackId = useId();
+
+  useEffect(() => {
+    onSnapshot(query(collection(db, "assistantStats")), (snapshot) => {
+      if(snapshot.docs.length) {
+        const statDoc = snapshot.docs[0];
+        const statData = statDoc.data() as TAssistantStat;
+        setLikes(statData.likes || 0);
+      }
+    });
+  }, [setLikes]);
 
   const oneCademyIcon = useMemo(() => {
     const defaultUrl = "/images/icon.svg";
@@ -75,7 +88,8 @@ const FeedbackPopup = () => {
           sx={{
             backgroundColor: "#fff",
             "textarea": {
-              boxShadow: "none !important"
+              boxShadow: "none !important",
+              minHeight: "50px"
             },
             ".MuiInputBase-root": {
               padding: "10px 12px",
@@ -90,7 +104,7 @@ const FeedbackPopup = () => {
           value={feedback}
           onChange={(e) => { setFeedback(e.currentTarget.value); setHasError(false); }}
           id={feedbackId}
-          label="Your ideas..."
+          placeholder="Suggest improvements to 1Cademy extension."
           variant="outlined"
           multiline={true}
         />
@@ -118,12 +132,19 @@ const FeedbackPopup = () => {
         <Tooltip title={vote === true ? "Click to remove vote" : "Click to up vote"}>
           <Box
             sx={{
+              display: "flex",
+              fontFamily: "sans-serif",
               marginRight: "10px",
               color: theme.palette.success.main
             }}
             onClick={() => setVote((_vote) => _vote !== true ? true : null)}
           >
-            {vote === true ? (<ThumbUpIcon />) : (<ThumbUpOffAltIcon />)}
+             <Box sx={{
+              paddingRight: "2px",
+              paddingTop: "4px",
+              display: "flex",
+              fontFamily: "sans-serif"
+            }}>{likes ? `${abbreviate(likes, 2, false, false)} ` : ""}</Box> {vote === true ? (<ThumbUpIcon />) : (<ThumbUpOffAltIcon />)}
           </Box>
         </Tooltip>
         <Tooltip title={vote === false ? "Click to remove vote" : "Click to down vote"}>

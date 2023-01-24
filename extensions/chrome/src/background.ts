@@ -4,29 +4,39 @@ import { doesReloadRequired } from "./helpers/chatgpt";
 declare const createToaster: (toasterType: string, message: string) => void;
 
 const MAIN_MENUITEM_ID: string = "1cademy-assitant-ctx-mt";
-const PARAPHRASE_MENUITEM_ID: string = `${MAIN_MENUITEM_ID}-paraphrase`;
+const ANALYZE_MENUITEM_ID: string = `${MAIN_MENUITEM_ID}-analyze`;
+const ALTERNATIVE_MENUITEM_ID: string = `${MAIN_MENUITEM_ID}-alternative`;
+const CLARIFY_MENUITEM_ID: string = `${MAIN_MENUITEM_ID}-clarify`;
+const FACT_CHECK_MENUITEM_ID: string = `${MAIN_MENUITEM_ID}-fact-check`;
+const MCQ_MENUITEM_ID: string = `${MAIN_MENUITEM_ID}-mcq`;
 const IMPROVE_MENUITEM_ID: string = `${MAIN_MENUITEM_ID}-improve`;
 const L_REVIEW_MENUITEM_ID: string = `${MAIN_MENUITEM_ID}-l-review`;
+const PARAPHRASE_MENUITEM_ID: string = `${MAIN_MENUITEM_ID}-paraphrase`;
 const SHORTEN_MENUITEM_ID: string = `${MAIN_MENUITEM_ID}-shorten`;
-const MCQ_MENUITEM_ID: string = `${MAIN_MENUITEM_ID}-mcq`;
+const SIMPLIFY_MENUITEM_ID: string = `${MAIN_MENUITEM_ID}-simplify`;
 const SOCIALLY_MENUITEM_ID: string = `${MAIN_MENUITEM_ID}-socially`;
-const ANALYZE_MENUITEM_ID: string = `${MAIN_MENUITEM_ID}-analyze`;
 const TEACH_MENUITEM_ID: string = `${MAIN_MENUITEM_ID}-teach`;
 
-type ICommandType = "Improve-CGPT" | "Literature-CGPT"
-  | "Paraphrase-CGPT" | "Shorten-CGPT" | "MCQ-CGPT"
-  | "Socially-Judge-CGPT" | "Analyze-CGPT" | "Teach-CGPT";
+type ICommandType = "Analyze-CGPT" | "Alternative-viewpoints-CGPT"
+  | "Clarify-CGPT" | "Fact-check-CGPT" | "MCQ-CGPT"
+  | "Improve-CGPT" | "Literature-CGPT"
+  | "Paraphrase-CGPT" | "Shorten-CGPT" | "Simplify-CGPT"
+  | "Socially-Judge-CGPT" | "Teach-CGPT";
 
 const menuItems: {
   [menuItemId: string]: [ICommandType, string]
 } = {
-  [PARAPHRASE_MENUITEM_ID]: ["Paraphrase-CGPT", "Paraphrase by ChatGPT"],
+  [ANALYZE_MENUITEM_ID]: ["Analyze-CGPT", "Analyze by ChatGPT"],
+  [ALTERNATIVE_MENUITEM_ID]: ["Alternative-viewpoints-CGPT", "Alternative viewpoints by ChatGPT"],
+  [CLARIFY_MENUITEM_ID]: ["Clarify-CGPT", "Clarify by ChatGPT"],
+  [FACT_CHECK_MENUITEM_ID]: ["Fact-check-CGPT", "Fact check by ChatGPT"],
+  [MCQ_MENUITEM_ID]: ["MCQ-CGPT", "Generate MCQ by ChatGPT"],
   [IMPROVE_MENUITEM_ID]: ["Improve-CGPT", "Improve by ChatGPT"],
   [L_REVIEW_MENUITEM_ID]: ["Literature-CGPT", "Review literature by ChatGPT"],
+  [PARAPHRASE_MENUITEM_ID]: ["Paraphrase-CGPT", "Paraphrase by ChatGPT"],
   [SHORTEN_MENUITEM_ID]: ["Shorten-CGPT", "Shorten by ChatGPT"],
-  [MCQ_MENUITEM_ID]: ["MCQ-CGPT", "Generate MCQ by ChatGPT"],
+  [SIMPLIFY_MENUITEM_ID]: ["Simplify-CGPT", "Simplify by ChatGPT"],
   [SOCIALLY_MENUITEM_ID]: ["Socially-Judge-CGPT", "Socially Judge by ChatGPT"],
-  [ANALYZE_MENUITEM_ID]: ["Analyze-CGPT", "Analyze by ChatGPT"],
   [TEACH_MENUITEM_ID]: ["Teach-CGPT", "Teach stepwise by ChatGPT"]
 };
 
@@ -132,29 +142,41 @@ const tryExecutionUsingChatGPT = async (paragraph: string, commandType: ICommand
       if(!gptTextInput) return;
       let commandText: string = "";
       switch(commandType) {
-        case "Improve-CGPT":
-          commandText += "Improve the following sentences and explain what grammar, spelling, mistakes you have corrected, including an explanation of the rule in question? ";
+        case "Analyze-CGPT":
+          commandText += "Write a report on the following double-quoted text. The report should include document statistics, vocabulary statistics, readability score, tone type (available options are Formal, Informal, Optimistic, Worried, Friendly, Curious, Assertive, Encouraging, Surprised, or Cooperative), intent type (available options are Inform, Describe, Convince, or Tell A Story), audience type (available options are General, Knowledgeable, or Expert), style type (available options are Formal or Informal), emotion type (available options are Mild or Strong), and domain type (available options are General, Academic, Business, Technical, Creative, or Casual). ";
           break;
-        case "Paraphrase-CGPT":
-          commandText += "paraphrase ";
+        case "Alternative-viewpoints-CGPT":
+          commandText += "Alternative viewpoints to the following double-quoted text ";
+          break;
+        case "Clarify-CGPT":
+          commandText += "Clarify the following double-quoted text ";
+          break;
+        case "Fact-check-CGPT":
+          commandText += "Fact check the following double-quoted text ";
+          break;
+        case "MCQ-CGPT":
+          commandText += "Generate a multiple-choice question about the following double-quoted text, with one or more correct choices. Then, for each choice, separately write the word \"CORRECT\" or \"WRONG\" and explain why it is correct or wrong. ";
+          break;
+        case "Improve-CGPT":
+          commandText += "Improve the following double-quoted text and explain what grammar, spelling, mistakes you have corrected, including an explanation of the rule in question? ";
           break;
         case "Literature-CGPT":
           commandText += "Comprehensively review the literature with citations on the following double-quoted text. Then generate the list of references you cited. ";
           break;
-        case "Shorten-CGPT":
-          commandText += "Shorten the following sentences? Then, list the key points that you included and the peripheral points that you omitted in a bulleted list ";
+        case "Paraphrase-CGPT":
+          commandText += "Paraphrase the following double-quoted text ";
           break;
-        case "MCQ-CGPT":
-          commandText += "Generate a multiple-choice question about the following sentences, with one or more correct choices. Then, for each choice, separately write the word \"CORRECT\" or \"WRONG\" and explain why it is correct or wrong. ";
+        case "Shorten-CGPT":
+          commandText += "Shorten the following double-quoted text? Then, list the key points that you included and the peripheral points that you omitted in a bulleted list ";
+          break;
+        case "Simplify-CGPT":
+          commandText += "Explain the following double-quoted text for elementary school student ";
           break;
         case "Socially-Judge-CGPT":
-          commandText += "Is it socially appropriate to say the following sentences? ";
-          break;
-        case "Analyze-CGPT":
-          commandText += "Write a report on the following sentences. The report should include document statistics, vocabulary statistics, readability score, tone type (available options are Formal, Informal, Optimistic, Worried, Friendly, Curious, Assertive, Encouraging, Surprised, or Cooperative), intent type (available options are Inform, Describe, Convince, or Tell A Story), audience type (available options are General, Knowledgeable, or Expert), style type (available options are Formal or Informal), emotion type (available options are Mild or Strong), and domain type (available options are General, Academic, Business, Technical, Creative, or Casual). ";
+          commandText += "Is it socially appropriate to say the following double-quoted text? ";
           break;
         case "Teach-CGPT":
-          commandText += "List every concept that one can learn from the double-quoted text below. The list should include as many concepts as possible. The concepts should be of all types, including simple and complex, verbatim and inferential, ... concepts. Include the details and don't miss any concept. Each item in the list should include the title, followed by the explanation of that concept. ";
+          commandText += "Teach me step-by-step the following double-quoted text ";
           break;
       }
       commandText += JSON.stringify(paragraph);
