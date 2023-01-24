@@ -21,7 +21,7 @@ function createToaster (toastType, message) {
     #${TOASTER_WRAP_ID} {
       position: fixed;
       bottom: 10px;
-      margin-left: 50%;
+      margin-left: calc(50% + 130px);
       transform: translate(-50%, 0px);
     }
 
