@@ -25,7 +25,7 @@ exports.assistantFeedbacksListener = functions.firestore
       const vote: null | boolean = feedbackDoc?.vote || null;
       if (vote === true) {
         likes += 1;
-      } else {
+      } else if (vote === false) {
         dislikes += 1;
       }
 
