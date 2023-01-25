@@ -18,7 +18,7 @@
     "48": "images/icon-3x.png"
   },
   "manifest_version": 3,
-  "minimum_chrome_version": "18.0",
+  "minimum_chrome_version": "88.0",
   "name": "1Cademy Assistant Helper",
   "omnibox": {
     "keyword": "1cademy"
