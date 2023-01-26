@@ -146,7 +146,7 @@ const tryExecutionUsingChatGPT = async (paragraph: string, commandType: ICommand
           commandText += "Write a report on the following double-quoted text. The report should include document statistics, vocabulary statistics, readability score, tone type (available options are Formal, Informal, Optimistic, Worried, Friendly, Curious, Assertive, Encouraging, Surprised, or Cooperative), intent type (available options are Inform, Describe, Convince, or Tell A Story), audience type (available options are General, Knowledgeable, or Expert), style type (available options are Formal or Informal), emotion type (available options are Mild or Strong), and domain type (available options are General, Academic, Business, Technical, Creative, or Casual). ";
           break;
         case "Alternative-viewpoints-CGPT":
-          commandText += "Alternative viewpoints to the following double-quoted text ";
+          commandText += "Generate alternative view points to the following double-quoted text, and provided sources supporting these alternative view points ";
           break;
         case "Clarify-CGPT":
           commandText += "Clarify the following double-quoted text ";
