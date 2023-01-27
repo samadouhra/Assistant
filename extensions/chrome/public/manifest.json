@@ -8,9 +8,9 @@
       "19": "images/icon.png",
       "38": "images/icon-2x.png"
     },
-    "default_title": "1Cademy Assistant Helper"
+    "default_title": "1Cademy Assistant"
   },
-  "description": "1Cademy Assistant Helper allows users to paraphrase or improve content using ChatGPT",
+  "description": "The 1Cademy extension simplifies the use of OpenAI ChatGPT for researchers, instructors, and students by providing easy access to the model's capabilities through simple text selection and right-clicking, or by using keyboard shortcuts.",
   "icons": {
     "128": "images/icon-8x.png",
     "16": "images/icon.png",
