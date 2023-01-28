@@ -19,6 +19,7 @@ const FeedbackPopup = () => {
   const [likes, setLikes] = useState<number>(0);
   const [processing, setProcessing] = useState<boolean>(false);
   const [vote, setVote] = useState<boolean|null>(null);
+  const [loaded, setLoaded] = useState<boolean>(false);
   const theme = useTheme();
   const feedbackId = useId();
 
@@ -31,6 +32,26 @@ const FeedbackPopup = () => {
       }
     });
   }, [setLikes]);
+
+  // to load current vote
+  useEffect(() => {
+    const onVoteMessage = async (message: string) => {
+      let vote: boolean | null = null;
+      try {
+        vote = JSON.parse(message.replace(/^current-vote-/, ""));
+      } catch(e) {}
+      setVote(vote);
+      setLoaded(true);
+    };
+    chrome.runtime.sendMessage(chrome.runtime.id || process.env.EXTENSION_ID, "current-vote");
+    chrome.runtime.onMessage.addListener(onVoteMessage);
+    return () => chrome.runtime.onMessage.removeListener(onVoteMessage);
+  }, [setVote])
+
+  const onVote = useCallback((userVote: boolean | null) => {
+    setVote(userVote);
+    chrome.runtime.sendMessage(chrome.runtime.id || process.env.EXTENSION_ID, `set-vote-${JSON.stringify(userVote)}`);
+  }, [setVote])
 
   const oneCademyIcon = useMemo(() => {
     const defaultUrl = "/images/icon.svg";
@@ -58,7 +79,6 @@ const FeedbackPopup = () => {
           ip: clientInfo?.ip || "",
           uag: clientInfo?.uag || ""
         },
-        vote,
         createdAt: new Date()
       })
       await batch.commit();
@@ -137,7 +157,11 @@ const FeedbackPopup = () => {
               marginRight: "10px",
               color: theme.palette.success.main
             }}
-            onClick={() => setVote((_vote) => _vote !== true ? true : null)}
+            onClick={() => setVote((_vote) => {
+              const __vote = _vote !== true ? true : null;
+              onVote(__vote);
+              return __vote;
+            })}
           >
              <Box sx={{
               paddingRight: "2px",
@@ -152,7 +176,11 @@ const FeedbackPopup = () => {
             sx={{
               color: theme.palette.error.main
             }}
-            onClick={() => setVote((_vote) => _vote !== false ? false : null)}
+            onClick={() => setVote((_vote) => {
+              const __vote = _vote !== false ? false : null;
+              onVote(__vote);
+              return __vote;
+            })}
           >
             {vote === false ? (<ThumbDownIcon />) : (<ThumbDownOffAltIcon />)}
           </Box>

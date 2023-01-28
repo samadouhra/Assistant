@@ -1,6 +1,6 @@
 import { db } from "./lib/firebase";
-import { doc, writeBatch, collection } from "firebase/firestore";
-import { doesReloadRequired } from "./helpers/chatgpt";
+import { doc, writeBatch, collection, getDocs, query, where, Timestamp } from "firebase/firestore";
+import { doesReloadRequired, fetchClientInfo } from "./helpers/chatgpt";
 declare const createToaster: (toasterType: string, message: string) => void;
 
 const MAIN_MENUITEM_ID: string = "1cademy-assitant-ctx-mt";
@@ -134,9 +134,10 @@ const tryExecutionUsingChatGPT = async (paragraph: string, commandType: ICommand
     args: [
       paragraph,
       commandType,
-      startedAt
+      startedAt,
+      chrome.runtime.id
     ],
-    func: (paragraph, commandType: ICommandType, startedIndex) => {
+    func: (paragraph, commandType: ICommandType, startedIndex, extensionId: string) => {
       // input paraphrase text in gpt
       const gptTextInput = document.querySelector("textarea");
       if(!gptTextInput) return;
@@ -287,11 +288,11 @@ const tryExecutionUsingChatGPT = async (paragraph: string, commandType: ICommand
                     const lastDislikeButton = disLikeSvgs[disLikeSvgs.length - 1].closest("button");
                     if(lastLikeButton && lastDislikeButton) {
                       lastLikeButton.addEventListener("click", () => {
-                        chrome.runtime.sendMessage("oa-gpt-like-clicked-" + startedIndex)
+                        chrome.runtime.sendMessage(extensionId, "oa-gpt-like-clicked-" + startedIndex)
                       })
 
                       lastDislikeButton.addEventListener("click", () => {
-                        chrome.runtime.sendMessage("oa-gpt-dislike-clicked-" + startedIndex)
+                        chrome.runtime.sendMessage(extensionId, "oa-gpt-dislike-clicked-" + startedIndex)
                       })
                     }
                   }
@@ -518,4 +519,98 @@ chrome.commands.onCommand.addListener((command, tab) => {
 
     await tryExecutionUsingChatGPT(selectedText, shortcutCommands[command]);
   })()
+})
+
+// sending current vote to Extension UI
+chrome.runtime.onMessage.addListener((command, context) => {
+  const tabId = context?.tab?.id || 0;
+  if(!["current-vote"].includes(command)) {
+    return;
+  }
+
+  return (async() => {
+    let currentVote: boolean | null;
+    const storageValues = await chrome.storage.local.get(["current-vote"]);
+    if([undefined, null].includes(storageValues["current-vote"])) {
+      currentVote = null;
+    } else {
+      currentVote = !!storageValues["current-vote"];
+    }
+    await chrome.tabs.sendMessage(tabId, "current-vote-" + JSON.stringify(currentVote))
+  })();
+})
+
+// set vote to firebase
+chrome.runtime.onMessage.addListener((command: string) => {
+  if(!String(command).startsWith("set-vote-")) {
+    return;
+  }
+
+  (async () => {
+    let voterIdentifier = "";
+    const storageValues = await chrome.storage.local.get([
+      "voterIdentifier"
+    ]);
+    if(storageValues.voterIdentifier) {
+      voterIdentifier = storageValues.voterIdentifier;
+    } else {
+      voterIdentifier = doc(
+        collection(db, "assistantVoteLogs")
+      ).id
+      await chrome.storage.local.set({
+        voterIdentifier
+      });
+    }
+  
+    let vote: null | boolean = null;
+    try {
+      vote = JSON.parse(String(command).replace(/^set\-vote\-/, ""));
+    } catch(e) {}
+  
+    return (async() => {
+      await chrome.storage.local.set({
+        "current-vote": vote
+      });
+  
+      const batch = writeBatch(db);
+      const assistantVotes = await getDocs(
+        query(
+          collection(db, "assistantVotes"),
+          where("voter", "==", voterIdentifier)
+        )
+      );
+      if(assistantVotes.docs.length) {
+        const assistantVoteRef = doc(collection(db, "assistantVotes"), assistantVotes.docs[0].id);
+        batch.update(assistantVoteRef, {
+          vote,
+          updatedAt: Timestamp.fromDate(new Date())
+        })
+      } else {
+        const clientInfo = await fetchClientInfo();
+        const assistantVoteRef = doc(collection(db, "assistantVotes"));
+        batch.set(assistantVoteRef, {
+          voter: voterIdentifier,
+          vote,
+          clientInfo: {
+            country: clientInfo?.loc || "",
+            ip: clientInfo?.ip || "",
+            uag: clientInfo?.uag || ""
+          },
+          createdAt: Timestamp.fromDate(new Date()),
+          updatedAt: Timestamp.fromDate(new Date())
+        })
+      }
+
+      batch.set(
+        doc(collection(db, "assistantVoteLogs")),
+        {
+          voter: voterIdentifier,
+          vote,
+          createdAt: Timestamp.fromDate(new Date())
+        }
+      );
+
+      await batch.commit();
+    })();
+  })();
 })
