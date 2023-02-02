@@ -3,6 +3,7 @@ import { Timestamp } from "firebase/firestore";
 export type TUserPoint = {
   documentId?: string;
   uname: string;
-  points: number;
+  achievedPoints: number;
+  totalPoints: number;
   createdAt: Timestamp | Date;
 }

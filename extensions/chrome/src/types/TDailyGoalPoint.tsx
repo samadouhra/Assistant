@@ -4,7 +4,8 @@ export type TDailyGoalPoint = {
   documentId?: string;
   goal: string;
   uname: string;
-  points: number;
+  achievedPoints: number;
+  totalPoints: number;
   day: string; // YYYY-MM-DD
   createdAt: Timestamp | Date;
 }

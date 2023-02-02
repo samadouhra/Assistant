@@ -1,0 +1,1 @@
+export type THourPreference = "Work" | "Personal";

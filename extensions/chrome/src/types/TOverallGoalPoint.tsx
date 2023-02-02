@@ -4,6 +4,7 @@ export type TOverallGoalPoint = {
   documentId?: string;
   goal: string;
   uname: string;
-  points: number;
+  achievedPoints: number;
+  totalPoints: number;
   createdAt: Timestamp | Date;
 }
