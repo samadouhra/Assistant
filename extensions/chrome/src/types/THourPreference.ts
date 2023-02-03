@@ -1,1 +1,1 @@
-export type THourPreference = "Work" | "Personal";
+export type THourPreference = "Work" | "Personal" | "Study";

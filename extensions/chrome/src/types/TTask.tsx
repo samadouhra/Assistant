@@ -2,7 +2,7 @@ import { Timestamp } from "firebase/firestore";
 import { THourPreference } from "./THourPreference";
 
 export type TTaskType = "Smart" | "Conventional" | "GoogleMeeting";
-export type TTaskStatus = "Pending" | "In progress" | "Done" | "Unattained" | "Canceled";
+export type TTaskStatus = "Pending" | "Done" | "Unattained";
 
 export type TTask = {
   documentId?: string;
@@ -17,5 +17,6 @@ export type TTask = {
   durtation: number; // in seconds
   progress: number;
   uname: string;
+  deleted?: boolean;
   createdAt: Timestamp | Date;
 }

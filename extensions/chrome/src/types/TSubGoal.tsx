@@ -1,6 +1,6 @@
 import { Timestamp } from "firebase/firestore";
 
-export type TSubGoalStatus = "Not Started" | "In Progress" | "On Hold" | "Accomplished";
+export type TSubGoalStatus = "Not Started" | "Accomplished" | "NotAccomplished";
 export type TSubGoalType = "SmartGoal" | "Conventional";
 
 export type TSubGoal = {
