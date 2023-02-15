@@ -109,10 +109,13 @@ const sendPromptAndReceiveResponse = async (gptTabId: number, prompt: string) =>
       if(!gptActionBtn) return false;
       gptActionBtn.click();
 
+      const pInstances = document.querySelectorAll("p");
+      const oldLastInstance: any = pInstances.length > 1 ? pInstances[pInstances.length - 2] : pInstances?.[1];
+      
       const waitUntilProcessed = (killOnGeneration: boolean) => {
         const pInstances = document.querySelectorAll("p");
         const lastInstance: any = pInstances.length > 1 ? pInstances[pInstances.length - 2] : pInstances?.[1];
-        
+
         return new Promise((resolve, reject) => {
           const checker = (n: number = 0) => {
             const buttons = document.querySelectorAll("form button");
@@ -122,10 +125,14 @@ const sendPromptAndReceiveResponse = async (gptTabId: number, prompt: string) =>
               el.innerHTML = buttons[0].innerHTML;
 
               const buttonTitle = el.innerText.trim();
-              const cond = killOnGeneration ? (buttonTitle === "Stop generating" || buttonTitle === "Regenerate response") : buttonTitle !== "Stop generating";
+              const cond = killOnGeneration ? (buttonTitle === "Stop generating" || buttonTitle === "Regenerate response") : buttonTitle !== "Stop generating" && buttonTitle !== "···";
               if(cond) {
                 // killing recurrsion
-                setTimeout(() => resolve(true), 1000);
+                if(killOnGeneration) {
+                  resolve(true);
+                } else {
+                  setTimeout(() => resolve(true), 1000);
+                }
                 return;
               }
 
@@ -143,8 +150,12 @@ const sendPromptAndReceiveResponse = async (gptTabId: number, prompt: string) =>
                 lastInstance,
                 _lastInstance
               }); */
-              if(lastInstance !== _lastInstance) {
+              if(lastInstance !== _lastInstance || oldLastInstance !== lastInstance) {
                 resolve(true);
+                return;
+              } else {
+                reject("Stopped due to memory leak");
+                return false;
               }
             }
             
