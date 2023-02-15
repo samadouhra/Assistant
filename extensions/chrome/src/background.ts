@@ -188,42 +188,55 @@ const tryExecutionUsingChatGPT = async (paragraph: string, commandType: ICommand
       if(!gptActionBtn) return;
       gptActionBtn.click();
 
-      // adding this to stop memory leak
-      const startedAt = new Date().getTime();
-
       const waitUntilProcessed = (killOnGeneration: boolean) => {
+        const pInstances = document.querySelectorAll("p");
+        const lastInstance: any = pInstances.length > 1 ? pInstances[pInstances.length - 2] : pInstances?.[1];
+        
         return new Promise((resolve, reject) => {
-          const checker = () => {
+          const checker = (n: number = 0) => {
             const buttons = document.querySelectorAll("form button");
-            if(buttons.length) {
+            if(buttons.length && (buttons[0] as HTMLElement).innerText.trim() !== "") {
               // removing html from button content to extract text
               const el = document.createElement("div");
               el.innerHTML = buttons[0].innerHTML;
 
               const buttonTitle = el.innerText.trim();
-              const cond = killOnGeneration ? buttonTitle === "Stop generating" : buttonTitle !== "Stop generating";
+              const cond = killOnGeneration ? (buttonTitle === "Stop generating" || buttonTitle === "Regenerate response") : buttonTitle !== "Stop generating";
               if(cond) {
                 // killing recurrsion
-                resolve(true);
+                setTimeout(() => resolve(true), 1000);
                 return;
               }
 
               // checking memory leak
-              const currentTime = new Date().getTime();
-              const timeDiff = (startedAt - currentTime) / 1000;
-              if(timeDiff >= 300) {
+              if(n >= 300) {
                 reject("Stopped due to memory leak");
-                return; // don't run recursion
+                return false; // don't run recursion
+              }
+              // console.log("Saw generation", killOnGeneration);
+              // this condition will help for faster plan if stop generation doesn't show up
+            } else if(n >= 25) {
+              const pInstances = document.querySelectorAll("p");
+              const _lastInstance: any = pInstances.length > 1 ? pInstances[pInstances.length - 2] : pInstances?.[1];
+              /* console.log("Not saw generation", killOnGeneration, {
+                lastInstance,
+                _lastInstance
+              }); */
+              if(lastInstance !== _lastInstance) {
+                resolve(true);
+              } else {
+                reject("Stopped due to memory leak");
+                return false;
               }
             }
             
             // if still generating run after a time
             setTimeout(() => {
-              checker();
+              checker(n+1);
             }, 200)
           }
 
-          checker();
+          checker(0);
         });
       }
 
