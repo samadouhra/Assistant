@@ -134,15 +134,15 @@ const sendPromptAndReceiveResponse = async (gptTabId: number, prompt: string) =>
                 reject("Stopped due to memory leak");
                 return false; // don't run recursion
               }
-              console.log("Saw generation", killOnGeneration);
+              // console.log("Saw generation", killOnGeneration);
               // this condition will help for faster plan if stop generation doesn't show up
             } else if(n >= 25) {
               const pInstances = document.querySelectorAll("p");
               const _lastInstance: any = pInstances.length > 1 ? pInstances[pInstances.length - 2] : pInstances?.[1];
-              console.log("Not saw generation", killOnGeneration, {
+              /* console.log("Not saw generation", killOnGeneration, {
                 lastInstance,
                 _lastInstance
-              });
+              }); */
               if(lastInstance !== _lastInstance) {
                 resolve(true);
               }
@@ -341,8 +341,8 @@ export const recallGradingBot = async (gptTabId: number, recallTabId: number) =>
 
   const recallPhraseGrades: boolean[] = [];
   for(const recallPhrase of recallPhrases) {
-    let prompt: string = `Is this phrase "${recallResponse}" mentioned in the following triple-quoted text? only respond YES or NO with no explanations`;
-    prompt += `'''\n${recallPhrase}\n'''`;
+    let prompt: string = `Is the phrase "${recallPhrase}" mentioned in the following triple-quoted text? Only respond YES or NO with no explanations.`;
+    prompt += `'''\n${recallResponse}\n'''`;
 
     const response = await sendPromptAndReceiveResponse(gptTabId, prompt);
     if(String(response).toLowerCase().includes("yes")) {
