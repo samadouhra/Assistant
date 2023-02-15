@@ -7,7 +7,8 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "build": "webpack --config webpack/webpack.config.js",
     "dev": "webpack --watch --config webpack/webpack.config.js",
-    "start": "webpack serve --config webpack/webpack.config.js --port 3000"
+    "start": "webpack serve --config webpack/webpack.config.js --port 3000",
+    "deploy": "firebase deploy --ignore-missing-functions"
   },
   "author": "",
   "license": "ISC",

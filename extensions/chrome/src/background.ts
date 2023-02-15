@@ -145,43 +145,43 @@ const tryExecutionUsingChatGPT = async (paragraph: string, commandType: ICommand
       let commandText: string = "";
       switch(commandType) {
         case "Analyze-CGPT":
-          commandText += "Write a report on the following double-quoted text. The report should include document statistics, vocabulary statistics, readability score, tone type (available options are Formal, Informal, Optimistic, Worried, Friendly, Curious, Assertive, Encouraging, Surprised, or Cooperative), intent type (available options are Inform, Describe, Convince, or Tell A Story), audience type (available options are General, Knowledgeable, or Expert), style type (available options are Formal or Informal), emotion type (available options are Mild or Strong), and domain type (available options are General, Academic, Business, Technical, Creative, or Casual). ";
+          commandText += "Write a report on the following triple-quoted text. The report should include document statistics, vocabulary statistics, readability score, tone type (available options are Formal, Informal, Optimistic, Worried, Friendly, Curious, Assertive, Encouraging, Surprised, or Cooperative), intent type (available options are Inform, Describe, Convince, or Tell A Story), audience type (available options are General, Knowledgeable, or Expert), style type (available options are Formal or Informal), emotion type (available options are Mild or Strong), and domain type (available options are General, Academic, Business, Technical, Creative, or Casual). ";
           break;
         case "Alternative-viewpoints-CGPT":
-          commandText += "Generate alternative view points to the following double-quoted text, and provided sources supporting these alternative view points ";
+          commandText += "Generate alternative view points to the following triple-quoted text, and support each view-point with appreciate citations. At the end of your response print a bibliography section for all the references cited. ";
           break;
         case "Clarify-CGPT":
-          commandText += "Clarify the following double-quoted text ";
+          commandText += "Clarify the following triple-quoted text ";
           break;
         case "Fact-check-CGPT":
-          commandText += "Fact check the following double-quoted text ";
+          commandText += "Fact check the following triple-quoted text ";
           break;
         case "MCQ-CGPT":
-          commandText += "Generate a multiple-choice question about the following double-quoted text, with one or more correct choices. Then, for each choice, separately write the word \"CORRECT\" or \"WRONG\" and explain why it is correct or wrong. ";
+          commandText += "Generate a multiple-choice question about the following triple-quoted text, with one or more correct choices. Then, for each choice, separately write the word \"CORRECT\" or \"WRONG\" and explain why it is correct or wrong. ";
           break;
         case "Improve-CGPT":
-          commandText += "Improve the following double-quoted text and explain what grammar, spelling, mistakes you have corrected, including an explanation of the rule in question? ";
+          commandText += "Improve the following triple-quoted text and explain what grammar, spelling, mistakes you have corrected, including an explanation of the rule in question? ";
           break;
         case "Literature-CGPT":
-          commandText += "Comprehensively review the literature with citations on the following double-quoted text. Then generate the list of references you cited. ";
+          commandText += "Comprehensively review the literature with citations on the following triple-quoted text. Then generate the list of references you cited. ";
           break;
         case "Paraphrase-CGPT":
-          commandText += "Paraphrase the following double-quoted text ";
+          commandText += "Paraphrase the following triple-quoted text ";
           break;
         case "Shorten-CGPT":
-          commandText += "Shorten the following double-quoted text? Then, list the key points that you included and the peripheral points that you omitted in a bulleted list ";
+          commandText += "Shorten the following triple-quoted text? Then, list the key points that you included and the peripheral points that you omitted in a bulleted list ";
           break;
         case "Simplify-CGPT":
-          commandText += "Explain the following double-quoted text for elementary school student ";
+          commandText += "Explain the following triple-quoted text for elementary school student ";
           break;
         case "Socially-Judge-CGPT":
-          commandText += "Is it socially appropriate to say the following double-quoted text? ";
+          commandText += "Is it socially appropriate to say the following triple-quoted text? ";
           break;
         case "Teach-CGPT":
-          commandText += "Teach me step-by-step the following double-quoted text ";
+          commandText += "Teach me step-by-step the following triple-quoted text ";
           break;
       }
-      commandText += JSON.stringify(paragraph);
+      commandText += `'''\n${paragraph}\n'''`;
       gptTextInput.value = commandText;
       const gptInputParent = gptTextInput.parentElement;
       if(!gptInputParent) return;
@@ -189,42 +189,63 @@ const tryExecutionUsingChatGPT = async (paragraph: string, commandType: ICommand
       if(!gptActionBtn) return;
       gptActionBtn.click();
 
-      // adding this to stop memory leak
-      const startedAt = new Date().getTime();
-
+      const pInstances = document.querySelectorAll("p");
+      const oldLastInstance: any = pInstances.length > 1 ? pInstances[pInstances.length - 2] : pInstances?.[1];
+      
       const waitUntilProcessed = (killOnGeneration: boolean) => {
+        const pInstances = document.querySelectorAll("p");
+        const lastInstance: any = pInstances.length > 1 ? pInstances[pInstances.length - 2] : pInstances?.[1];
+
         return new Promise((resolve, reject) => {
-          const checker = () => {
+          const checker = (n: number = 0) => {
             const buttons = document.querySelectorAll("form button");
-            if(buttons.length) {
+            if(buttons.length && (buttons[0] as HTMLElement).innerText.trim() !== "") {
               // removing html from button content to extract text
               const el = document.createElement("div");
               el.innerHTML = buttons[0].innerHTML;
 
               const buttonTitle = el.innerText.trim();
-              const cond = killOnGeneration ? buttonTitle === "Stop generating" : buttonTitle !== "Stop generating";
+              const cond = killOnGeneration ? (buttonTitle === "Stop generating" || buttonTitle === "Regenerate response") : buttonTitle !== "Stop generating" && buttonTitle !== "···";
               if(cond) {
                 // killing recurrsion
-                resolve(true);
+                if(killOnGeneration) {
+                  resolve(true);
+                } else {
+                  setTimeout(() => resolve(true), 1000);
+                }
                 return;
               }
 
               // checking memory leak
-              const currentTime = new Date().getTime();
-              const timeDiff = (startedAt - currentTime) / 1000;
-              if(timeDiff >= 300) {
+              if(n >= 300) {
                 reject("Stopped due to memory leak");
-                return; // don't run recursion
+                return false; // don't run recursion
+              }
+              // console.log("Saw generation", killOnGeneration);
+              // this condition will help for faster plan if stop generation doesn't show up
+            } else if(n >= 25) {
+              const pInstances = document.querySelectorAll("p");
+              const _lastInstance: any = pInstances.length > 1 ? pInstances[pInstances.length - 2] : pInstances?.[1];
+              /* console.log("Not saw generation", killOnGeneration, {
+                lastInstance,
+                _lastInstance
+              }); */
+              if(lastInstance !== _lastInstance || oldLastInstance !== lastInstance) {
+                resolve(true);
+                return;
+              } else {
+                reject("Stopped due to memory leak");
+                return false;
               }
             }
             
             // if still generating run after a time
             setTimeout(() => {
-              checker();
+              checker(n+1);
             }, 200)
           }
 
-          checker();
+          checker(0);
         });
       }
 
@@ -262,10 +283,13 @@ const tryExecutionUsingChatGPT = async (paragraph: string, commandType: ICommand
         return output;
       }
 
+      console.log("waitUntilProcessed started");
       // wait until api started generation
       return waitUntilProcessed(true).then(() => {
+        console.log("waitUntilProcessed true completed");
         // wait until chat gpt is processing/animating response
         return waitUntilProcessed(false).then(() => {
+          console.log("waitUntilProcessed false completed");
           const gptParagraphs = document.querySelectorAll("p");
           if(gptParagraphs.length > 1) {
             const lastChatItem = gptParagraphs[gptParagraphs.length - 2];
@@ -276,6 +300,7 @@ const tryExecutionUsingChatGPT = async (paragraph: string, commandType: ICommand
                 const paraphrased = el.innerText.trim();
                 try {
                   const output = processOutput(paraphrased);
+                  console.log("output of prompt", output);
                   if(output) {
                     navigator.clipboard.writeText(output);
                     createToaster("Success", "Text is copied to clipboard.");
