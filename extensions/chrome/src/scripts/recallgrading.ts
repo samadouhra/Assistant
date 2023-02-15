@@ -6,7 +6,7 @@ type RecallGradeProcess = {
   gptTabId: number
 }
 
-const EXP_GRADING_URL = "http://localhost:3000/Activities/FreeRecallGrading";
+const EXP_GRADING_URL = "http://1cademy.us/Activities/FreeRecallGrading";
 
 const START_RECALL_GRADING = "start-recall-grading";
 const STOP_RECALL_GRADING = "stop-recall-grading"
@@ -345,7 +345,7 @@ export const recallGradingBot = async (gptTabId: number, recallTabId: number) =>
     prompt += `'''\n${recallPhrase}\n'''`;
 
     const response = await sendPromptAndReceiveResponse(gptTabId, prompt);
-    if(String(response).includes("YES")) {
+    if(String(response).toLowerCase().includes("yes")) {
       recallPhraseGrades.push(true);
     } else {
       recallPhraseGrades.push(false);
