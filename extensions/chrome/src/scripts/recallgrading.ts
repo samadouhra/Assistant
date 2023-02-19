@@ -1,4 +1,5 @@
 import { doesReloadRequired } from "../helpers/chatgpt";
+import { delay } from "../helpers/common";
 
 type RecallGradeProcess = {
   status: "notStarted" | "started" | "completed",
@@ -23,6 +24,61 @@ export const stopRecallBot = async () => {
       status: "notStarted"
     } as RecallGradeProcess
   });
+  await chrome.runtime.sendMessage(chrome.runtime.id, "recall-status-notStarted");
+}
+
+const checkIfGPTHasError = async (gptTabId: number) => {
+  const responses = await chrome.scripting.executeScript({
+    target: {
+      tabId: gptTabId
+    },
+    func: () => {
+      const btns = document.querySelectorAll("main button");
+      return String((btns?.[btns.length - 1]?.parentElement as HTMLElement)?.innerText).includes("error")
+    }
+  })
+  return !!responses[0].result;
+}
+
+const addTimerToGPT = async (gptTabId: number, time: number) => {
+  await chrome.scripting.executeScript({
+    target: {
+      tabId: gptTabId
+    },
+    args: [time],
+    func: (time: number) => {
+      const TIMER_GPT = "timer-gpt";
+      let timerEl = document.getElementById(TIMER_GPT);
+      if(!timerEl) {
+        timerEl = document.createElement("div")
+        timerEl.setAttribute("id", TIMER_GPT)
+        document.body.appendChild(timerEl);
+        const timerStyleEl = document.createElement("style");
+        timerStyleEl.innerHTML = `
+        #${TIMER_GPT} {
+          position: fixed;
+          bottom: 10px;
+          right: 10px;
+          font-size: 16px;
+        }
+        `;
+        document.body.appendChild(timerStyleEl);
+      }
+      const timer = (seconds: number) => {
+        console.log("timer seconds", seconds);
+        if(seconds) {
+          timerEl!.innerHTML = String(seconds);
+          setTimeout(() => {
+            timer(seconds - 1);
+          }, 1000)
+        } else {
+          timerEl!.innerHTML = "";
+        }
+      }
+
+      timer(Math.floor(time / 1000));
+    }
+  })
 }
 
 const recallSubmitChecker = async (n: number = 0, recallTabId: number) => {
@@ -289,14 +345,33 @@ const isItSchemaPage = async(recallTabId: number): Promise<boolean> => {
 
 export const recallGradingBot = async (gptTabId: number, recallTabId: number) => {
   // response from participant
+  console.log("recallGradingBot started")
 
   const storageValues = await chrome.storage.local.get(["recallgrading"]);
 
-  const gptTab = await chrome.tabs.get(gptTabId);
-  const recallTab = await chrome.tabs.get(recallTabId);
+  let gptTab: chrome.tabs.Tab;;
+  let recallTab: chrome.tabs.Tab;
+
+  try {
+    gptTab = await chrome.tabs.get(gptTabId);
+  } catch(e) {
+    gptTab = await chrome.tabs.create({
+      url: "https://chat.openai.com/chat"
+    })
+    gptTabId = gptTab.id!;
+  }
+
+  try {
+    recallTab = await chrome.tabs.get(recallTabId);
+  } catch(e) {
+    recallTab = await chrome.tabs.create({
+      url: EXP_GRADING_URL
+    })
+    recallTabId = recallTab.id!;
+  }
 
   // if someone closed one of these tabs between bot running
-  if(!gptTab.id || !recallTab.id || storageValues?.recallgrading?.status === "notStarted") {
+  if(storageValues?.recallgrading?.status === "notStarted") {
     await stopRecallBot();
     return;
   }
@@ -308,7 +383,7 @@ export const recallGradingBot = async (gptTabId: number, recallTabId: number) =>
   // document.querySelector("#recall-submit")
 
   // focusing recall grading tab
-  await chrome.tabs.update(recallTab.id, {
+  await chrome.tabs.update(recallTab.id!, {
     active: true
   })
 
@@ -352,14 +427,32 @@ export const recallGradingBot = async (gptTabId: number, recallTabId: number) =>
 
   const recallPhraseGrades: boolean[] = [];
   for(const recallPhrase of recallPhrases) {
-    let prompt: string = `Is the phrase "${recallPhrase}" mentioned in the following triple-quoted text? Only respond YES or NO with no explanations.`;
-    prompt += `'''\n${recallResponse}\n'''`;
+    let isError = true;
+    while(isError) {
+      let prompt: string = `Is the phrase "${recallPhrase}" mentioned in the following triple-quoted text? Only respond YES or NO with no explanations.`;
+      prompt += `'''\n${recallResponse}\n'''`;
 
-    const response = await sendPromptAndReceiveResponse(gptTabId, prompt);
-    if(String(response).toLowerCase().includes("yes")) {
-      recallPhraseGrades.push(true);
-    } else {
-      recallPhraseGrades.push(false);
+      const response = await sendPromptAndReceiveResponse(gptTabId, prompt);
+      isError = await checkIfGPTHasError(gptTabId);
+      
+      if(isError) {
+        const chatgpt = await chrome.tabs.get(gptTabId);
+        await chrome.tabs.update(gptTabId, {url: chatgpt.url}); // reloading tab
+        const isChatAvailable = await waitUntilChatGPTLogin(gptTabId);
+        if(!isChatAvailable) {
+          throw new Error("ChatGPT is not available.");
+        }
+        continue;
+      }
+
+      const delayMiliseconds = (Math.floor(Math.random() * 31) + 10) * 1000;
+      await addTimerToGPT(gptTabId, delayMiliseconds);
+      await delay(delayMiliseconds);
+      if(String(response).toLowerCase().includes("yes")) {
+        recallPhraseGrades.push(true);
+      } else {
+        recallPhraseGrades.push(false);
+      }
     }
   }
 
@@ -383,7 +476,7 @@ export const recallGradingBot = async (gptTabId: number, recallTabId: number) =>
   console.log("going to refresh recall grade page");
   setTimeout(async () => {
     recallGradingBot(gptTabId, recallTabId);
-  }, 3000)
+  }, 3000 + (Math.floor(Math.random() * 31) + 10) * 1000)
 }
 
 export const recallGradeListener = (command: string, context: chrome.runtime.MessageSender) => {
@@ -443,6 +536,7 @@ export const recallGradeListener = (command: string, context: chrome.runtime.Mes
 
       // dispatching bot
       setTimeout(() => {
+        chrome.runtime.sendMessage(chrome.runtime.id, "recall-status-started");
         recallGradingBot(gptTabId, recallTabId);
       })
     })()
@@ -452,17 +546,19 @@ export const recallGradeListener = (command: string, context: chrome.runtime.Mes
       const storageValues = await chrome.storage.local.get(["recallgrading"]);
       if(storageValues.recallgrading.tabId) {
         // removing tab
-        const tab = await chrome.tabs.get(storageValues.recallgrading.tabId);
-        if(tab.id) {
-          // await chrome.tabs.remove(tab.id);
-        }
+        try {
+          const tab = await chrome.tabs.get(storageValues.recallgrading.tabId);
+          if(tab.id) {
+            // await chrome.tabs.remove(tab.id);
+          }
+        } catch(e) {}
       }
       await stopRecallBot();
     })()
   } else if(command === RECALL_GRADING_STATUS) {
     (async function() {
       const storageValues = await chrome.storage.local.get(["recallgrading"]);
-      await chrome.runtime.sendMessage(chrome.runtime.id, "recall-" + (storageValues.recallgrading?.status || "notStarted"));
+      await chrome.runtime.sendMessage(chrome.runtime.id, "recall-status-" + (storageValues.recallgrading?.status || "notStarted"));
     })()
   }
 }

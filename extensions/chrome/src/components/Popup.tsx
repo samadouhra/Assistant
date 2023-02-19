@@ -10,7 +10,8 @@ const Popup = () => {
 
     // status change listener
     const listener = (message: string, sender: chrome.runtime.MessageSender) => {
-      const currentStatus = message.replace("recall-", "");
+      if(!String(message).startsWith("recall-status-")) return;
+      const currentStatus = message.replace("recall-status-", "");
       console.log("currentStatus", currentStatus);
       setBotStatus(currentStatus as RecallBotStatus)
     }
