@@ -40,6 +40,46 @@ const checkIfGPTHasError = async (gptTabId: number) => {
   return !!responses[0].result;
 }
 
+const deleteGPTConversation = async (gptTabId: number) => {
+  await chrome.scripting.executeScript({
+    target: {
+      tabId: gptTabId
+    },
+    func: () => {
+      let chats = document.querySelectorAll("nav > div > div > a.group");
+      if(!chats.length) return;
+      const deleteIcon = chats[0].querySelector("path[d=\"M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2\"]");
+      if(!deleteIcon) return;
+      const deleteBtn = deleteIcon.closest("button");
+      if(!deleteBtn) return;
+      deleteBtn.click();
+      
+      setTimeout(() => {
+        chats = document.querySelectorAll("nav > div > div > a.group");
+        const confirmIcon = chats[0].querySelector("polyline[points=\"20 6 9 17 4 12\"]");
+        if(!confirmIcon) return;
+        const confirmBtn = confirmIcon.closest("button");
+        if(!confirmBtn) return;
+        confirmBtn.click();
+      }, 1000)
+    }
+  });
+  await delay(5000);
+}
+
+const startANewChat = async (gptTabId: number) => {
+  await chrome.scripting.executeScript({
+    target: {
+      tabId: gptTabId
+    },
+    func: () => {
+      const newChatBtn = document.querySelector("nav > a") as HTMLElement;
+      if(!newChatBtn) return;
+      newChatBtn.click();
+    }
+  })
+}
+
 const addTimerToGPT = async (gptTabId: number, time: number) => {
   await chrome.scripting.executeScript({
     target: {
@@ -331,6 +371,18 @@ const getRecallPhrases = async(recallTabId: number): Promise<string[]> => {
   return responses[0].result || [];
 }
 
+const getRecallPassage = async(recallTabId: number) => {
+  const responses = await chrome.scripting.executeScript({
+    target: {
+      tabId: recallTabId
+    },
+    func: () => {
+      return (document.querySelector("#recall-passage") as HTMLElement)?.innerText
+    }
+  })
+  return responses[0].result || "";
+}
+
 const isItSchemaPage = async(recallTabId: number): Promise<boolean> => {
   const responses = await chrome.scripting.executeScript({
     target: {
@@ -381,6 +433,10 @@ export const recallGradingBot = async (gptTabId: number, recallTabId: number) =>
   // Array.from(document.querySelectorAll(".recall-phrase")).map((phraseEl) => phraseEl.querySelector("div:nth-child(1)").innerText)
   // const cbs = Array.from(document.querySelectorAll(".recall-phrase")).map((phraseEl) => phraseEl.querySelector("input"))
   // document.querySelector("#recall-submit")
+  // document.querySelectorAll("nav > div > div > a.group") <--- to fetch list of chats
+  // chats[0].querySelector("path[d=\"M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2\"]").closest("button") <-- to process delete
+  // chats[0].querySelector("polyline[points=\"20 6 9 17 4 12\"]").closest("button") <--- confirm button
+  // document.querySelector("nav > a") <--- new chat
 
   // focusing recall grading tab
   await chrome.tabs.update(recallTab.id!, {
@@ -395,6 +451,7 @@ export const recallGradingBot = async (gptTabId: number, recallTabId: number) =>
 
   const recallResponse = await getRecallResponse(recallTabId);
   const recallPhrases = await getRecallPhrases(recallTabId);
+  const recallPassage = await getRecallPassage(recallTabId);
 
   console.log(recallResponse, recallPhrases, "recallResponse, recallPhrases");
 
@@ -429,15 +486,22 @@ export const recallGradingBot = async (gptTabId: number, recallTabId: number) =>
   for(const recallPhrase of recallPhrases) {
     let isError = true;
     while(isError) {
-      let prompt: string = `Is the phrase "${recallPhrase}" mentioned in the following triple-quoted text? Only respond YES or NO with no explanations.`;
-      prompt += `'''\n${recallResponse}\n'''`;
-
+      const prompt: string = `We asked a student to learn the following triple-quoted passage and write whatever they recall:\n` +
+        `'''\n${recallPassage}\n'''\n` +
+        `The student's response is below in triple-quotes:\n` +
+        `'''\n${recallResponse}\n'''\n` +
+        `Respond whether the student has mentioned the key phrase "${recallPhrase}" If they have mentioned it, respond YES, otherwise NO.\n` +
+        `Your response should include two lines, separated by a new line character.\n` +
+        `In the first line, only print YES or NO. Do not add any more explanations.\n` +
+        `In the next line of your response, explain why you answered YES or NO in the previous line.`;
+      
       const response = await sendPromptAndReceiveResponse(gptTabId, prompt);
       isError = await checkIfGPTHasError(gptTabId);
       
       if(isError) {
         const chatgpt = await chrome.tabs.get(gptTabId);
         await chrome.tabs.update(gptTabId, {url: chatgpt.url}); // reloading tab
+        await delay(1000 * 60 * 60); // 1 hour wait
         const isChatAvailable = await waitUntilChatGPTLogin(gptTabId);
         if(!isChatAvailable) {
           throw new Error("ChatGPT is not available.");
@@ -445,10 +509,12 @@ export const recallGradingBot = async (gptTabId: number, recallTabId: number) =>
         continue;
       }
 
-      const delayMiliseconds = (Math.floor(Math.random() * 31) + 10) * 1000;
-      await addTimerToGPT(gptTabId, delayMiliseconds);
-      await delay(delayMiliseconds);
-      if(String(response).toLowerCase().includes("yes")) {
+      // const delayMiliseconds = (Math.floor(Math.random() * 13) + 4) * 1000;
+      // await addTimerToGPT(gptTabId, delayMiliseconds);
+      await deleteGPTConversation(gptTabId);
+      await startANewChat(gptTabId);
+      await delay(8000);
+      if(String(response).trim().slice(0, 3).toLowerCase() === "yes") {
         recallPhraseGrades.push(true);
       } else {
         recallPhraseGrades.push(false);
@@ -476,7 +542,7 @@ export const recallGradingBot = async (gptTabId: number, recallTabId: number) =>
   console.log("going to refresh recall grade page");
   setTimeout(async () => {
     recallGradingBot(gptTabId, recallTabId);
-  }, 3000 + (Math.floor(Math.random() * 31) + 10) * 1000)
+  }, 2000)
 }
 
 export const recallGradeListener = (command: string, context: chrome.runtime.MessageSender) => {
