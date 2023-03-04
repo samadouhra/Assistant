@@ -501,6 +501,7 @@ export const recallGradingBot = async (gptTabId: number, recallTabId: number) =>
       if(isError) {
         const chatgpt = await chrome.tabs.get(gptTabId);
         await chrome.tabs.update(gptTabId, {url: chatgpt.url}); // reloading tab
+        console.log("Waiting for 10 min for chatGPT to return.");
         await delay(1000 * 60 * 10); // 1 hour wait
         const isChatAvailable = await waitUntilChatGPTLogin(gptTabId);
         if(!isChatAvailable) {
@@ -513,6 +514,7 @@ export const recallGradingBot = async (gptTabId: number, recallTabId: number) =>
       // await addTimerToGPT(gptTabId, delayMiliseconds);
       await deleteGPTConversation(gptTabId);
       await startANewChat(gptTabId);
+      console.log("Starting a new conversation.");
       await delay(4000);
       if(String(response).trim().slice(0, 3).toLowerCase() === "yes") {
         recallPhraseGrades.push(true);
