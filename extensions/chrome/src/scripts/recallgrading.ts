@@ -486,8 +486,8 @@ export const recallGradingBot = async (gptTabId: number, recallTabId: number) =>
   for(const recallPhrase of recallPhrases) {
     let isError = true;
     while(isError) {
-      const prompt: string = `We asked a student to learn the following triple-quoted passage and write whatever they recall:\n` +
-        `'''\n${recallPassage}\n'''\n` +
+      const prompt: string = `We asked a student to learn some passage and write whatever they recall.\n` +
+        // `'''\n${recallPassage}\n'''\n` +
         `The student's response is below in triple-quotes:\n` +
         `'''\n${recallResponse}\n'''\n` +
         `Respond whether the student has mentioned the key phrase "${recallPhrase}" If they have mentioned it, respond YES, otherwise NO.\n` +
@@ -501,7 +501,7 @@ export const recallGradingBot = async (gptTabId: number, recallTabId: number) =>
       if(isError) {
         const chatgpt = await chrome.tabs.get(gptTabId);
         await chrome.tabs.update(gptTabId, {url: chatgpt.url}); // reloading tab
-        await delay(1000 * 60 * 60); // 1 hour wait
+        await delay(1000 * 60 * 10); // 1 hour wait
         const isChatAvailable = await waitUntilChatGPTLogin(gptTabId);
         if(!isChatAvailable) {
           throw new Error("ChatGPT is not available.");
@@ -513,7 +513,7 @@ export const recallGradingBot = async (gptTabId: number, recallTabId: number) =>
       // await addTimerToGPT(gptTabId, delayMiliseconds);
       await deleteGPTConversation(gptTabId);
       await startANewChat(gptTabId);
-      await delay(8000);
+      await delay(4000);
       if(String(response).trim().slice(0, 3).toLowerCase() === "yes") {
         recallPhraseGrades.push(true);
       } else {
