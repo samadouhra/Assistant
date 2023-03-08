@@ -7,7 +7,7 @@ type RecallGradeProcess = {
   gptTabId: number
 }
 
-const EXP_GRADING_URL = "http://1cademy.us/Activities/FreeRecallGrading";
+const EXP_GRADING_URL = "https://1cademy.us/Activities/FreeRecallGrading";
 
 const START_RECALL_GRADING = "start-recall-grading";
 const STOP_RECALL_GRADING = "stop-recall-grading"
@@ -314,7 +314,7 @@ const fillRecallsAndSubmit = async (recallTabId: number, recallPhraseGrades: boo
       (document.querySelector("#recall-submit")! as HTMLElement).click();
 
       return new Promise((resolve) => {
-        setTimeout(() => resolve(true), 3000)
+        setTimeout(() => resolve(true), 5000)
       })
     }
   })
