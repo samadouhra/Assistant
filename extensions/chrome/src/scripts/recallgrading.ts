@@ -7,7 +7,7 @@ type RecallGradeProcess = {
   gptTabId: number
 }
 
-const EXP_GRADING_URL = "https://1cademy.us/Activities/FreeRecallGrading";
+const EXP_GRADING_URL = "http://localhost:3000/Activities/FreeRecallGrading";
 
 const START_RECALL_GRADING = "start-recall-grading";
 const STOP_RECALL_GRADING = "stop-recall-grading"
@@ -293,6 +293,36 @@ const sendPromptAndReceiveResponse = async (gptTabId: number, prompt: string) =>
   return responses?.[0].result || "";
 }
 
+const waitUntilRecallSubmitCompleted = async (recallTabId: number) => {
+  return new Promise((resolve) => {
+    const checker = async () => {
+      const responses = await chrome.scripting.executeScript<any, any>({
+        target: {
+          tabId: recallTabId
+        },
+        args: [],
+        func: () => {
+          const recallSubmit = document.querySelector("#recall-submit") as HTMLButtonElement;
+          if(!recallSubmit) return true;
+    
+          return !recallSubmit.disabled;
+        }
+      });
+    
+      const isDone = !!responses?.[0].result!;
+      if(isDone) {
+        resolve(true);
+        return;
+      }
+      setTimeout(() => {
+        checker();
+      }, 3000)
+    }
+
+    checker();
+  })
+}
+
 const fillRecallsAndSubmit = async (recallTabId: number, recallPhraseGrades: boolean[]) => {
   await chrome.scripting.executeScript<any, any>({
     target: {
@@ -312,10 +342,6 @@ const fillRecallsAndSubmit = async (recallTabId: number, recallPhraseGrades: boo
       }
       // clicking submit
       (document.querySelector("#recall-submit")! as HTMLElement).click();
-
-      return new Promise((resolve) => {
-        setTimeout(() => resolve(true), 5000)
-      })
     }
   })
 }
@@ -395,6 +421,20 @@ const isItSchemaPage = async(recallTabId: number): Promise<boolean> => {
   return !!responses[0]?.result;
 }
 
+export const createOrReturnRecallTabId = async(recallTabId: number) => {
+  let recallTab: chrome.tabs.Tab;
+
+  try {
+    recallTab = await chrome.tabs.get(recallTabId);
+  } catch(e) {
+    recallTab = await chrome.tabs.create({
+      url: EXP_GRADING_URL
+    })
+    recallTabId = recallTab.id!;
+  }
+  return recallTabId;
+}
+
 export const recallGradingBot = async (gptTabId: number, recallTabId: number) => {
   // response from participant
   console.log("recallGradingBot started")
@@ -413,14 +453,8 @@ export const recallGradingBot = async (gptTabId: number, recallTabId: number) =>
     gptTabId = gptTab.id!;
   }
 
-  try {
-    recallTab = await chrome.tabs.get(recallTabId);
-  } catch(e) {
-    recallTab = await chrome.tabs.create({
-      url: EXP_GRADING_URL
-    })
-    recallTabId = recallTab.id!;
-  }
+  recallTabId = await createOrReturnRecallTabId(recallTabId);
+  recallTab = await chrome.tabs.get(recallTabId);
 
   // if someone closed one of these tabs between bot running
   if(storageValues?.recallgrading?.status === "notStarted") {
@@ -533,6 +567,8 @@ export const recallGradingBot = async (gptTabId: number, recallTabId: number) =>
 
   console.log("Filling responses in recalls");
   await fillRecallsAndSubmit(recallTabId, recallPhraseGrades);
+  console.log("waiting until in recalls submitted");
+  await waitUntilRecallSubmitCompleted(recallTabId);
 
   // checking if its schema page
   const itsOnSchema = await isItSchemaPage(recallTabId);
