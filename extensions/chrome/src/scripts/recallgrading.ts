@@ -7,7 +7,7 @@ type RecallGradeProcess = {
   gptTabId: number
 }
 
-const EXP_GRADING_URL = "http://localhost:3000/Activities/FreeRecallGrading";
+const EXP_GRADING_URL = "http://1cademy.us/Activities/FreeRecallGrading";
 
 const START_RECALL_GRADING = "start-recall-grading";
 const STOP_RECALL_GRADING = "stop-recall-grading"
