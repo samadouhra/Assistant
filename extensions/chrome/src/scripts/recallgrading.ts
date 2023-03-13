@@ -525,9 +525,10 @@ export const recallGradingBot = async (gptTabId: number, recallTabId: number) =>
         `The student's response is below in triple-quotes:\n` +
         `'''\n${recallResponse}\n'''\n` +
         `Respond whether the student has mentioned the key phrase "${recallPhrase}" If they have mentioned it, respond YES, otherwise NO.\n` +
-        `Your response should include two lines, separated by a new line character.\n` +
+        `Your response should include three lines, separated by a new line character.\n` +
         `In the first line, only print YES or NO. Do not add any more explanations.\n` +
-        `In the next line of your response, explain why you answered YES or NO in the previous line.`;
+        `In the second line of your response, only print a percentage by which you are confident about your answer, YES or NO, in the first line.\n` +
+        `In the third line of your response, explain why you answered YES or NO in the first line and the percentage in the second line.`;
       
       const response = await sendPromptAndReceiveResponse(gptTabId, prompt);
       isError = await checkIfGPTHasError(gptTabId);
