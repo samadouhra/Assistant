@@ -388,7 +388,7 @@ export const recallGradingBot = async (gptTabId: number) => {
           const chatgpt = await chrome.tabs.get(gptTabId);
           await chrome.tabs.update(gptTabId, { url: chatgpt.url }); // reloading tab
           console.log("Waiting for 10 min for chatGPT to return.");
-          await delay(4000);
+          await delay(1000 * 60 * 10);
           const isChatAvailable = await waitUntilChatGPTLogin(gptTabId);
           if (!isChatAvailable) {
             throw new Error("ChatGPT is not available.");
@@ -397,8 +397,6 @@ export const recallGradingBot = async (gptTabId: number) => {
         }
         await deleteGPTConversation(gptTabId);
         await startANewChat(gptTabId);
-        console.log("Starting a new conversation.");
-        await delay(1000 * 60 * 10); // waiting for 10 min
         console.log("response :: :: ", String(response));
         if (String(response).trim().slice(0, 3).toLowerCase() === "yes") {
           recallPhrase.DavinciGrade = true;
