@@ -272,10 +272,7 @@ const getRecallGrades = async () => {
     const recallGrade = recallGradeDoc.data();
     for (let session in recallGrade.sessions) {
       for (let conditionItem of recallGrade.sessions[session]) {
-        if (
-          !conditionItem.hasOwnProperty("doneDavinci") ||
-          !conditionItem.doneDavinci
-        ) {
+        if (!conditionItem.hasOwnProperty("doneDavinci")) {
           _recallGrades.push({
             docId: recallGradeDoc.id,
             session: session,
@@ -300,7 +297,7 @@ const getRecallGrades = async () => {
       ),
   ];
 };
-const updateRecallGrades = async (recallGrade: any, conditionDone:boolean) => {
+const updateRecallGrades = async (recallGrade: any) => {
   const recallGradeRef = doc(db, "recallGradesV2", recallGrade.docId);
   const recallGradeDoc = await getDoc(recallGradeRef);
   let recallGradeUpdate: any = recallGradeDoc.data();
@@ -309,7 +306,7 @@ const updateRecallGrades = async (recallGrade: any, conditionDone:boolean) => {
   ].phrases = recallGrade.phrases;
   recallGradeUpdate.sessions[recallGrade.session][
     recallGrade.conditionIndex
-  ].doneDavinci = conditionDone;
+  ].doneDavinci = true;
   await updateDoc(recallGradeRef, recallGradeUpdate);
 };
 
@@ -362,9 +359,7 @@ export const recallGradingBot = async (gptTabId: number) => {
   }
 
   for (let recallGrade of recallGrades) {
-    let count = 0;
     for (let recallPhrase of recallGrade.phrases) {
-      count++;
       if (recallPhrase.hasOwnProperty("DavinciGrade")) continue;
       const storageValues = await chrome.storage.local.get(["recallgrading"]);
       // if someone closed one of these tabs between bot running
@@ -423,12 +418,8 @@ export const recallGradingBot = async (gptTabId: number) => {
         console.log("recallPhrase :: :: ", recallPhrase);
         console.log("recallGrade :: :: ", recallGrade);
       }
-
-      await updateRecallGrades(
-        recallGrade,
-        count === recallGrade.phrases.length
-      );
     }
+    await updateRecallGrades(recallGrade);
   }
 };
 
