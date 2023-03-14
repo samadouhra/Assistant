@@ -160,6 +160,8 @@ const sendPromptAndReceiveResponse = async (
       if (!gptTextInput) return false;
       gptTextInput.value = prompt;
 
+      let lastInstanceId: string = "last-instance-" + new Date().getTime();
+
       const gptInputParent = gptTextInput.parentElement;
       if (!gptInputParent) return false;
       const gptActionBtn = gptInputParent.querySelector("button");
@@ -172,105 +174,128 @@ const sendPromptAndReceiveResponse = async (
           ? pInstances[pInstances.length - 2]
           : pInstances?.[1];
 
-      const waitUntilProcessed = (killOnGeneration: boolean) => {
+      if(oldLastInstance) {
+        oldLastInstance.setAttribute("id", lastInstanceId)
+      }
+
+      return lastInstanceId;
+    }
+  });
+
+  let oldLastInstanceId: string = responses?.[0].result || "";
+  let lastInstanceId: string = oldLastInstanceId;
+
+  const checker = async(n: number = 0, killOnGeneration: boolean) => {
+    const responses = await chrome.scripting.executeScript<any, any>({
+      target: {
+        tabId: gptTabId,
+      },
+      args: [killOnGeneration, lastInstanceId, oldLastInstanceId],
+      func: (killOnGeneration: string, lastInstanceId: string, oldLastInstanceId: string) => {
         const pInstances = document.querySelectorAll("p");
         const lastInstance: any =
           pInstances.length > 1
             ? pInstances[pInstances.length - 2]
             : pInstances?.[1];
+        
+        if(lastInstance && !lastInstance.getAttribute("id")) {
+          lastInstanceId = "last-instance-" + new Date().getTime();
+          lastInstance.setAttribute("id", lastInstanceId);
+        }
 
-        return new Promise((resolve, reject) => {
-          const checker = (n: number = 0) => {
-            const buttons = document.querySelectorAll("form button");
-            if (
-              buttons.length &&
-              (buttons[0] as HTMLElement).innerText.trim() !== ""
-            ) {
-              // removing html from button content to extract text
-              const el = document.createElement("div");
-              el.innerHTML = buttons[0].innerHTML;
+        const buttons = document.querySelectorAll("form button");
+        if (
+          buttons.length &&
+          (buttons[0] as HTMLElement).innerText.trim() !== ""
+        ) {
+          // removing html from button content to extract text
+          const el = document.createElement("div");
+          el.innerHTML = buttons[0].innerHTML;
 
-              const buttonTitle = el.innerText.trim();
-              const cond = killOnGeneration
-                ? buttonTitle === "Stop generating" ||
-                  buttonTitle === "Regenerate response"
-                : buttonTitle !== "Stop generating" && buttonTitle !== "···";
-              if (cond) {
-                console.log("Checker running normally");
-                // killing recurrsion
-                if (killOnGeneration) {
-                  resolve(true);
-                } else {
-                  setTimeout(() => resolve(true), 1000);
-                }
-                return;
-              }
-
-              // checking memory leak
-              if (n >= 300) {
-                reject("Stopped due to memory leak");
-                return false; // don't run recursion
-              }
-              // console.log("Saw generation", killOnGeneration);
-              // this condition will help for faster plan if stop generation doesn't show up
-            } else if (n >= 25) {
-              const pInstances = document.querySelectorAll("p");
-              const _lastInstance: any =
-                pInstances.length > 1
-                  ? pInstances[pInstances.length - 2]
-                  : pInstances?.[1];
-              console.log("Not saw generation", killOnGeneration, {
-                lastInstance,
-                _lastInstance
-              });
-              if (
-                lastInstance !== _lastInstance ||
-                oldLastInstance !== lastInstance
-              ) {
-                resolve(true);
-                return;
-              } else {
-                reject("Stopped due to memory leak");
-                return false;
-              }
-            }
-
-            // if still generating run after a time
-            setTimeout(() => {
-              checker(n + 1);
-            }, 200);
-          };
-
-          checker(0);
-        });
-      };
-
-      // wait until api started generation
-      return waitUntilProcessed(true).then(() => {
-        // wait until chat gpt is processing/animating response
-        return waitUntilProcessed(false).then(() => {
-          const gptParagraphs = document.querySelectorAll("p");
-          console.log(gptParagraphs, "gptParagraphs");
-          if (gptParagraphs.length > 1) {
-            const lastChatItem = gptParagraphs[gptParagraphs.length - 2];
-            if (lastChatItem) {
-              // i did this because, it was sometimes giving more than one paragraphs in answer
-              const el = lastChatItem.parentElement || lastChatItem;
-              if (el) {
-                console.log("el - response", el);
-                return el.innerText.trim();
-              }
-            }
+          const buttonTitle = el.innerText.trim();
+          const cond = killOnGeneration
+            ? buttonTitle === "Stop generating" ||
+              buttonTitle === "Regenerate response"
+            : buttonTitle !== "Stop generating" && buttonTitle !== "···";
+          if (cond) {
+            return true;
           }
-          console.log("sending empty response");
-          // return empty string if there was not result
-          return "";
-        });
-      });
+
+          // checking memory leak
+          if (n >= 300) {
+            return false; // don't run recursion
+          }
+          // this condition will help for faster plan if stop generation doesn't show up
+        } else if (n >= 25) {
+          const pInstances = document.querySelectorAll("p");
+          const _lastInstance: any =
+            pInstances.length > 1
+              ? pInstances[pInstances.length - 2]
+              : pInstances?.[1];
+          const _lastInstanceId = _lastInstance ? _lastInstance.getAttribute("id") : "";
+          console.log("Not saw generation", killOnGeneration, {
+            lastInstanceId,
+            _lastInstanceId
+          });
+          if (
+            lastInstanceId !== _lastInstanceId ||
+            oldLastInstanceId !== _lastInstanceId
+          ) {
+            return true;
+          } else {
+            return false;
+          }
+        } else {
+          return lastInstanceId;
+        }
+      }
+    });
+    if(responses?.[0]?.result === true) {
+      return true;
+    } else if(responses?.[0]?.result === false) {
+      return false;
+    } else if(typeof responses?.[0]?.result === "string") {
+      lastInstanceId = responses?.[0]?.result;
+    }
+    await delay(300);
+    await checker(n + 1, killOnGeneration);
+  }
+
+  // console.log("reached at prompt response -1");
+
+  await checker(0, true);
+  // console.log("reached at prompt response 0");
+  await checker(0, false);
+
+  // console.log("reached at prompt response");
+  const gptResponses = await chrome.scripting.executeScript<any, any>({
+    target: {
+      tabId: gptTabId,
     },
+    args: [],
+    func: () => {
+      const gptParagraphs = document.querySelectorAll("p");
+      console.log(gptParagraphs, "gptParagraphs");
+      if (gptParagraphs.length > 1) {
+        const lastChatItem = gptParagraphs[gptParagraphs.length - 2];
+        if (lastChatItem) {
+          // i did this because, it was sometimes giving more than one paragraphs in answer
+          const el = lastChatItem.parentElement || lastChatItem;
+          if (el) {
+            console.log("el - response", el);
+            return el.innerText.trim();
+          }
+        }
+      }
+      console.log("sending empty response");
+      // return empty string if there was not result
+      return "";
+    }
   });
 
-  return responses?.[0].result || "";
+  // console.log("reached at prompt response 2", gptResponses);
+
+  return gptResponses?.[0]?.result || "";
 };
 
 const getRecallGrades = async(recallGradeDoc: QueryDocumentSnapshot<DocumentData>) => {
