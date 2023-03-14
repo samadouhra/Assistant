@@ -481,7 +481,7 @@ export const recallGradingBot = async (gptTabId: number, prevRecallGrade?: Query
       `We asked a student to learn some passage and write whatever they recall.\n` +
       `The student's response is below in triple-quotes:\n` +
       `'''\n` +
-      `The Jaws that Jump talks about the defense system of an insect (ant). It shows the audience how the jaw works (the mechanisms) and the target group that the jaw defense is protecting the ant from. It also discusses how the jaw defense system is "designed" to protect the ant itself.\n` +
+      `${recallGrade.response}\n` +
       `'''\n` +
       `Assess whether the student has mentioned each of the following key phrases:\n` +
       phraseLines.join("\n") + "\n" +
