@@ -6,6 +6,14 @@ import {
   doc,
   getDocs,
   updateDoc,
+  query,
+  where,
+  orderBy,
+  limit,
+  QueryDocumentSnapshot,
+  DocumentData,
+  startAfter,
+  runTransaction,
 } from "firebase/firestore";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { db, app, auth } from "../lib/firebase";
@@ -188,6 +196,7 @@ const sendPromptAndReceiveResponse = async (
                   buttonTitle === "Regenerate response"
                 : buttonTitle !== "Stop generating" && buttonTitle !== "···";
               if (cond) {
+                console.log("Checker running normally");
                 // killing recurrsion
                 if (killOnGeneration) {
                   resolve(true);
@@ -210,10 +219,10 @@ const sendPromptAndReceiveResponse = async (
                 pInstances.length > 1
                   ? pInstances[pInstances.length - 2]
                   : pInstances?.[1];
-              /* console.log("Not saw generation", killOnGeneration, {
+              console.log("Not saw generation", killOnGeneration, {
                 lastInstance,
                 _lastInstance
-              }); */
+              });
               if (
                 lastInstance !== _lastInstance ||
                 oldLastInstance !== lastInstance
@@ -263,40 +272,107 @@ const sendPromptAndReceiveResponse = async (
 
   return responses?.[0].result || "";
 };
-const getRecallGrades = async () => {
-  const recallGradesRef = collection(db, "recallGradesV2");
-  const recallGradesDocs = await getDocs(recallGradesRef);
+
+const getRecallGrades = async(recallGradeDoc: QueryDocumentSnapshot<DocumentData>) => {
   let _recallGrades: any = [];
 
-  for (const recallGradeDoc of recallGradesDocs.docs) {
-    const recallGrade = recallGradeDoc.data();
-    for (let session in recallGrade.sessions) {
-      for (let conditionItem of recallGrade.sessions[session]) {
-        if (!conditionItem.hasOwnProperty("doneDavinci")) {
-          _recallGrades.push({
-            docId: recallGradeDoc.id,
-            session: session,
-            numSessions: Object.keys(recallGrade.sessions).length,
-            conditionIndex:
-              recallGrade.sessions[session].indexOf(conditionItem),
-            user: recallGrade.user,
-            project: recallGrade.project,
-            ...conditionItem,
-          });
-        }
+  const recallGrade = recallGradeDoc.data();
+  for (let session in recallGrade.sessions) {
+    for (let conditionItem of recallGrade.sessions[session]) {
+      if (!conditionItem.hasOwnProperty("doneDavinci")) {
+        _recallGrades.push({
+          docId: recallGradeDoc.id,
+          session: session,
+          numSessions: Object.keys(recallGrade.sessions).length,
+          conditionIndex:
+            recallGrade.sessions[session].indexOf(conditionItem),
+          user: recallGrade.user,
+          project: recallGrade.project,
+          ...conditionItem,
+        });
       }
     }
   }
 
+  // only do process recalls that are done
+  _recallGrades = _recallGrades.filter((recall: any) => !recall.botId);
+
+  let __recallGrades = _recallGrades.filter((g: any) => g.numSessions !== 2);
+  __recallGrades.sort((g1: any, g2: any) =>
+    g1.researchers.length > g2.researchers.length ? -1 : 1
+  );
+
   return [
     ..._recallGrades.filter((g: any) => g.numSessions === 2),
-    ..._recallGrades
-      .filter((g: any) => g.numSessions !== 2)
-      .sort((g1: any, g2: any) =>
-        g1.researchers.length > g2.researchers.length ? -1 : 1
-      ),
+    ...__recallGrades
   ];
+}
+
+const getBotId = async () => {
+  const storagedActions = await chrome.storage.local.get(["botId"]);
+  if(storagedActions?.botId) {
+    return storagedActions?.botId;
+  }
+  const botId = String(new Date().getTime());
+  await chrome.storage.local.set({
+    botId
+  });
+
+  return botId;
+}
+
+const getNextRecallGrades = async (prevRecallGrade?: QueryDocumentSnapshot<DocumentData>): Promise<QueryDocumentSnapshot<DocumentData> | null> => {
+  // priority 3 = researchers major vote excluding iman greater than or equal 3
+  // priority 2 = Satisfied = false
+  // priority 1 = Records for users whose 3rd session is not passed yet
+  // priority 0 = default
+
+  let recallGrades = await getDocs(
+    prevRecallGrade ?
+    query(
+      collection(db, "recallGradesV2"),
+      orderBy("priority", "desc"),
+      limit(1),
+      startAfter(prevRecallGrade)
+    ) :
+    query(
+      collection(db, "recallGradesV2"),
+      orderBy("priority", "desc"),
+      limit(1)
+    )
+  );
+  
+  if(recallGrades.docs.length) {
+    let isValid = true;
+    await delay(1000 * (Math.random() * 7) + 4);
+    const recallGrade = await getDoc(doc(db, "recallGradesV2", recallGrades.docs[0].id));
+
+    const _recallGrades = await getRecallGrades(recallGrade as QueryDocumentSnapshot<DocumentData>);
+    if(!_recallGrades.length) {
+      isValid = false;
+    } else {
+      // flag condition item by bot id
+      const { session, conditionIndex } = _recallGrades[0];
+      const recallGradeData = recallGrade.data()!;
+      recallGradeData.sessions[session][conditionIndex].botId = await getBotId();
+      await updateDoc(
+        doc(db, "recallGradesV2", recallGrade.id),
+        {
+          sessions: recallGradeData.sessions
+        }
+      );
+    }
+
+    if(!isValid) {
+      return getNextRecallGrades(recallGrades.docs[0]);
+    }
+
+    return recallGrades.docs[0];
+  }
+
+  return null;
 };
+
 const updateRecallGrades = async (recallGrade: any) => {
   const recallGradeRef = doc(db, "recallGradesV2", recallGrade.docId);
   const recallGradeDoc = await getDoc(recallGradeRef);
@@ -310,7 +386,7 @@ const updateRecallGrades = async (recallGrade: any) => {
   await updateDoc(recallGradeRef, recallGradeUpdate);
 };
 
-export const recallGradingBot = async (gptTabId: number) => {
+export const recallGradingBot = async (gptTabId: number, prevRecallGrade?: QueryDocumentSnapshot<DocumentData>) => {
   // response from participant
   await signInWithEmailAndPassword(
     auth,
@@ -324,7 +400,7 @@ export const recallGradingBot = async (gptTabId: number) => {
     gptTab = await chrome.tabs.get(gptTabId);
   } catch (e) {
     gptTab = await chrome.tabs.create({
-      url: "https://chat.openai.com/chat",
+      url: "https://chat.openai.com/chat?model=gpt-4",
     });
     gptTabId = gptTab.id!;
   }
@@ -332,7 +408,11 @@ export const recallGradingBot = async (gptTabId: number) => {
     active: true,
   });
 
-  let recallGrades: any = await getRecallGrades();
+  prevRecallGrade = (await getNextRecallGrades(prevRecallGrade))!;
+  console.log(prevRecallGrade, "prevRecallGrade")
+  if(!prevRecallGrade) return; // bot is done processing
+
+  let recallGrades = await getRecallGrades(prevRecallGrade);
 
   console.log("::: ::: recallGrades after ordering ::: :::: ", recallGrades);
 
@@ -359,59 +439,102 @@ export const recallGradingBot = async (gptTabId: number) => {
   }
 
   for (let recallGrade of recallGrades) {
-    for (let recallPhrase of recallGrade.phrases) {
-      if (recallPhrase.hasOwnProperty("DavinciGrade")) continue;
-      const storageValues = await chrome.storage.local.get(["recallgrading"]);
-      // if someone closed one of these tabs between bot running
-      if (storageValues?.recallgrading?.status === "notStarted") {
-        await stopRecallBot();
-        return;
-      }
-      await delay(4000);
-      let isError = true;
-      while (isError) {
-        const prompt: string =
-          `We asked a student to learn some passage and write whatever they recall.\n` +
-          // `'''\n${recallPassage}\n'''\n` +
-          `The student's response is below in triple-quotes:\n` +
-          `'''\n${recallGrade.response}\n'''\n` +
-          `Respond whether the student has mentioned the key phrase "${recallPhrase.phrase}" If they have mentioned it, respond YES, otherwise NO.\n` +
-          `Your response should include three lines, separated by a new line character.\n` +
-          `In the first line, only print YES or NO. Do not add any more explanations.\n` +
-          `In the second line of your response, only print a percentage by which you are confident about your answer, YES or NO, in the first line.\n` +
-          `In the third line of your response, explain why you answered YES or NO in the first line and the percentage in the second line.`;
 
-        const response = await sendPromptAndReceiveResponse(gptTabId, prompt);
-        isError = await checkIfGPTHasError(gptTabId);
+    const storageValues = await chrome.storage.local.get(["recallgrading"]);
+    // if someone closed one of these tabs between bot running
+    if (storageValues?.recallgrading?.status === "notStarted") {
+      await stopRecallBot();
+      return;
+    }
 
-        if (isError) {
-          const chatgpt = await chrome.tabs.get(gptTabId);
-          await chrome.tabs.update(gptTabId, { url: chatgpt.url }); // reloading tab
-          console.log("Waiting for 10 min for chatGPT to return.");
-          await delay(1000 * 60 * 10);
-          const isChatAvailable = await waitUntilChatGPTLogin(gptTabId);
-          if (!isChatAvailable) {
-            throw new Error("ChatGPT is not available.");
-          }
-          continue;
+    const phraseLines = recallGrade.phrases.map((phrase: any) => "- " + phrase.phrase);
+
+    await delay(4000);
+    let isError = true;
+    while (isError) {
+      const prompt: string =
+      `We asked a student to learn some passage and write whatever they recall.\n` +
+      `The student's response is below in triple-quotes:\n` +
+      `'''\n` +
+      `The Jaws that Jump talks about the defense system of an insect (ant). It shows the audience how the jaw works (the mechanisms) and the target group that the jaw defense is protecting the ant from. It also discusses how the jaw defense system is "designed" to protect the ant itself.\n` +
+      `'''\n` +
+      `Assess whether the student has mentioned each of the following key phrases:\n` +
+      phraseLines.join("\n") + "\n" +
+      `Your response should include a section for each of the above listed key phrases, separated by ---- enclosed by two new line characters.\n` +
+      `Each section of your response, which corresponds to one of the above listed key phrases, should include the following three lines:\n` +
+      `- In the first line, only print YES or NO. Do not add any more explanations.\n` +
+      `- In the second line of your response, only print a percentage by which you are confident about your answer, YES or NO, in the first line.\n` +
+      `- In the third line of your response, explain why you answered YES or NO in the first line and the percentage in the second line.`;
+
+      const response = await sendPromptAndReceiveResponse(gptTabId, prompt);
+      isError = await checkIfGPTHasError(gptTabId);
+
+      let phraseResponses: string[] = [];
+
+      if (isError) {
+        const chatgpt = await chrome.tabs.get(gptTabId);
+        await chrome.tabs.update(gptTabId, { url: chatgpt.url }); // reloading tab
+        console.log("Waiting for 10 min for chatGPT to return.");
+        await delay(1000 * 60 * 10);
+        const isChatAvailable = await waitUntilChatGPTLogin(gptTabId);
+        if (!isChatAvailable) {
+          throw new Error("ChatGPT is not available.");
         }
-        await deleteGPTConversation(gptTabId);
-        await startANewChat(gptTabId);
+        continue;
+      }
+
+      phraseResponses.push(...response.split("\n\n"));
+
+      phraseResponses = phraseResponses.filter((phraseResponse) => phraseResponse.split("\n").length >= 3);
+
+      while(phraseResponses.length < phraseLines.length && phraseResponses.length === 1) {
+        let resumeResponse = String(phraseResponses[phraseResponses.length - 1]);
+        const lastPhraseResponse = String(phraseResponses[phraseResponses.length - 1]).split("\n");
+        if(lastPhraseResponse.length < 3) {
+          resumeResponse = phraseResponses[phraseResponses.length - 2] + "\n\n" // + resumeResponse;
+          phraseResponses.pop();
+        }
+        const secondPrompt = 
+        `Your response was incomplete. The last segment of your response was the following triple-quoted text.\n` +
+        `'''\n` +
+        resumeResponse +
+        `'''\n` +
+        `Print the rest of your response.\n`;
+
+        const response = await sendPromptAndReceiveResponse(gptTabId, secondPrompt);
+        isError = await checkIfGPTHasError(gptTabId);
+        phraseResponses.push(...response.split("\n\n"));
+
+        if(isError) {
+          break;
+        }
+      }
+
+      if (isError) {
+        continue;
+      }
+      
+      console.log(phraseResponses, "phraseResponses")
+      for(let i = 0; i < recallGrade.phrases.length; i++) {
+        const recallPhrase = recallGrade.phrases[i];
+        // if (recallPhrase.hasOwnProperty("gpt4Grade")) continue;
+
+        const response = phraseResponses.length === 1 ? phraseResponses[0] : phraseResponses[i];
         console.log("response :: :: ", String(response));
         if (String(response).trim().slice(0, 3).toLowerCase() === "yes") {
-          recallPhrase.DavinciGrade = true;
-          recallPhrase.DavinciConfidence = String(response)
+          recallPhrase.gpt4Grade = true;
+          recallPhrase.gpt4Confidence = String(response)
             .trim()
             .slice(3, String(response).trim().indexOf("%") + 1)
             .trim();
         } else {
-          recallPhrase.DavinciGrade = false;
-          recallPhrase.DavinciConfidence = String(response)
+          recallPhrase.gpt4Grade = false;
+          recallPhrase.gpt4Confidence = String(response)
             .trim()
             .slice(2, String(response).trim().indexOf("%") + 1)
             .trim();
         }
-        recallPhrase.DavinciReason = String(response)
+        recallPhrase.gpt4Reason = String(response)
           .trim()
           .slice(String(response).trim().indexOf("%") + 1)
           .trim();
@@ -419,8 +542,15 @@ export const recallGradingBot = async (gptTabId: number) => {
         console.log("recallGrade :: :: ", recallGrade);
       }
     }
+
     await updateRecallGrades(recallGrade);
+    // await deleteGPTConversation(gptTabId);
+    // await startANewChat(gptTabId);
+
+    break;
   }
+
+  recallGradingBot(gptTabId, prevRecallGrade);
 };
 
 export const recallGradeListener = (
@@ -447,7 +577,7 @@ export const recallGradeListener = (
         gptTabId = gptTabs[0].id!;
       } else {
         const newTab = await chrome.tabs.create({
-          url: "https://chat.openai.com/chat",
+          url: "https://chat.openai.com/chat?model=gpt-4",
           active: true,
         });
         gptTabId = newTab.id!;
