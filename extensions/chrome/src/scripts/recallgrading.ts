@@ -99,9 +99,25 @@ const startANewChat = async (gptTabId: number) => {
       const newChatBtn = document.querySelector("nav > a") as HTMLElement;
       if (!newChatBtn) return;
       newChatBtn.click();
+    },
+  });
+  await delay(500);
+  await chrome.scripting.executeScript({
+    target: {
+      tabId: gptTabId,
+    },
+    func: () => {
       const modelDropDown = document.querySelector("button[id^=\"headlessui-listbox-button-\"]") as HTMLElement;
       if(!modelDropDown) return;
       modelDropDown.click();
+    },
+  });
+  await delay(500);
+  await chrome.scripting.executeScript({
+    target: {
+      tabId: gptTabId,
+    },
+    func: () => {
       const dropdownOptions = document.querySelectorAll("li[id^=\"headlessui-listbox-option-\"]");
       if(!dropdownOptions.length) return;
       const dropdownOption = dropdownOptions[dropdownOptions.length - 1] as HTMLElement;
@@ -197,8 +213,8 @@ const sendPromptAndReceiveResponse = async (
       target: {
         tabId: gptTabId,
       },
-      args: [killOnGeneration, lastInstanceId, oldLastInstanceId],
-      func: (killOnGeneration: string, lastInstanceId: string, oldLastInstanceId: string) => {
+      args: [killOnGeneration, lastInstanceId, oldLastInstanceId, n],
+      func: (killOnGeneration: string, lastInstanceId: string, oldLastInstanceId: string, n: number) => {
         const pInstances = document.querySelectorAll("p");
         const lastInstance: any =
           pInstances.length > 1
@@ -264,7 +280,7 @@ const sendPromptAndReceiveResponse = async (
     } else if(typeof responses?.[0]?.result === "string") {
       lastInstanceId = responses?.[0]?.result;
     }
-    await delay(300);
+    await delay(1000);
     await checker(n + 1, killOnGeneration);
   }
 
@@ -367,6 +383,7 @@ const getBotId = async () => {
 }
 
 const getNextRecallGrades = async (prevRecallGrade?: QueryDocumentSnapshot<DocumentData>): Promise<QueryDocumentSnapshot<DocumentData> | null> => {
+  console.log("getNextRecallGrades", prevRecallGrade ? prevRecallGrade.id : "");
   // priority 3 = researchers major vote excluding iman greater than or equal 3
   // priority 2 = Satisfied = false
   // priority 1 = Records for users whose 3rd session is not passed yet
