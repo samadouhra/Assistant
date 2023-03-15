@@ -553,6 +553,9 @@ export const recallGradingBot = async (gptTabId: number, prevRecallGrade?: Query
       while(phraseResponses.length < phraseLines.length && phraseResponses.length !== 1) {
         let resumeResponse = String(phraseResponses[phraseResponses.length - 1]);
         const lastPhraseResponse = String(phraseResponses[phraseResponses.length - 1]).split("\n");
+        const lastBooleanResponse = (String(lastPhraseResponse).trim().slice(0, 3).toLowerCase() === "yes") ? "YES" : "NO";
+        // const lastPercentResponse = String(lastPhraseResponse).trim().slice(3, String(lastPhraseResponse).trim().indexOf("%") + 1).trim();
+
         if(lastPhraseResponse.length < 3) {
           resumeResponse = phraseResponses[phraseResponses.length - 2] + "\n\n" // + resumeResponse;
           phraseResponses.pop();
@@ -566,7 +569,14 @@ export const recallGradingBot = async (gptTabId: number, prevRecallGrade?: Query
 
         const response = await sendPromptAndReceiveResponse(gptTabId, secondPrompt);
         isError = await checkIfGPTHasError(gptTabId);
-        phraseResponses.push(...response.split("\n\n"));
+        
+        // combing missing part of previous last response
+        const _responses: string[] = response.split("\n\n").map((pr: string) => pr.trim());
+        const firstResponseBoolean = String(String(_responses?.[0]).split("\n")?.[0]).toLowerCase();
+        if(!firstResponseBoolean.startsWith("yes") && !firstResponseBoolean.startsWith("no") && _responses.length) {
+          _responses[0] = lastBooleanResponse + "\n" + _responses[0];
+        }
+        phraseResponses.push(..._responses);
 
         if(isError) {
           break;
