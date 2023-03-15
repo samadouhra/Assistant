@@ -489,7 +489,7 @@ export const recallGradingBot = async (gptTabId: number, prevRecallGrade?: Query
       `Each section of your response, which corresponds to one of the above listed key phrases, should include the following three lines:\n` +
       `- DO NOT write the key phrase in your response. We understand your answers based on the order of key phrases.\n` +
       `- In the first line, only print YES or NO. Do not add any more explanations. DO NOT write any line before this line.\n` +
-      `- In the second line of your response, only print a percentage by which you are confident about your answer, YES or NO, in the first line.\n` +
+      `- In the second line of your response, only print your calculated probability of the YES response in percentage.\n` +
       `- In the third line of your response, explain why you answered YES or NO in the first line and the percentage in the second line.`;
 
       const response = await sendPromptAndReceiveResponse(gptTabId, prompt);
