@@ -569,8 +569,8 @@ export const recallGradingBot = async (gptTabId: number, prevRecallGrade?: Query
     }
 
     await updateRecallGrades(recallGrade);
-    // await deleteGPTConversation(gptTabId);
-    // await startANewChat(gptTabId);
+    await deleteGPTConversation(gptTabId);
+    await startANewChat(gptTabId);
 
     break;
   }
