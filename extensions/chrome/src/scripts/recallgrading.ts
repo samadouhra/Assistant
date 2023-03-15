@@ -571,7 +571,12 @@ export const recallGradingBot = async (gptTabId: number, prevRecallGrade?: Query
         isError = await checkIfGPTHasError(gptTabId);
         
         // combing missing part of previous last response
-        const _responses: string[] = response.split("\n\n").map((pr: string) => pr.trim());
+        let _responses: string[] = response.split("\n\n").map((pr: string) => pr.trim());
+        if(_responses.length) {
+          if(_responses[0].split("\n").length === 1) {
+            _responses.pop();
+          }
+        }
         const firstResponseBoolean = String(String(_responses?.[0]).split("\n")?.[0]).toLowerCase();
         if(!firstResponseBoolean.startsWith("yes") && !firstResponseBoolean.startsWith("no") && _responses.length) {
           _responses[0] = lastBooleanResponse + "\n" + _responses[0];
