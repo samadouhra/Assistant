@@ -574,13 +574,15 @@ export const recallGradingBot = async (gptTabId: number, prevRecallGrade?: Query
         let _responses: string[] = response.split("\n\n").map((pr: string) => pr.trim());
         if(_responses.length) {
           if(_responses[0].split("\n").length === 1) {
-            _responses.pop();
+            let statement = _responses.shift();
+            _responses.unshift(lastPhraseResponse.join("\n") + "\n" + statement);
           }
         }
         const firstResponseBoolean = String(String(_responses?.[0]).split("\n")?.[0]).toLowerCase();
         if(!firstResponseBoolean.startsWith("yes") && !firstResponseBoolean.startsWith("no") && _responses.length) {
           _responses[0] = lastBooleanResponse + "\n" + _responses[0];
         }
+        
         phraseResponses.push(..._responses);
 
         if(isError) {
