@@ -99,6 +99,13 @@ const startANewChat = async (gptTabId: number) => {
       const newChatBtn = document.querySelector("nav > a") as HTMLElement;
       if (!newChatBtn) return;
       newChatBtn.click();
+      const modelDropDown = document.querySelector("button[id^=\"headlessui-listbox-button-\"]") as HTMLElement;
+      if(!modelDropDown) return;
+      modelDropDown.click();
+      const dropdownOptions = document.querySelectorAll("li[id^=\"headlessui-listbox-option-\"]");
+      if(!dropdownOptions.length) return;
+      const dropdownOption = dropdownOptions[dropdownOptions.length - 1] as HTMLElement;
+      dropdownOption.click();
     },
   });
 };
@@ -302,9 +309,22 @@ const getRecallGrades = async(recallGradeDoc: QueryDocumentSnapshot<DocumentData
   let _recallGrades: any = [];
 
   const recallGrade = recallGradeDoc.data();
+  let selectedByOther = false;
+  const botId = await getBotId();
+
   for (let session in recallGrade.sessions) {
     for (let conditionItem of recallGrade.sessions[session]) {
-      if (!conditionItem.hasOwnProperty("doneDavinci")) {
+      if(conditionItem.botId && conditionItem.botId !== botId) {
+        selectedByOther = true;
+      }
+    }
+  }
+
+  if(selectedByOther) return [];
+
+  for (let session in recallGrade.sessions) {
+    for (let conditionItem of recallGrade.sessions[session]) {
+      if (!conditionItem.hasOwnProperty("doneGpt4")) {
         _recallGrades.push({
           docId: recallGradeDoc.id,
           session: session,
@@ -407,7 +427,7 @@ const updateRecallGrades = async (recallGrade: any) => {
   ].phrases = recallGrade.phrases;
   recallGradeUpdate.sessions[recallGrade.session][
     recallGrade.conditionIndex
-  ].doneDavinci = true;
+  ].doneGpt4 = true;
   await updateDoc(recallGradeRef, recallGradeUpdate);
 };
 
@@ -513,7 +533,7 @@ export const recallGradingBot = async (gptTabId: number, prevRecallGrade?: Query
 
       phraseResponses = phraseResponses.filter((phraseResponse) => phraseResponse.split("\n").length >= 3);
 
-      while(phraseResponses.length < phraseLines.length && phraseResponses.length === 1) {
+      while(phraseResponses.length < phraseLines.length && phraseResponses.length !== 1) {
         let resumeResponse = String(phraseResponses[phraseResponses.length - 1]);
         const lastPhraseResponse = String(phraseResponses[phraseResponses.length - 1]).split("\n");
         if(lastPhraseResponse.length < 3) {
@@ -572,8 +592,6 @@ export const recallGradingBot = async (gptTabId: number, prevRecallGrade?: Query
     await updateRecallGrades(recallGrade);
     await deleteGPTConversation(gptTabId);
     await startANewChat(gptTabId);
-
-    break;
   }
 
   recallGradingBot(gptTabId, prevRecallGrade);
