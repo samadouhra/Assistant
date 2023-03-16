@@ -1,3 +1,4 @@
+import { getStorage, ref, uploadString } from "firebase/storage";
 import { doesReloadRequired } from "../helpers/chatgpt";
 import { delay } from "../helpers/common";
 import {
@@ -32,6 +33,11 @@ const recallGradingCommands = [
   RECALL_GRADING_STATUS,
 ];
 const gptResearcher = "Iman YeckehZaare";
+
+// "http://localhost:5001/visualexp-5d2c6/us-central1/api"
+// "https://1cademy.us/api"
+const apiBasePath = "https://1cademy.us/api";
+
 export const stopRecallBot = async () => {
   await chrome.storage.local.set({
     recallgrading: {
@@ -435,6 +441,18 @@ const getNextRecallGrades = async (prevRecallGrade?: QueryDocumentSnapshot<Docum
   return null;
 };
 
+type ResponseLineTypeReturn = "boolean" | "percentage" | "reason";
+
+const responseLineType = (line: string): ResponseLineTypeReturn => {
+  const _line = line.trim();
+  if(line.trim().replace(/[^a-z]+/g, "").toLowerCase() === "no" || line.replace(/[^a-z]+/g, "").toLowerCase() === "yes") {
+    return "boolean";
+  } else if(_line.charAt(_line.length - 1) === "%") {
+    return "boolean";
+  }
+  return "reason";
+}
+
 const updateRecallGrades = async (recallGrade: any) => {
   const recallGradeRef = doc(db, "recallGradesV2", recallGrade.docId);
   const recallGradeDoc = await getDoc(recallGradeRef);
@@ -546,7 +564,17 @@ export const recallGradingBot = async (gptTabId: number, prevRecallGrade?: Query
         continue;
       }
 
-      phraseResponses.push(...response.split("\n\n"));
+      let _responses: string[] = response.split("\n\n").map((pr: string) => pr.trim());
+      /* _responses = _responses.map((_response) => {
+        let lines = _response.split("\n");
+        lines.sort((a, b) => {
+          let _a = responseLineType(a);
+          let _b = responseLineType(b);
+          return ((_a === "percentage" || _a === "reason") && _b === "boolean") || (_a === "reason" && _b === "percentage") ? 1 : -1
+        });
+        return lines.join("\n");
+      }); */
+      phraseResponses.push(..._responses);
 
       phraseResponses = phraseResponses.filter((phraseResponse) => phraseResponse.split("\n").length >= 3);
 
@@ -582,7 +610,17 @@ export const recallGradingBot = async (gptTabId: number, prevRecallGrade?: Query
         if(!firstResponseBoolean.startsWith("yes") && !firstResponseBoolean.startsWith("no") && _responses.length) {
           _responses[0] = lastBooleanResponse + "\n" + _responses[0];
         }
-        
+
+        /* _responses = _responses.map((_response) => {
+          let lines = _response.split("\n");
+          lines.sort((a, b) => {
+            let _a = responseLineType(a);
+            let _b = responseLineType(b);
+            return ((_a === "percentage" || _a === "reason") && _b === "boolean") || (_a === "reason" && _b === "percentage") ? 1 : -1
+          });
+          return lines.join("\n");
+        }); */
+
         phraseResponses.push(..._responses);
 
         if(isError) {
@@ -594,7 +632,31 @@ export const recallGradingBot = async (gptTabId: number, prevRecallGrade?: Query
         continue;
       }
       
-      console.log(phraseResponses, "phraseResponses")
+      const rawFileContent = {
+        docId: recallGrade.docId,
+        phrases: recallGrade.phrases,
+        phraseResponses,
+        session: recallGrade.session,
+        conditionIndex: recallGrade.conditionIndex,
+        user: recallGrade.user,
+        project: recallGrade.project
+      };
+
+      // const storage = getStorage();
+      // const storageRef = ref(storage, `recalls/${rawFileContent.docId}-${rawFileContent.session}-${rawFileContent.conditionIndex}.json`);
+
+      try {
+        await fetch(`${apiBasePath}/recallUpload`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({rawFileContent})
+        });
+        // await uploadString(storageRef, JSON.stringify(rawFileContent, null, 2));
+        // console.log(`recalls/${rawFileContent.docId}-${rawFileContent.session}-${rawFileContent.conditionIndex}.json`);
+      } catch(e) {}
+      /* console.log(phraseResponses, "phraseResponses")
       for(let i = 0; i < recallGrade.phrases.length; i++) {
         const recallPhrase = recallGrade.phrases[i];
         // if (recallPhrase.hasOwnProperty("gpt4Grade")) continue;
@@ -620,7 +682,7 @@ export const recallGradingBot = async (gptTabId: number, prevRecallGrade?: Query
           .trim();
         console.log("recallPhrase :: :: ", recallPhrase);
         console.log("recallGrade :: :: ", recallGrade);
-      }
+      } */
     }
 
     await updateRecallGrades(recallGrade);
