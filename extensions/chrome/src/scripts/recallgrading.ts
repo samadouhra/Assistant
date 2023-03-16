@@ -565,7 +565,7 @@ export const recallGradingBot = async (gptTabId: number, prevRecallGrade?: Query
       }
 
       let _responses: string[] = response.split("\n\n").map((pr: string) => pr.trim());
-      /* _responses = _responses.map((_response) => {
+      _responses = _responses.map((_response) => {
         let lines = _response.split("\n");
         lines.sort((a, b) => {
           let _a = responseLineType(a);
@@ -573,7 +573,7 @@ export const recallGradingBot = async (gptTabId: number, prevRecallGrade?: Query
           return ((_a === "percentage" || _a === "reason") && _b === "boolean") || (_a === "reason" && _b === "percentage") ? 1 : -1
         });
         return lines.join("\n");
-      }); */
+      });
       phraseResponses.push(..._responses);
 
       phraseResponses = phraseResponses.filter((phraseResponse) => phraseResponse.split("\n").length >= 3);
@@ -611,7 +611,7 @@ export const recallGradingBot = async (gptTabId: number, prevRecallGrade?: Query
           _responses[0] = lastBooleanResponse + "\n" + _responses[0];
         }
 
-        /* _responses = _responses.map((_response) => {
+        _responses = _responses.map((_response) => {
           let lines = _response.split("\n");
           lines.sort((a, b) => {
             let _a = responseLineType(a);
@@ -619,7 +619,7 @@ export const recallGradingBot = async (gptTabId: number, prevRecallGrade?: Query
             return ((_a === "percentage" || _a === "reason") && _b === "boolean") || (_a === "reason" && _b === "percentage") ? 1 : -1
           });
           return lines.join("\n");
-        }); */
+        });
 
         phraseResponses.push(..._responses);
 
@@ -634,7 +634,7 @@ export const recallGradingBot = async (gptTabId: number, prevRecallGrade?: Query
       
       const rawFileContent = {
         docId: recallGrade.docId,
-        phrases: recallGrade.phrases,
+        // phrases: recallGrade.phrases,
         phraseResponses,
         session: recallGrade.session,
         conditionIndex: recallGrade.conditionIndex,
