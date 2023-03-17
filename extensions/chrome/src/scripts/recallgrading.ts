@@ -571,7 +571,9 @@ export const recallGradingBot = async (gptTabId: number, prevRecallGrade?: Query
         lines.sort((a, b) => {
           let _a = responseLineType(a);
           let _b = responseLineType(b);
-          return ((_a === "percentage" || _a === "reason") && _b === "boolean") || (_a === "reason" && _b === "percentage") || (_a === "boolean" && _b === "reason") ? 1 : -1
+          let __a = _a === "boolean" ? 1 : _a === "percentage" ? 2 : 3;
+          let __b = _b === "boolean" ? 1 : _b === "percentage" ? 2 : 3;
+          return __a - __b;
         });
         return lines.join("\n");
       });
@@ -621,7 +623,9 @@ export const recallGradingBot = async (gptTabId: number, prevRecallGrade?: Query
           lines.sort((a, b) => {
             let _a = responseLineType(a);
             let _b = responseLineType(b);
-            return ((_a === "percentage" || _a === "reason") && _b === "boolean") || (_a === "reason" && _b === "percentage") || (_a === "boolean" && _b === "reason") ? 1 : -1
+            let __a = _a === "boolean" ? 1 : _a === "percentage" ? 2 : 3;
+            let __b = _b === "boolean" ? 1 : _b === "percentage" ? 2 : 3;
+            return __a - __b;
           });
           return lines.join("\n");
         });
