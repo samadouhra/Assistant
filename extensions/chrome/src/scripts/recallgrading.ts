@@ -178,6 +178,7 @@ const sendPromptAndReceiveResponse = async (
   gptTabId: number,
   prompt: string
 ) => {
+  console.log("sending a request")
   const responses = await chrome.scripting.executeScript<any, any>({
     target: {
       tabId: gptTabId,
@@ -412,7 +413,7 @@ const getNextRecallGrades = async (prevRecallGrade?: QueryDocumentSnapshot<Docum
   
   if(recallGrades.docs.length) {
     let isValid = true;
-    await delay(1000 * (Math.random() * 7) + 4);
+    // await delay(1000 * (Math.random() * 7) + 4);
     const recallGrade = await getDoc(doc(db, "recallGradesV2", recallGrades.docs[0].id));
 
     const _recallGrades = await getRecallGrades(recallGrade as QueryDocumentSnapshot<DocumentData>);
@@ -489,7 +490,7 @@ export const recallGradingBot = async (gptTabId: number, prevRecallGrade?: Query
   });
 
   prevRecallGrade = (await getNextRecallGrades(prevRecallGrade))!;
-  console.log(prevRecallGrade, "prevRecallGrade")
+  // console.log(prevRecallGrade, "prevRecallGrade")
   if(!prevRecallGrade) return; // bot is done processing
 
   let recallGrades = await getRecallGrades(prevRecallGrade);
@@ -570,7 +571,7 @@ export const recallGradingBot = async (gptTabId: number, prevRecallGrade?: Query
         lines.sort((a, b) => {
           let _a = responseLineType(a);
           let _b = responseLineType(b);
-          return ((_a === "percentage" || _a === "reason") && _b === "boolean") || (_a === "reason" && _b === "percentage") ? 1 : -1
+          return ((_a === "percentage" || _a === "reason") && _b === "boolean") || (_a === "reason" && _b === "percentage") || (_a === "boolean" && _b === "reason") ? 1 : -1
         });
         return lines.join("\n");
       });
@@ -601,7 +602,11 @@ export const recallGradingBot = async (gptTabId: number, prevRecallGrade?: Query
         // combing missing part of previous last response
         let _responses: string[] = response.split("\n\n").map((pr: string) => pr.trim());
         if(_responses.length) {
-          if(_responses[0].split("\n").length === 1) {
+          if(_responses.length > 1 && _responses[1].split("\n").length < 3) {
+            _responses.shift(); // removing error response
+          }
+
+          if(_responses[0].split("\n").length < 3) {
             let statement = _responses.shift();
             _responses.unshift(lastPhraseResponse.join("\n") + "\n" + statement);
           }
@@ -616,7 +621,7 @@ export const recallGradingBot = async (gptTabId: number, prevRecallGrade?: Query
           lines.sort((a, b) => {
             let _a = responseLineType(a);
             let _b = responseLineType(b);
-            return ((_a === "percentage" || _a === "reason") && _b === "boolean") || (_a === "reason" && _b === "percentage") ? 1 : -1
+            return ((_a === "percentage" || _a === "reason") && _b === "boolean") || (_a === "reason" && _b === "percentage") || (_a === "boolean" && _b === "reason") ? 1 : -1
           });
           return lines.join("\n");
         });
