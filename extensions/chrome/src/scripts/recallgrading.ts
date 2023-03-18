@@ -57,9 +57,10 @@ const checkIfGPTHasError = async (gptTabId: number) => {
     },
     func: () => {
       const btns = document.querySelectorAll("main button");
+      const redNotice = document.querySelector("main .border-red-500") as HTMLElement;
       return String(
         (btns?.[btns.length - 1]?.parentElement as HTMLElement)?.innerText
-      ).includes("error");
+      ).includes("error") || String(redNotice?.innerText).toLowerCase().includes("reached the current usage");
     },
   });
   return !!responses[0].result;
@@ -119,6 +120,22 @@ const startANewChat = async (gptTabId: number) => {
     },
   });
   await delay(500);
+  // check if gpt4 is available or not
+  const availability_responses = await chrome.scripting.executeScript({
+    target: {
+      tabId: gptTabId,
+    },
+    func: () => {
+      const gpt4DisableIcon = document.querySelector("li[id^=\"headlessui-listbox-option-\"] path[d=\"M11.412 15.655L9.75 21.75l3.745-4.012M9.257 13.5H3.75l2.659-2.849m2.048-2.194L14.25 2.25 12 10.5h8.25l-4.707 5.043M8.457 8.457L3 3m5.457 5.457l7.086 7.086m0 0L21 21\"]");
+      if(gpt4DisableIcon) {
+        return false;
+      }
+      return true;
+    },
+  });
+  if(!availability_responses?.[0]?.result) {
+    return false;
+  }
   await chrome.scripting.executeScript({
     target: {
       tabId: gptTabId,
@@ -130,6 +147,8 @@ const startANewChat = async (gptTabId: number) => {
       dropdownOption.click();
     },
   });
+  
+  return true;
 };
 
 const reloadGptIfRequired = async (gptTabId: number) => {
@@ -446,10 +465,10 @@ type ResponseLineTypeReturn = "boolean" | "percentage" | "reason";
 
 const responseLineType = (line: string): ResponseLineTypeReturn => {
   const _line = line.trim();
-  if(line.trim().replace(/[^a-z]+/g, "").toLowerCase() === "no" || line.replace(/[^a-z]+/g, "").toLowerCase() === "yes") {
+  if(_line.toLowerCase().replace(/[^a-z]+/g, "") === "no" || _line.toLowerCase().replace(/[^a-z]+/g, "") === "yes") {
     return "boolean";
   } else if(_line.charAt(_line.length - 1) === "%") {
-    return "boolean";
+    return "percentage";
   }
   return "reason";
 }
@@ -520,6 +539,15 @@ export const recallGradingBot = async (gptTabId: number, prevRecallGrade?: Query
   }
 
   for (let recallGrade of recallGrades) {
+
+    let isChatStarted = await startANewChat(gptTabId);
+    while(!isChatStarted) {
+      console.log("waiting for chatgpt 4 to be available again");
+      await delay(10 * 60 * 1000); // 10 minutes
+      const chatgpt = await chrome.tabs.get(gptTabId);
+      await chrome.tabs.update(gptTabId, { url: chatgpt.url }); // reloading tab
+      await startANewChat(gptTabId);
+    }
 
     const storageValues = await chrome.storage.local.get(["recallgrading"]);
     // if someone closed one of these tabs between bot running
@@ -696,7 +724,6 @@ export const recallGradingBot = async (gptTabId: number, prevRecallGrade?: Query
 
     await updateRecallGrades(recallGrade);
     await deleteGPTConversation(gptTabId);
-    await startANewChat(gptTabId);
   }
 
   recallGradingBot(gptTabId, prevRecallGrade);
