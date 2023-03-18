@@ -120,22 +120,6 @@ const startANewChat = async (gptTabId: number) => {
     },
   });
   await delay(500);
-  // check if gpt4 is available or not
-  const availability_responses = await chrome.scripting.executeScript({
-    target: {
-      tabId: gptTabId,
-    },
-    func: () => {
-      const gpt4DisableIcon = document.querySelector("li[id^=\"headlessui-listbox-option-\"] path[d=\"M11.412 15.655L9.75 21.75l3.745-4.012M9.257 13.5H3.75l2.659-2.849m2.048-2.194L14.25 2.25 12 10.5h8.25l-4.707 5.043M8.457 8.457L3 3m5.457 5.457l7.086 7.086m0 0L21 21\"]");
-      if(gpt4DisableIcon) {
-        return false;
-      }
-      return true;
-    },
-  });
-  if(!availability_responses?.[0]?.result) {
-    return false;
-  }
   await chrome.scripting.executeScript({
     target: {
       tabId: gptTabId,
@@ -356,7 +340,7 @@ const getRecallGrades = async(recallGradeDoc: QueryDocumentSnapshot<DocumentData
 
   for (let session in recallGrade.sessions) {
     for (let conditionItem of recallGrade.sessions[session]) {
-      if(conditionItem.botId && conditionItem.botId !== botId) {
+      if(conditionItem.c35BotId && conditionItem.c35BotId !== botId) {
         selectedByOther = true;
       }
     }
@@ -366,7 +350,7 @@ const getRecallGrades = async(recallGradeDoc: QueryDocumentSnapshot<DocumentData
 
   for (let session in recallGrade.sessions) {
     for (let conditionItem of recallGrade.sessions[session]) {
-      if (!conditionItem.hasOwnProperty("doneGpt4")) {
+      if (!conditionItem.hasOwnProperty("doneGpt35")) {
         _recallGrades.push({
           docId: recallGradeDoc.id,
           session: session,
@@ -482,7 +466,7 @@ const updateRecallGrades = async (recallGrade: any) => {
   ].phrases = recallGrade.phrases;
   recallGradeUpdate.sessions[recallGrade.session][
     recallGrade.conditionIndex
-  ].doneGpt4 = true;
+  ].doneGpt35 = true;
   await updateDoc(recallGradeRef, recallGradeUpdate);
 };
 
@@ -500,7 +484,7 @@ export const recallGradingBot = async (gptTabId: number, prevRecallGrade?: Query
     gptTab = await chrome.tabs.get(gptTabId);
   } catch (e) {
     gptTab = await chrome.tabs.create({
-      url: "https://chat.openai.com/chat?model=gpt-4",
+      url: "https://chat.openai.com/chat",
     });
     gptTabId = gptTab.id!;
   }
@@ -561,12 +545,12 @@ export const recallGradingBot = async (gptTabId: number, prevRecallGrade?: Query
     for(const phrase of recallGrade.phrases) {
       let isError = true;
       while (isError) {
-        
+
         const prompt: string = `We asked a student to learn some passage and write whatever they recall.\n` +
           `The student's response is below in triple-quotes:\n` +
           `'''\n${recallGrade.response}\n'''\n` +
           `Respond whether the student has mentioned the key phrase \`${phrase.phrase}\` If they have mentioned it, respond YES, otherwise NO.\n` +
-          `Your response should be a JSON dictionary, without any extra text.\n` +
+          `Your response should be in JSON format, without any extra text.\n` +
           `The key called "resp" should have the value "YES" if the student has mentioned the key phrase, otherwise "NO".\n` +
           `The key called "prob" should have the value of your calculated probability of the "YES" response.`;
         
@@ -598,11 +582,11 @@ export const recallGradingBot = async (gptTabId: number, prevRecallGrade?: Query
         }
 
         if(jsonResponse.resp.toLowerCase() === "yes") {
-          phrase.gpt4Grade = true
+          phrase.gpt35Grade = true
         } else {
-          phrase.gpt4Grade = false
+          phrase.gpt35Grade = false
         }
-        phrase.gpt4Confidence = jsonResponse.prob;
+        phrase.gpt35Confidence = jsonResponse.prob;
 
         console.log(phrase.phrase, jsonResponse);
 
@@ -646,6 +630,7 @@ export const recallGradingBot = async (gptTabId: number, prevRecallGrade?: Query
       }
     }
 
+    console.log(recallGrade, "recallGrade before update");
     await updateRecallGrades(recallGrade);
   }
 
@@ -676,7 +661,7 @@ export const recallGradeListener = (
         gptTabId = gptTabs[0].id!;
       } else {
         const newTab = await chrome.tabs.create({
-          url: "https://chat.openai.com/chat?model=gpt-4",
+          url: "https://chat.openai.com/chat",
           active: true,
         });
         gptTabId = newTab.id!;
