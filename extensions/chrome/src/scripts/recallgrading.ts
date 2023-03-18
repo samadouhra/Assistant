@@ -556,174 +556,97 @@ export const recallGradingBot = async (gptTabId: number, prevRecallGrade?: Query
       return;
     }
 
-    const phraseLines = recallGrade.phrases.map((phrase: any) => "- " + phrase.phrase);
-
     await delay(4000);
-    let isError = true;
-    while (isError) {
-      const prompt: string =
-      `We asked a student to learn some passage and write whatever they recall.\n` +
-      `The student's response is below in triple-quotes:\n` +
-      `'''\n` +
-      `${recallGrade.response}\n` +
-      `'''\n` +
-      `Assess whether the student has mentioned each of the following key phrases:\n` +
-      phraseLines.join("\n") + "\n" +
-      `Your response should include a section for each of the above listed key phrases, separated by ---- enclosed by two new line characters.\n` +
-      `Each section of your response, which corresponds to one of the above listed key phrases, should include the following three lines:\n` +
-      `- DO NOT write the key phrase in your response. We understand your answers based on the order of key phrases.\n` +
-      `- In the first line, only print YES or NO. Do not add any more explanations. DO NOT write any line before this line.\n` +
-      `- In the second line of your response, only print your calculated probability of the YES response in percentage.\n` +
-      `- In the third line of your response, explain why you answered YES or NO in the first line and the percentage in the second line.`;
 
-      const response = await sendPromptAndReceiveResponse(gptTabId, prompt);
-      isError = await checkIfGPTHasError(gptTabId);
+    for(const phrase of recallGrade.phrases) {
+      let isError = true;
+      while (isError) {
+        
+        const prompt: string = `We asked a student to learn some passage and write whatever they recall.\n` +
+          `The student's response is below in triple-quotes:\n` +
+          `'''\n${recallGrade.response}\n'''\n` +
+          `Respond whether the student has mentioned the key phrase \`${phrase.phrase}\` If they have mentioned it, respond YES, otherwise NO.\n` +
+          `Your response should be a JSON dictionary, without any extra text.\n` +
+          `The key called "resp" should have the value "YES" if the student has mentioned the key phrase, otherwise "NO".\n` +
+          `The key called "prob" should have the value of your calculated probability of the "YES" response.`;
+        
+        const response = await sendPromptAndReceiveResponse(gptTabId, prompt);
+        isError = await checkIfGPTHasError(gptTabId);
 
-      let phraseResponses: string[] = [];
+        if (isError) {
+          const chatgpt = await chrome.tabs.get(gptTabId);
+          await chrome.tabs.update(gptTabId, { url: chatgpt.url }); // reloading tab
+          console.log("Waiting for 10 min for chatGPT to return.");
+          await delay(1000 * 60 * 10);
+          const isChatAvailable = await waitUntilChatGPTLogin(gptTabId);
+          if (!isChatAvailable) {
+            throw new Error("ChatGPT is not available.");
+          }
+          continue;
+        }
 
-      if (isError) {
+        let jsonResponse: {
+          resp: string,
+          prob: string
+        };
+
+        try {
+          jsonResponse = JSON.parse(response.substr(response.indexOf("{"), response.indexOf("}") + 1))
+        } catch(e) {
+          isError = true;
+          continue;
+        }
+
+        if(jsonResponse.resp.toLowerCase() === "yes") {
+          phrase.gpt4Grade = true
+        } else {
+          phrase.gpt4Grade = false
+        }
+        phrase.gpt4Confidence = jsonResponse.prob;
+
+        console.log(phrase.phrase, jsonResponse);
+
+        /* console.log(phraseResponses, "phraseResponses")
+        for(let i = 0; i < recallGrade.phrases.length; i++) {
+          const recallPhrase = recallGrade.phrases[i];
+          // if (recallPhrase.hasOwnProperty("gpt4Grade")) continue;
+
+          const response = phraseResponses.length === 1 ? phraseResponses[0] : phraseResponses[i];
+          console.log("response :: :: ", String(response));
+          if (String(response).trim().slice(0, 3).toLowerCase() === "yes") {
+            recallPhrase.gpt4Grade = true;
+            recallPhrase.gpt4Confidence = String(response)
+              .trim()
+              .slice(3, String(response).trim().indexOf("%") + 1)
+              .trim();
+          } else {
+            recallPhrase.gpt4Grade = false;
+            recallPhrase.gpt4Confidence = String(response)
+              .trim()
+              .slice(2, String(response).trim().indexOf("%") + 1)
+              .trim();
+          }
+          recallPhrase.gpt4Reason = String(response)
+            .trim()
+            .slice(String(response).trim().indexOf("%") + 1)
+            .trim();
+          console.log("recallPhrase :: :: ", recallPhrase);
+          console.log("recallGrade :: :: ", recallGrade);
+        } */
+      }
+
+      await deleteGPTConversation(gptTabId);
+      let isChatStarted = await startANewChat(gptTabId);
+      while(!isChatStarted) {
+        console.log("waiting for chatgpt 4 to be available again");
+        await delay(10 * 60 * 1000); // 10 minutes
         const chatgpt = await chrome.tabs.get(gptTabId);
         await chrome.tabs.update(gptTabId, { url: chatgpt.url }); // reloading tab
-        console.log("Waiting for 10 min for chatGPT to return.");
-        await delay(1000 * 60 * 10);
-        const isChatAvailable = await waitUntilChatGPTLogin(gptTabId);
-        if (!isChatAvailable) {
-          throw new Error("ChatGPT is not available.");
-        }
-        continue;
+        await startANewChat(gptTabId);
       }
-
-      let _responses: string[] = response.split("\n\n").map((pr: string) => pr.trim());
-      _responses = _responses.map((_response) => {
-        let lines = _response.split("\n");
-        lines.sort((a, b) => {
-          let _a = responseLineType(a);
-          let _b = responseLineType(b);
-          let __a = _a === "boolean" ? 1 : _a === "percentage" ? 2 : 3;
-          let __b = _b === "boolean" ? 1 : _b === "percentage" ? 2 : 3;
-          return __a - __b;
-        });
-        return lines.join("\n");
-      });
-      phraseResponses.push(..._responses);
-
-      phraseResponses = phraseResponses.filter((phraseResponse) => phraseResponse.split("\n").length >= 3);
-
-      while(phraseResponses.length < phraseLines.length && phraseResponses.length !== 1) {
-        let resumeResponse = String(phraseResponses[phraseResponses.length - 1]);
-        const lastPhraseResponse = String(phraseResponses[phraseResponses.length - 1]).split("\n");
-        const lastBooleanResponse = (String(lastPhraseResponse).trim().slice(0, 3).toLowerCase() === "yes") ? "YES" : "NO";
-        // const lastPercentResponse = String(lastPhraseResponse).trim().slice(3, String(lastPhraseResponse).trim().indexOf("%") + 1).trim();
-
-        if(lastPhraseResponse.length < 3) {
-          resumeResponse = phraseResponses[phraseResponses.length - 2] + "\n\n" // + resumeResponse;
-          phraseResponses.pop();
-        }
-        const secondPrompt = 
-        `Your response was incomplete. The last segment of your response was the following triple-quoted text.\n` +
-        `'''\n` +
-        resumeResponse +
-        `'''\n` +
-        `Print the rest of your response.\n`;
-
-        const response = await sendPromptAndReceiveResponse(gptTabId, secondPrompt);
-        isError = await checkIfGPTHasError(gptTabId);
-        
-        // combing missing part of previous last response
-        let _responses: string[] = response.split("\n\n").map((pr: string) => pr.trim());
-        if(_responses.length) {
-          if(_responses.length > 1 && _responses[1].split("\n").length < 3) {
-            _responses.shift(); // removing error response
-          }
-
-          if(_responses[0].split("\n").length < 3) {
-            let statement = _responses.shift();
-            _responses.unshift(lastPhraseResponse.join("\n") + "\n" + statement);
-          }
-        }
-        const firstResponseBoolean = String(String(_responses?.[0]).split("\n")?.[0]).toLowerCase();
-        if(!firstResponseBoolean.startsWith("yes") && !firstResponseBoolean.startsWith("no") && _responses.length) {
-          _responses[0] = lastBooleanResponse + "\n" + _responses[0];
-        }
-
-        _responses = _responses.map((_response) => {
-          let lines = _response.split("\n");
-          lines.sort((a, b) => {
-            let _a = responseLineType(a);
-            let _b = responseLineType(b);
-            let __a = _a === "boolean" ? 1 : _a === "percentage" ? 2 : 3;
-            let __b = _b === "boolean" ? 1 : _b === "percentage" ? 2 : 3;
-            return __a - __b;
-          });
-          return lines.join("\n");
-        });
-
-        phraseResponses.push(..._responses);
-
-        if(isError) {
-          break;
-        }
-      }
-
-      if (isError) {
-        continue;
-      }
-      
-      const rawFileContent = {
-        docId: recallGrade.docId,
-        // phrases: recallGrade.phrases,
-        phraseResponses,
-        session: recallGrade.session,
-        conditionIndex: recallGrade.conditionIndex,
-        user: recallGrade.user,
-        project: recallGrade.project
-      };
-
-      // const storage = getStorage();
-      // const storageRef = ref(storage, `recalls/${rawFileContent.docId}-${rawFileContent.session}-${rawFileContent.conditionIndex}.json`);
-
-      try {
-        await fetch(`${apiBasePath}/recallUpload`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({rawFileContent})
-        });
-        // await uploadString(storageRef, JSON.stringify(rawFileContent, null, 2));
-        // console.log(`recalls/${rawFileContent.docId}-${rawFileContent.session}-${rawFileContent.conditionIndex}.json`);
-      } catch(e) {}
-      /* console.log(phraseResponses, "phraseResponses")
-      for(let i = 0; i < recallGrade.phrases.length; i++) {
-        const recallPhrase = recallGrade.phrases[i];
-        // if (recallPhrase.hasOwnProperty("gpt4Grade")) continue;
-
-        const response = phraseResponses.length === 1 ? phraseResponses[0] : phraseResponses[i];
-        console.log("response :: :: ", String(response));
-        if (String(response).trim().slice(0, 3).toLowerCase() === "yes") {
-          recallPhrase.gpt4Grade = true;
-          recallPhrase.gpt4Confidence = String(response)
-            .trim()
-            .slice(3, String(response).trim().indexOf("%") + 1)
-            .trim();
-        } else {
-          recallPhrase.gpt4Grade = false;
-          recallPhrase.gpt4Confidence = String(response)
-            .trim()
-            .slice(2, String(response).trim().indexOf("%") + 1)
-            .trim();
-        }
-        recallPhrase.gpt4Reason = String(response)
-          .trim()
-          .slice(String(response).trim().indexOf("%") + 1)
-          .trim();
-        console.log("recallPhrase :: :: ", recallPhrase);
-        console.log("recallGrade :: :: ", recallGrade);
-      } */
     }
 
     await updateRecallGrades(recallGrade);
-    await deleteGPTConversation(gptTabId);
   }
 
   recallGradingBot(gptTabId, prevRecallGrade);
