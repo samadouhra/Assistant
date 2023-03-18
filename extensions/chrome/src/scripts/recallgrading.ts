@@ -475,6 +475,13 @@ const responseLineType = (line: string): ResponseLineTypeReturn => {
 
 const updateRecallGrades = async (recallGrade: any) => {
   const recallGradeRef = doc(db, "recallGradesV2", recallGrade.docId);
+  let allPhrasesDone = true;
+  for(const phrase of recallGrade.phrases) {
+    if(!phrase.hasOwnProperty("gpt4Grade")) {
+      allPhrasesDone = false;
+      break;
+    }
+  }
   const recallGradeDoc = await getDoc(recallGradeRef);
   let recallGradeUpdate: any = recallGradeDoc.data();
   recallGradeUpdate.sessions[recallGrade.session][
@@ -482,7 +489,7 @@ const updateRecallGrades = async (recallGrade: any) => {
   ].phrases = recallGrade.phrases;
   recallGradeUpdate.sessions[recallGrade.session][
     recallGrade.conditionIndex
-  ].doneGpt4 = true;
+  ].doneGpt4 = allPhrasesDone;
   await updateDoc(recallGradeRef, recallGradeUpdate);
 };
 
@@ -559,6 +566,9 @@ export const recallGradingBot = async (gptTabId: number, prevRecallGrade?: Query
     await delay(4000);
 
     for(const phrase of recallGrade.phrases) {
+      if(phrase.hasOwnProperty("gpt4Grade")) {
+        continue
+      }
       let isError = true;
       while (isError) {
         
@@ -605,34 +615,6 @@ export const recallGradingBot = async (gptTabId: number, prevRecallGrade?: Query
         phrase.gpt4Confidence = jsonResponse.prob;
 
         console.log(phrase.phrase, jsonResponse);
-
-        /* console.log(phraseResponses, "phraseResponses")
-        for(let i = 0; i < recallGrade.phrases.length; i++) {
-          const recallPhrase = recallGrade.phrases[i];
-          // if (recallPhrase.hasOwnProperty("gpt4Grade")) continue;
-
-          const response = phraseResponses.length === 1 ? phraseResponses[0] : phraseResponses[i];
-          console.log("response :: :: ", String(response));
-          if (String(response).trim().slice(0, 3).toLowerCase() === "yes") {
-            recallPhrase.gpt4Grade = true;
-            recallPhrase.gpt4Confidence = String(response)
-              .trim()
-              .slice(3, String(response).trim().indexOf("%") + 1)
-              .trim();
-          } else {
-            recallPhrase.gpt4Grade = false;
-            recallPhrase.gpt4Confidence = String(response)
-              .trim()
-              .slice(2, String(response).trim().indexOf("%") + 1)
-              .trim();
-          }
-          recallPhrase.gpt4Reason = String(response)
-            .trim()
-            .slice(String(response).trim().indexOf("%") + 1)
-            .trim();
-          console.log("recallPhrase :: :: ", recallPhrase);
-          console.log("recallGrade :: :: ", recallGrade);
-        } */
       }
 
       await deleteGPTConversation(gptTabId);
@@ -644,9 +626,10 @@ export const recallGradingBot = async (gptTabId: number, prevRecallGrade?: Query
         await chrome.tabs.update(gptTabId, { url: chatgpt.url }); // reloading tab
         await startANewChat(gptTabId);
       }
-    }
 
-    await updateRecallGrades(recallGrade);
+      console.log("writing recall phrase", recallGrade);
+      await updateRecallGrades(recallGrade);
+    }
   }
 
   recallGradingBot(gptTabId, prevRecallGrade);
