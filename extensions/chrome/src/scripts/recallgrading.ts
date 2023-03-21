@@ -566,7 +566,7 @@ export const recallGradingBot = async (gptTabId: number, prevRecallGrade?: Query
     await delay(4000);
 
     for(const phrase of recallGrade.phrases) {
-      if(phrase.hasOwnProperty("gpt4Grade")) {
+      if(phrase.hasOwnProperty("gpt4Grade") || (phrase.researchers.length < 3 && phrase.satisfied)) {
         continue
       }
       let isError = true;
