@@ -549,11 +549,11 @@ export const recallGradingBot = async (gptTabId: number, prevRecallGrade?: Query
 
     let isChatStarted = await startANewChat(gptTabId);
     while(!isChatStarted) {
-      console.log("waiting for chatgpt 4 to be available again");
+      console.log("Waiting for 10 min for chatGPT to return.");
       await delay(10 * 60 * 1000); // 10 minutes
       const chatgpt = await chrome.tabs.get(gptTabId);
       await chrome.tabs.update(gptTabId, { url: chatgpt.url }); // reloading tab
-      await startANewChat(gptTabId);
+      isChatStarted = await startANewChat(gptTabId);
     }
 
     const storageValues = await chrome.storage.local.get(["recallgrading"]);
@@ -586,7 +586,7 @@ export const recallGradingBot = async (gptTabId: number, prevRecallGrade?: Query
         if (isError) {
           const chatgpt = await chrome.tabs.get(gptTabId);
           await chrome.tabs.update(gptTabId, { url: chatgpt.url }); // reloading tab
-          console.log("Waiting for 10 min for chatGPT to return.");
+          console.log("Waiting for 10 min for chatGPT to return. (phrase)");
           await delay(1000 * 60 * 10);
           const isChatAvailable = await waitUntilChatGPTLogin(gptTabId);
           if (!isChatAvailable) {
@@ -620,11 +620,11 @@ export const recallGradingBot = async (gptTabId: number, prevRecallGrade?: Query
       await deleteGPTConversation(gptTabId);
       let isChatStarted = await startANewChat(gptTabId);
       while(!isChatStarted) {
-        console.log("waiting for chatgpt 4 to be available again");
+        console.log("Waiting for 10 min for chatGPT to return.");
         await delay(10 * 60 * 1000); // 10 minutes
         const chatgpt = await chrome.tabs.get(gptTabId);
         await chrome.tabs.update(gptTabId, { url: chatgpt.url }); // reloading tab
-        await startANewChat(gptTabId);
+        isChatStarted = await startANewChat(gptTabId);
       }
 
       console.log("writing recall phrase", recallGrade);
