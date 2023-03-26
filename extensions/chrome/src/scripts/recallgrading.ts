@@ -38,6 +38,7 @@ const gptResearcher = "Iman YeckehZaare";
 // "https://1cademy.us/api"
 const apiBasePath = "https://1cademy.us/api";
 
+
 export const stopRecallBot = async () => {
   await chrome.storage.local.set({
     recallgrading: {
@@ -57,10 +58,17 @@ const checkIfGPTHasError = async (gptTabId: number) => {
     },
     func: () => {
       const btns = document.querySelectorAll("main button");
-      const redNotice = document.querySelector("main .border-red-500") as HTMLElement;
-      return String(
-        (btns?.[btns.length - 1]?.parentElement as HTMLElement)?.innerText
-      ).includes("error") || String(redNotice?.innerText).toLowerCase().includes("reached the current usage");
+      const redNotice = document.querySelector(
+        "main .border-red-500"
+      ) as HTMLElement;
+      return (
+        String(
+          (btns?.[btns.length - 1]?.parentElement as HTMLElement)?.innerText
+        ).includes("error") ||
+        String(redNotice?.innerText)
+          .toLowerCase()
+          .includes("reached the current usage")
+      );
     },
   });
   return !!responses[0].result;
@@ -114,8 +122,10 @@ const startANewChat = async (gptTabId: number) => {
       tabId: gptTabId,
     },
     func: () => {
-      const modelDropDown = document.querySelector("button[id^=\"headlessui-listbox-button-\"]") as HTMLElement;
-      if(!modelDropDown) return;
+      const modelDropDown = document.querySelector(
+        'button[id^="headlessui-listbox-button-"]'
+      ) as HTMLElement;
+      if (!modelDropDown) return;
       modelDropDown.click();
     },
   });
@@ -126,14 +136,16 @@ const startANewChat = async (gptTabId: number) => {
       tabId: gptTabId,
     },
     func: () => {
-      const gpt4DisableIcon = document.querySelector("li[id^=\"headlessui-listbox-option-\"] path[d=\"M11.412 15.655L9.75 21.75l3.745-4.012M9.257 13.5H3.75l2.659-2.849m2.048-2.194L14.25 2.25 12 10.5h8.25l-4.707 5.043M8.457 8.457L3 3m5.457 5.457l7.086 7.086m0 0L21 21\"]");
-      if(gpt4DisableIcon) {
+      const gpt4DisableIcon = document.querySelector(
+        'li[id^="headlessui-listbox-option-"] path[d="M11.412 15.655L9.75 21.75l3.745-4.012M9.257 13.5H3.75l2.659-2.849m2.048-2.194L14.25 2.25 12 10.5h8.25l-4.707 5.043M8.457 8.457L3 3m5.457 5.457l7.086 7.086m0 0L21 21"]'
+      );
+      if (gpt4DisableIcon) {
         return false;
       }
       return true;
     },
   });
-  if(!availability_responses?.[0]?.result) {
+  if (!availability_responses?.[0]?.result) {
     return false;
   }
   await chrome.scripting.executeScript({
@@ -141,13 +153,17 @@ const startANewChat = async (gptTabId: number) => {
       tabId: gptTabId,
     },
     func: () => {
-      const dropdownOptions = document.querySelectorAll("li[id^=\"headlessui-listbox-option-\"]");
-      if(!dropdownOptions.length) return;
-      const dropdownOption = dropdownOptions[dropdownOptions.length - 1] as HTMLElement;
+      const dropdownOptions = document.querySelectorAll(
+        'li[id^="headlessui-listbox-option-"]'
+      );
+      if (!dropdownOptions.length) return;
+      const dropdownOption = dropdownOptions[
+        dropdownOptions.length - 1
+      ] as HTMLElement;
       dropdownOption.click();
     },
   });
-  
+
   return true;
 };
 
@@ -197,7 +213,7 @@ const sendPromptAndReceiveResponse = async (
   gptTabId: number,
   prompt: string
 ) => {
-  console.log("sending a request")
+  console.log("sending a request");
   const responses = await chrome.scripting.executeScript<any, any>({
     target: {
       tabId: gptTabId,
@@ -223,31 +239,36 @@ const sendPromptAndReceiveResponse = async (
           ? pInstances[pInstances.length - 2]
           : pInstances?.[1];
 
-      if(oldLastInstance) {
-        oldLastInstance.setAttribute("id", lastInstanceId)
+      if (oldLastInstance) {
+        oldLastInstance.setAttribute("id", lastInstanceId);
       }
 
       return lastInstanceId;
-    }
+    },
   });
 
   let oldLastInstanceId: string = responses?.[0].result || "";
   let lastInstanceId: string = oldLastInstanceId;
 
-  const checker = async(n: number = 0, killOnGeneration: boolean) => {
+  const checker = async (n: number = 0, killOnGeneration: boolean) => {
     const responses = await chrome.scripting.executeScript<any, any>({
       target: {
         tabId: gptTabId,
       },
       args: [killOnGeneration, lastInstanceId, oldLastInstanceId, n],
-      func: (killOnGeneration: string, lastInstanceId: string, oldLastInstanceId: string, n: number) => {
+      func: (
+        killOnGeneration: string,
+        lastInstanceId: string,
+        oldLastInstanceId: string,
+        n: number
+      ) => {
         const pInstances = document.querySelectorAll("p");
         const lastInstance: any =
           pInstances.length > 1
             ? pInstances[pInstances.length - 2]
             : pInstances?.[1];
-        
-        if(lastInstance && !lastInstance.getAttribute("id")) {
+
+        if (lastInstance && !lastInstance.getAttribute("id")) {
           lastInstanceId = "last-instance-" + new Date().getTime();
           lastInstance.setAttribute("id", lastInstanceId);
         }
@@ -281,10 +302,12 @@ const sendPromptAndReceiveResponse = async (
             pInstances.length > 1
               ? pInstances[pInstances.length - 2]
               : pInstances?.[1];
-          const _lastInstanceId = _lastInstance ? _lastInstance.getAttribute("id") : "";
+          const _lastInstanceId = _lastInstance
+            ? _lastInstance.getAttribute("id")
+            : "";
           console.log("Not saw generation", killOnGeneration, {
             lastInstanceId,
-            _lastInstanceId
+            _lastInstanceId,
           });
           if (
             lastInstanceId !== _lastInstanceId ||
@@ -297,18 +320,18 @@ const sendPromptAndReceiveResponse = async (
         } else {
           return lastInstanceId;
         }
-      }
+      },
     });
-    if(responses?.[0]?.result === true) {
+    if (responses?.[0]?.result === true) {
       return true;
-    } else if(responses?.[0]?.result === false) {
+    } else if (responses?.[0]?.result === false) {
       return false;
-    } else if(typeof responses?.[0]?.result === "string") {
+    } else if (typeof responses?.[0]?.result === "string") {
       lastInstanceId = responses?.[0]?.result;
     }
     await delay(1000);
     await checker(n + 1, killOnGeneration);
-  }
+  };
 
   // console.log("reached at prompt response -1");
 
@@ -339,7 +362,7 @@ const sendPromptAndReceiveResponse = async (
       console.log("sending empty response");
       // return empty string if there was not result
       return "";
-    }
+    },
   });
 
   // console.log("reached at prompt response 2", gptResponses);
@@ -347,7 +370,9 @@ const sendPromptAndReceiveResponse = async (
   return gptResponses?.[0]?.result || "";
 };
 
-const getRecallGrades = async(recallGradeDoc: QueryDocumentSnapshot<DocumentData>) => {
+const getRecallGrades = async (
+  recallGradeDoc: QueryDocumentSnapshot<DocumentData>
+) => {
   let _recallGrades: any = [];
 
   const recallGrade = recallGradeDoc.data();
@@ -356,23 +381,25 @@ const getRecallGrades = async(recallGradeDoc: QueryDocumentSnapshot<DocumentData
 
   for (let session in recallGrade.sessions) {
     for (let conditionItem of recallGrade.sessions[session]) {
-      if(conditionItem.botId && conditionItem.botId !== botId) {
+      if (conditionItem.botId && conditionItem.botId !== botId) {
         selectedByOther = true;
       }
     }
   }
 
-  if(selectedByOther) return [];
+  if (selectedByOther) return [];
 
   for (let session in recallGrade.sessions) {
     for (let conditionItem of recallGrade.sessions[session]) {
-      if (!conditionItem.hasOwnProperty("doneGpt4")) {
+      if (
+        !conditionItem.hasOwnProperty("doneGPT4Mentioned") ||
+        !conditionItem.doneGPT4Mentioned
+      ) {
         _recallGrades.push({
           docId: recallGradeDoc.id,
           session: session,
           numSessions: Object.keys(recallGrade.sessions).length,
-          conditionIndex:
-            recallGrade.sessions[session].indexOf(conditionItem),
+          conditionIndex: recallGrade.sessions[session].indexOf(conditionItem),
           user: recallGrade.user,
           project: recallGrade.project,
           ...conditionItem,
@@ -391,24 +418,26 @@ const getRecallGrades = async(recallGradeDoc: QueryDocumentSnapshot<DocumentData
 
   return [
     ..._recallGrades.filter((g: any) => g.numSessions === 2),
-    ...__recallGrades
+    ...__recallGrades,
   ];
-}
+};
 
 const getBotId = async () => {
   const storagedActions = await chrome.storage.local.get(["botId"]);
-  if(storagedActions?.botId) {
+  if (storagedActions?.botId) {
     return storagedActions?.botId;
   }
   const botId = String(new Date().getTime());
   await chrome.storage.local.set({
-    botId
+    botId,
   });
 
   return botId;
-}
+};
 
-const getNextRecallGrades = async (prevRecallGrade?: QueryDocumentSnapshot<DocumentData>): Promise<QueryDocumentSnapshot<DocumentData> | null> => {
+const getNextRecallGrades = async (
+  prevRecallGrade?: QueryDocumentSnapshot<DocumentData>
+): Promise<QueryDocumentSnapshot<DocumentData> | null> => {
   console.log("getNextRecallGrades", prevRecallGrade ? prevRecallGrade.id : "");
   // priority 3 = researchers major vote excluding iman greater than or equal 3
   // priority 2 = Satisfied = false
@@ -416,42 +445,44 @@ const getNextRecallGrades = async (prevRecallGrade?: QueryDocumentSnapshot<Docum
   // priority 0 = default
 
   let recallGrades = await getDocs(
-    prevRecallGrade ?
-    query(
-      collection(db, "recallGradesV2"),
-      orderBy("priority", "desc"),
-      limit(1),
-      startAfter(prevRecallGrade)
-    ) :
-    query(
-      collection(db, "recallGradesV2"),
-      orderBy("priority", "desc"),
-      limit(1)
-    )
+    prevRecallGrade
+      ? query(
+          collection(db, "recallGradesV2"),
+          orderBy("priority", "desc"),
+          limit(1),
+          startAfter(prevRecallGrade)
+        )
+      : query(
+          collection(db, "recallGradesV2"),
+          orderBy("priority", "desc"),
+          limit(1)
+        )
   );
-  
-  if(recallGrades.docs.length) {
+
+  if (recallGrades.docs.length) {
     let isValid = true;
     // await delay(1000 * (Math.random() * 7) + 4);
-    const recallGrade = await getDoc(doc(db, "recallGradesV2", recallGrades.docs[0].id));
+    const recallGrade = await getDoc(
+      doc(db, "recallGradesV2", recallGrades.docs[0].id)
+    );
 
-    const _recallGrades = await getRecallGrades(recallGrade as QueryDocumentSnapshot<DocumentData>);
-    if(!_recallGrades.length) {
+    const _recallGrades = await getRecallGrades(
+      recallGrade as QueryDocumentSnapshot<DocumentData>
+    );
+    if (!_recallGrades.length) {
       isValid = false;
     } else {
       // flag condition item by bot id
       const { session, conditionIndex } = _recallGrades[0];
       const recallGradeData = recallGrade.data()!;
-      recallGradeData.sessions[session][conditionIndex].botId = await getBotId();
-      await updateDoc(
-        doc(db, "recallGradesV2", recallGrade.id),
-        {
-          sessions: recallGradeData.sessions
-        }
-      );
+      recallGradeData.sessions[session][conditionIndex].botId =
+        await getBotId();
+      await updateDoc(doc(db, "recallGradesV2", recallGrade.id), {
+        sessions: recallGradeData.sessions,
+      });
     }
 
-    if(!isValid) {
+    if (!isValid) {
       return getNextRecallGrades(recallGrades.docs[0]);
     }
 
@@ -465,19 +496,22 @@ type ResponseLineTypeReturn = "boolean" | "percentage" | "reason";
 
 const responseLineType = (line: string): ResponseLineTypeReturn => {
   const _line = line.trim();
-  if(_line.toLowerCase().replace(/[^a-z]+/g, "") === "no" || _line.toLowerCase().replace(/[^a-z]+/g, "") === "yes") {
+  if (
+    _line.toLowerCase().replace(/[^a-z]+/g, "") === "no" ||
+    _line.toLowerCase().replace(/[^a-z]+/g, "") === "yes"
+  ) {
     return "boolean";
-  } else if(_line.charAt(_line.length - 1) === "%") {
+  } else if (_line.charAt(_line.length - 1) === "%") {
     return "percentage";
   }
   return "reason";
-}
+};
 
 const updateRecallGrades = async (recallGrade: any) => {
   const recallGradeRef = doc(db, "recallGradesV2", recallGrade.docId);
   let allPhrasesDone = true;
-  for(const phrase of recallGrade.phrases) {
-    if(!phrase.hasOwnProperty("gpt4Grade")) {
+  for (const phrase of recallGrade.phrases) {
+    if (!phrase.hasOwnProperty("GPT-4-Mentioned")) {
       allPhrasesDone = false;
       break;
     }
@@ -489,11 +523,14 @@ const updateRecallGrades = async (recallGrade: any) => {
   ].phrases = recallGrade.phrases;
   recallGradeUpdate.sessions[recallGrade.session][
     recallGrade.conditionIndex
-  ].doneGpt4 = allPhrasesDone;
+  ].doneGPT4Mentioned = allPhrasesDone;
   await updateDoc(recallGradeRef, recallGradeUpdate);
 };
 
-export const recallGradingBot = async (gptTabId: number, prevRecallGrade?: QueryDocumentSnapshot<DocumentData>) => {
+export const recallGradingBot = async (
+  gptTabId: number,
+  prevRecallGrade?: QueryDocumentSnapshot<DocumentData>
+) => {
   // response from participant
   await signInWithEmailAndPassword(
     auth,
@@ -517,7 +554,7 @@ export const recallGradingBot = async (gptTabId: number, prevRecallGrade?: Query
 
   prevRecallGrade = (await getNextRecallGrades(prevRecallGrade))!;
   // console.log(prevRecallGrade, "prevRecallGrade")
-  if(!prevRecallGrade) return; // bot is done processing
+  if (!prevRecallGrade) return; // bot is done processing
 
   let recallGrades = await getRecallGrades(prevRecallGrade);
 
@@ -546,9 +583,8 @@ export const recallGradingBot = async (gptTabId: number, prevRecallGrade?: Query
   }
 
   for (let recallGrade of recallGrades) {
-
     let isChatStarted = await startANewChat(gptTabId);
-    while(!isChatStarted) {
+    while (!isChatStarted) {
       console.log("Waiting for 10 min for chatGPT to return.");
       await delay(10 * 60 * 1000); // 10 minutes
       const chatgpt = await chrome.tabs.get(gptTabId);
@@ -562,73 +598,65 @@ export const recallGradingBot = async (gptTabId: number, prevRecallGrade?: Query
       await stopRecallBot();
       return;
     }
-
+    const passageDoc = await getDoc(doc(db, "passages", recallGrade.passage));
+    const passagesTitle = passageDoc.data()?.title;
     await delay(4000);
 
-    for(const phrase of recallGrade.phrases) {
-      if(phrase.hasOwnProperty("gpt4Grade") || (phrase.researchers.length < 3 && phrase.satisfied)) {
-        continue
+    for (const phrase of recallGrade.phrases) {
+      const researcherIdx = phrase.researchers.indexOf(gptResearcher);
+      let otherResearchers = phrase.researchers.slice();
+      if (researcherIdx !== -1) {
+        otherResearchers.splice(researcherIdx, 1);
       }
-      let isError = true;
-      while (isError) {
-        
-        const prompt: string = `We asked a student to learn some passage and write whatever they recall.\n` +
-          `The student's response is below in triple-quotes:\n` +
-          `'''\n${recallGrade.response}\n'''\n` +
-          `Respond whether the student has mentioned the key phrase \`${phrase.phrase}\` If they have mentioned it, respond YES, otherwise NO.\n` +
-          `Your response should be a JSON dictionary, without any extra text.\n` +
-          `The key called "resp" should have the value "YES" if the student has mentioned the key phrase, otherwise "NO".\n` +
-          `The key called "prob" should have the value of your calculated probability of the "YES" response.`;
-        
-        const response = await sendPromptAndReceiveResponse(gptTabId, prompt);
-        isError = await checkIfGPTHasError(gptTabId);
+      if (
+        !phrase.hasOwnProperty("GPT-4-Mentioned") &&
+        phrase.satisfied &&
+        otherResearchers.length < 2
+      ) {
+        let isError = true;
+        while (isError) {
+          const prompt =
+            `A student has written the following triple-quoted answer to a question about "${passagesTitle}".` +
+            (recallGrade.passage === "6rc4k1su3txN6ZK4CJ0h"
+              ? ` Everywhere it mentions "vertical" (vertically), it mean "elevation" and vice versa. Everywhere it mentions "horizontal" (horizontally), it mean "azimuth" and vice versa.`
+              : ``) +
+            `\n` +
+            `'''\n${recallGrade.response}\n'''\n` +
+            `Does the student mention the key phrase "${phrase.phrase}" in their answer?\n` +
+            `Only respond YES or NO, in caps, without any explanations.`;
 
-        if (isError) {
+          const response = await sendPromptAndReceiveResponse(gptTabId, prompt);
+          isError = await checkIfGPTHasError(gptTabId);
+
+          if (isError) {
+            const chatgpt = await chrome.tabs.get(gptTabId);
+            await chrome.tabs.update(gptTabId, { url: chatgpt.url }); // reloading tab
+            console.log("Waiting for 10 min for chatGPT to return. (phrase)");
+            await delay(1000 * 60 * 10);
+            const isChatAvailable = await waitUntilChatGPTLogin(gptTabId);
+            if (!isChatAvailable) {
+              throw new Error("ChatGPT is not available.");
+            }
+            continue;
+          }
+          phrase["GPT-4-Mentioned"] =
+            response.trim().slice(0, 3).toLowerCase() === "yes";
+          console.log(phrase.phrase, response);
+        }
+
+        await deleteGPTConversation(gptTabId);
+        let isChatStarted = await startANewChat(gptTabId);
+        while (!isChatStarted) {
+          console.log("Waiting for 10 min for chatGPT to return.");
+          await delay(10 * 60 * 1000); // 10 minutes
           const chatgpt = await chrome.tabs.get(gptTabId);
           await chrome.tabs.update(gptTabId, { url: chatgpt.url }); // reloading tab
-          console.log("Waiting for 10 min for chatGPT to return. (phrase)");
-          await delay(1000 * 60 * 10);
-          const isChatAvailable = await waitUntilChatGPTLogin(gptTabId);
-          if (!isChatAvailable) {
-            throw new Error("ChatGPT is not available.");
-          }
-          continue;
+          isChatStarted = await startANewChat(gptTabId);
         }
 
-        let jsonResponse: {
-          resp: string,
-          prob: string
-        };
-
-        try {
-          jsonResponse = JSON.parse(response.substr(response.indexOf("{"), response.indexOf("}") + 1))
-        } catch(e) {
-          isError = true;
-          continue;
-        }
-
-        if(jsonResponse.resp.toLowerCase() === "yes") {
-          phrase.gpt4Grade = true
-        } else {
-          phrase.gpt4Grade = false
-        }
-        phrase.gpt4Confidence = jsonResponse.prob;
-
-        console.log(phrase.phrase, jsonResponse);
+        console.log("writing recall phrase", phrase, recallGrade);
+        await updateRecallGrades(recallGrade);
       }
-
-      await deleteGPTConversation(gptTabId);
-      let isChatStarted = await startANewChat(gptTabId);
-      while(!isChatStarted) {
-        console.log("Waiting for 10 min for chatGPT to return.");
-        await delay(10 * 60 * 1000); // 10 minutes
-        const chatgpt = await chrome.tabs.get(gptTabId);
-        await chrome.tabs.update(gptTabId, { url: chatgpt.url }); // reloading tab
-        isChatStarted = await startANewChat(gptTabId);
-      }
-
-      console.log("writing recall phrase", recallGrade);
-      await updateRecallGrades(recallGrade);
     }
   }
 
