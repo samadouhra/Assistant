@@ -38,7 +38,6 @@ const gptResearcher = "Iman YeckehZaare";
 // "https://1cademy.us/api"
 const apiBasePath = "https://1cademy.us/api";
 
-
 export const stopRecallBot = async () => {
   await chrome.storage.local.set({
     recallgrading: {
@@ -230,8 +229,10 @@ const sendPromptAndReceiveResponse = async (
       const gptInputParent = gptTextInput.parentElement;
       if (!gptInputParent) return false;
       const gptActionBtn = gptInputParent.querySelector("button");
+      console.log(":: ::gptActionBtn :: :: ", gptActionBtn);
       if (!gptActionBtn) return false;
-      gptActionBtn.disabled = false;
+      gptActionBtn.removeAttribute("disabled");
+      gptActionBtn.setAttribute("enabled", "");
       gptActionBtn.click();
 
       const pInstances = document.querySelectorAll("p");
@@ -612,7 +613,7 @@ export const recallGradingBot = async (
       if (
         !phrase.hasOwnProperty("GPT-4-Mentioned") &&
         phrase.satisfied &&
-        otherResearchers.length < 2
+        otherResearchers.length <= 2
       ) {
         let isError = true;
         while (isError) {
@@ -640,9 +641,13 @@ export const recallGradingBot = async (
             }
             continue;
           }
+          console.log("response", response);
           phrase["GPT-4-Mentioned"] =
-            response.trim().slice(0, 3).toLowerCase() === "yes";
-          console.log(phrase.phrase, response);
+            response.trim().slice(0, 3).toLowerCase() === "yes"
+              ? true
+              : response.trim().slice(0, 2).toLowerCase() === "no"
+              ? false
+              : null;
         }
 
         await deleteGPTConversation(gptTabId);
@@ -655,8 +660,10 @@ export const recallGradingBot = async (
           isChatStarted = await startANewChat(gptTabId);
         }
 
-        console.log("writing recall phrase", phrase, recallGrade);
-        await updateRecallGrades(recallGrade);
+        console.log("writing recall phrase", phrase);
+        if (phrase["GPT-4-Mentioned"] !== null) {
+          await updateRecallGrades(recallGrade);
+        }
       }
     }
   }
