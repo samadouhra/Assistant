@@ -231,6 +231,7 @@ const sendPromptAndReceiveResponse = async (
       if (!gptInputParent) return false;
       const gptActionBtn = gptInputParent.querySelector("button");
       if (!gptActionBtn) return false;
+      gptActionBtn.disabled = false;
       gptActionBtn.click();
 
       const pInstances = document.querySelectorAll("p");
