@@ -231,8 +231,8 @@ const sendPromptAndReceiveResponse = async (
       const gptActionBtn = gptInputParent.querySelector("button");
       console.log(":: ::gptActionBtn :: :: ", gptActionBtn);
       if (!gptActionBtn) return false;
+      gptActionBtn.disabled = false;
       gptActionBtn.removeAttribute("disabled");
-      gptActionBtn.setAttribute("enabled", "");
       gptActionBtn.click();
 
       const pInstances = document.querySelectorAll("p");
@@ -660,9 +660,9 @@ export const recallGradingBot = async (
           isChatStarted = await startANewChat(gptTabId);
         }
 
-        console.log("writing recall phrase", phrase);
         if (phrase["GPT-4-Mentioned"] !== null) {
           await updateRecallGrades(recallGrade);
+          console.log("writing recall phrase", phrase, recallGrade.docId);
         }
       }
     }
