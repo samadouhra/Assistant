@@ -1,6 +1,6 @@
 import { db } from "./lib/firebase";
 import { doc, writeBatch, collection, getDocs, query, where, Timestamp } from "firebase/firestore";
-import { doesReloadRequired, fetchClientInfo } from "./helpers/chatgpt";
+import { doesReloadRequired, fetchClientInfo, sendPromptAndReceiveResponse } from "./helpers/chatgpt";
 declare const createToaster: (toasterType: string, message: string) => void;
 
 const MAIN_MENUITEM_ID: string = "1cademy-assitant-ctx-mt";
@@ -126,221 +126,48 @@ const tryExecutionUsingChatGPT = async (paragraph: string, commandType: ICommand
 
   await waitUntilChatGPTLogin();
 
-  // run logic to trigger paraphrase on ChatGPT UI if login
-  const chatGPTResponse = await chrome.scripting.executeScript<any, any>({
-    target: {
-      tabId
-    },
-    args: [
-      paragraph,
-      commandType,
-      startedAt,
-      chrome.runtime.id
-    ],
-    func: (paragraph, commandType: ICommandType, startedIndex, extensionId: string) => {
-      // input paraphrase text in gpt
-      const gptTextInput = document.querySelector("textarea");
-      if(!gptTextInput) return;
-      let commandText: string = "";
-      switch(commandType) {
-        case "Analyze-CGPT":
-          commandText += "Write a report on the following triple-quoted text. The report should include document statistics, vocabulary statistics, readability score, tone type (available options are Formal, Informal, Optimistic, Worried, Friendly, Curious, Assertive, Encouraging, Surprised, or Cooperative), intent type (available options are Inform, Describe, Convince, or Tell A Story), audience type (available options are General, Knowledgeable, or Expert), style type (available options are Formal or Informal), emotion type (available options are Mild or Strong), and domain type (available options are General, Academic, Business, Technical, Creative, or Casual). ";
-          break;
-        case "Alternative-viewpoints-CGPT":
-          commandText += "Generate alternative view points to the following triple-quoted text, and support each view-point with appreciate citations. At the end of your response print a bibliography section for all the references cited. ";
-          break;
-        case "Clarify-CGPT":
-          commandText += "Clarify the following triple-quoted text ";
-          break;
-        case "Fact-check-CGPT":
-          commandText += "Fact check the following triple-quoted text ";
-          break;
-        case "MCQ-CGPT":
-          commandText += "Generate a multiple-choice question about the following triple-quoted text, with one or more correct choices. Then, for each choice, separately write the word \"CORRECT\" or \"WRONG\" and explain why it is correct or wrong. ";
-          break;
-        case "Improve-CGPT":
-          commandText += "Improve the following triple-quoted text and explain what grammar, spelling, mistakes you have corrected, including an explanation of the rule in question? ";
-          break;
-        case "Literature-CGPT":
-          commandText += "Comprehensively review the literature with citations on the following triple-quoted text. Then generate the list of references you cited. ";
-          break;
-        case "Paraphrase-CGPT":
-          commandText += "Paraphrase the following triple-quoted text ";
-          break;
-        case "Shorten-CGPT":
-          commandText += "Shorten the following triple-quoted text? Then, list the key points that you included and the peripheral points that you omitted in a bulleted list ";
-          break;
-        case "Simplify-CGPT":
-          commandText += "Explain the following triple-quoted text for elementary school student ";
-          break;
-        case "Socially-Judge-CGPT":
-          commandText += "Is it socially appropriate to say the following triple-quoted text? ";
-          break;
-        case "Teach-CGPT":
-          commandText += "Teach me step-by-step the following triple-quoted text ";
-          break;
-      }
-      commandText += `'''\n${paragraph}\n'''`;
-      gptTextInput.value = commandText;
-      const gptInputParent = gptTextInput.parentElement;
-      if(!gptInputParent) return;
-      const gptActionBtn = gptInputParent.querySelector("button");
-      if(!gptActionBtn) return;
-      gptActionBtn.click();
-
-      const pInstances = document.querySelectorAll("p");
-      const oldLastInstance: any = pInstances.length > 1 ? pInstances[pInstances.length - 2] : pInstances?.[1];
-      
-      const waitUntilProcessed = (killOnGeneration: boolean) => {
-        const pInstances = document.querySelectorAll("p");
-        const lastInstance: any = pInstances.length > 1 ? pInstances[pInstances.length - 2] : pInstances?.[1];
-
-        return new Promise((resolve, reject) => {
-          const checker = (n: number = 0) => {
-            const buttons = document.querySelectorAll("form button");
-            if(buttons.length && (buttons[0] as HTMLElement).innerText.trim() !== "") {
-              // removing html from button content to extract text
-              const el = document.createElement("div");
-              el.innerHTML = buttons[0].innerHTML;
-
-              const buttonTitle = el.innerText.trim();
-              const cond = killOnGeneration ? (buttonTitle === "Stop generating" || buttonTitle === "Regenerate response") : buttonTitle !== "Stop generating" && buttonTitle !== "···";
-              if(cond) {
-                // killing recurrsion
-                if(killOnGeneration) {
-                  resolve(true);
-                } else {
-                  setTimeout(() => resolve(true), 1000);
-                }
-                return;
-              }
-
-              // checking memory leak
-              if(n >= 300) {
-                reject("Stopped due to memory leak");
-                return false; // don't run recursion
-              }
-              // console.log("Saw generation", killOnGeneration);
-              // this condition will help for faster plan if stop generation doesn't show up
-            } else if(n >= 25) {
-              const pInstances = document.querySelectorAll("p");
-              const _lastInstance: any = pInstances.length > 1 ? pInstances[pInstances.length - 2] : pInstances?.[1];
-              /* console.log("Not saw generation", killOnGeneration, {
-                lastInstance,
-                _lastInstance
-              }); */
-              if(lastInstance !== _lastInstance || oldLastInstance !== lastInstance) {
-                resolve(true);
-                return;
-              } else {
-                reject("Stopped due to memory leak");
-                return false;
-              }
-            }
-            
-            // if still generating run after a time
-            setTimeout(() => {
-              checker(n+1);
-            }, 200)
-          }
-
-          checker(0);
-        });
-      }
-
-      // process output of command
-      const processOutput = (output: string) => {
-        // don't copy to clipboard
-        if(["Analyze-CGPT", "Socially-Judge-CGPT", "Teach-CGPT"].includes(commandType)) return;
-        if(commandType === "Improve-CGPT" || commandType === "Shorten-CGPT") {
-          let quote1 = output.indexOf("\"");
-          if(quote1 === -1) return output;
-          else quote1 += 1;
-          while(output[quote1-1] === "\\") {
-            quote1 = output.indexOf("\"", quote1);
-            if(quote1 === -1) return output;
-            else quote1 += 1;
-          }
-
-          let quote2 = output.indexOf("\"", quote1);
-          if(quote2 === -1) return output;
-          while(output[quote2-1] === "\\") {
-            quote2 = output.indexOf("\"", quote2);
-            if(quote2 === -1) return output;
-          }
-
-          if(quote1 > 100) return output; // if quote is after alot of letters
-          return output.substring(quote1, quote2);
-        } else if(commandType === "MCQ-CGPT") {
-          let questionStart = output.toLowerCase().indexOf("question:")
-          if(questionStart === -1) questionStart = 0;
-          else questionStart += "question:".length;
-          let questionEnd = output.indexOf("?")
-          if(questionEnd === -1) return output;
-          return output.substring(questionStart, questionEnd + 1).trim()
-        }
-        return output;
-      }
-
-      console.log("waitUntilProcessed started");
-      // wait until api started generation
-      return waitUntilProcessed(true).then(() => {
-        console.log("waitUntilProcessed true completed");
-        // wait until chat gpt is processing/animating response
-        return waitUntilProcessed(false).then(() => {
-          console.log("waitUntilProcessed false completed");
-          const gptParagraphs = document.querySelectorAll("p");
-          if(gptParagraphs.length > 1) {
-            const lastChatItem = gptParagraphs[gptParagraphs.length - 2];
-            if(lastChatItem) {
-              // i did this because, it was sometimes giving more than one paragraphs in answer
-              const el = lastChatItem.parentElement || lastChatItem;
-              if(el) {
-                const paraphrased = el.innerText.trim();
-                try {
-                  const output = processOutput(paraphrased);
-                  console.log("output of prompt", output);
-                  if(output) {
-                    navigator.clipboard.writeText(output);
-                    createToaster("Success", "Text is copied to clipboard.");
-                  }
-                  
-                  // adding event listener to like and dislike button
-                  const likeSvgs = document.querySelectorAll("[d=\"M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3\"]");
-                  const disLikeSvgs = document.querySelectorAll("[d=\"M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3zm7-13h2.67A2.31 2.31 0 0 1 22 4v7a2.31 2.31 0 0 1-2.33 2H17\"]");
-                  if(likeSvgs.length && disLikeSvgs.length) {
-                    const lastLikeButton = likeSvgs[likeSvgs.length - 1].closest("button");
-                    const lastDislikeButton = disLikeSvgs[disLikeSvgs.length - 1].closest("button");
-                    if(lastLikeButton && lastDislikeButton) {
-                      lastLikeButton.addEventListener("click", () => {
-                        chrome.runtime.sendMessage(extensionId, "oa-gpt-like-clicked-" + startedIndex)
-                      })
-
-                      lastDislikeButton.addEventListener("click", () => {
-                        chrome.runtime.sendMessage(extensionId, "oa-gpt-dislike-clicked-" + startedIndex)
-                      })
-                    }
-                  }
-                } catch(e) {
-                  createToaster("Error", "Please allow clipboard to ChatGPT.")
-                }
-                // return result from chat gpt
-                return paraphrased;
-              }
-            }
-          }
-          // return empty string if there was not result
-          return "";
-        })
-      })
-    }
-  })
-
-  let cGPTResponse = "";
-  if(chatGPTResponse.length) {
-    cGPTResponse = chatGPTResponse[0].result
+  let commandText: string = "";
+  switch(commandType) {
+    case "Analyze-CGPT":
+      commandText += "Write a report on the following triple-quoted text. The report should include document statistics, vocabulary statistics, readability score, tone type (available options are Formal, Informal, Optimistic, Worried, Friendly, Curious, Assertive, Encouraging, Surprised, or Cooperative), intent type (available options are Inform, Describe, Convince, or Tell A Story), audience type (available options are General, Knowledgeable, or Expert), style type (available options are Formal or Informal), emotion type (available options are Mild or Strong), and domain type (available options are General, Academic, Business, Technical, Creative, or Casual). ";
+      break;
+    case "Alternative-viewpoints-CGPT":
+      commandText += "Generate alternative view points to the following triple-quoted text, and support each view-point with appreciate citations. At the end of your response print a bibliography section for all the references cited. ";
+      break;
+    case "Clarify-CGPT":
+      commandText += "Clarify the following triple-quoted text ";
+      break;
+    case "Fact-check-CGPT":
+      commandText += "Fact check the following triple-quoted text ";
+      break;
+    case "MCQ-CGPT":
+      commandText += "Generate a multiple-choice question about the following triple-quoted text, with one or more correct choices. Then, for each choice, separately write the word \"CORRECT\" or \"WRONG\" and explain why it is correct or wrong. ";
+      break;
+    case "Improve-CGPT":
+      commandText += "Improve the following triple-quoted text and explain what grammar, spelling, mistakes you have corrected, including an explanation of the rule in question? ";
+      break;
+    case "Literature-CGPT":
+      commandText += "Comprehensively review the literature with citations on the following triple-quoted text. Then generate the list of references you cited. ";
+      break;
+    case "Paraphrase-CGPT":
+      commandText += "Paraphrase the following triple-quoted text ";
+      break;
+    case "Shorten-CGPT":
+      commandText += "Shorten the following triple-quoted text? Then, list the key points that you included and the peripheral points that you omitted in a bulleted list ";
+      break;
+    case "Simplify-CGPT":
+      commandText += "Explain the following triple-quoted text for elementary school student ";
+      break;
+    case "Socially-Judge-CGPT":
+      commandText += "Is it socially appropriate to say the following triple-quoted text? ";
+      break;
+    case "Teach-CGPT":
+      commandText += "Teach me step-by-step the following triple-quoted text ";
+      break;
   }
-  
+  commandText += `'''\n${paragraph}\n'''`;
+  const cGPTResponse = sendPromptAndReceiveResponse(tabId, commandText);
+
   const clientStorage = await chrome.storage.local.get(["clientInfo", "onecademyUname"]);
   let clientInfo = clientStorage?.clientInfo;
   // fetching client info
