@@ -8,7 +8,8 @@
       "19": "images/icon.png",
       "38": "images/icon-2x.png"
     },
-    "default_title": "1Cademy Assistant"
+    "default_title": "1Cademy Assistant",
+    "default_popup": "popup.html"
   },
   "description": "This extension simplifies using OpenAI ChatGPT for researchers, instructors, and students.",
   "icons": {

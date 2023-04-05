@@ -9,7 +9,8 @@ module.exports = {
   entry:  {
     background: path.resolve(__dirname, "..", "src", "background.ts"),
     "paste-detector": path.resolve(__dirname, "..", "src", "paste-detector.ts"),
-    "app": path.resolve(__dirname, "..", "src", "app.tsx")
+    "app": path.resolve(__dirname, "..", "src", "app.tsx"),
+    "popup": path.resolve(__dirname, "..", "src", "popup.tsx")
   },
   output: {
     path: path.join(__dirname, "../dist")
