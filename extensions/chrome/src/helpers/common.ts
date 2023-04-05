@@ -63,3 +63,16 @@ const annotate = (num: number, maxPlaces: any, forcePlaces: any, abbr: string) =
   }
   return rounded + abbr
 }
+
+export const getBotId = async () => {
+  const storagedActions = await chrome.storage.local.get(["botId"]);
+  if (storagedActions?.botId) {
+    return storagedActions?.botId;
+  }
+  const botId = String(new Date().getTime());
+  await chrome.storage.local.set({
+    botId,
+  });
+
+  return botId;
+};

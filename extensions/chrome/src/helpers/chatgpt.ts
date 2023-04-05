@@ -176,3 +176,169 @@ export const sendPromptAndReceiveResponse = async (
 
   return gptResponses?.[0]?.result || "";
 };
+
+export const deleteLastGPTConversation = async (gptTabId: number) => {
+  await chrome.scripting.executeScript({
+    target: {
+      tabId: gptTabId,
+    },
+    func: () => {
+      let chats = document.querySelectorAll("nav > div > div > a.group");
+      if (!chats.length) return;
+      const deleteIcon = chats[0].querySelector(
+        'path[d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"]'
+      );
+      if (!deleteIcon) return;
+      const deleteBtn = deleteIcon.closest("button");
+      if (!deleteBtn) return;
+      deleteBtn.click();
+    },
+  });
+  await delay(1000);
+  await chrome.scripting.executeScript({
+    target: {
+      tabId: gptTabId,
+    },
+    func: () => {
+      const chats = document.querySelectorAll("nav > div > div > a.group");
+      const confirmIcon = chats[0].querySelector(
+        'polyline[points="20 6 9 17 4 12"]'
+      );
+      if (!confirmIcon) return;
+      const confirmBtn = confirmIcon.closest("button");
+      if (!confirmBtn) return;
+      confirmBtn.click();
+    },
+  });
+  await delay(2000);
+};
+
+export const checkIfGPTHasError = async (gptTabId: number) => {
+  const responses = await chrome.scripting.executeScript({
+    target: {
+      tabId: gptTabId,
+    },
+    func: () => {
+      const btns = document.querySelectorAll("main button");
+      const redNotice = document.querySelector(
+        "main .border-red-500"
+      ) as HTMLElement;
+      return (
+        String(
+          (btns?.[btns.length - 1]?.parentElement as HTMLElement)?.innerText
+        ).includes("error") ||
+        String(redNotice?.innerText)
+          .toLowerCase()
+          .includes("reached the current usage")
+      );
+    },
+  });
+  return !!responses[0].result;
+};
+
+export const reloadGptIfRequired = async (gptTabId: number) => {
+  const reloadRequired = await doesReloadRequired(gptTabId);
+  if (reloadRequired) {
+    const chatgpt = await chrome.tabs.get(gptTabId);
+    await chrome.tabs.update(gptTabId, { url: chatgpt.url }); // reloading tab
+  }
+};
+
+export const waitUntilChatGPTLogin = (gptTabId: number) => {
+  return new Promise((resolve, reject) => {
+    const checker = (n: number = 0) => {
+      chrome.scripting
+        .executeScript<any, boolean>({
+          target: {
+            tabId: gptTabId,
+          },
+          args: [],
+          func: () => {
+            return !!Array.from(document.querySelectorAll("a")).filter(
+              (anc) => anc.innerText.trim().toLowerCase() === "new chat"
+            ).length;
+          },
+        })
+        .then((result) => {
+          if (result.length) {
+            if (result[0].result) {
+              resolve(true);
+              return;
+            }
+
+            if (n >= 180) {
+              reject("Stopped due to memory leak");
+              return; // don't run recursion
+            }
+          }
+          setTimeout(() => checker(n + 1), 1000);
+        });
+    };
+    checker();
+  });
+};
+
+export const startANewChat = async (gptTabId: number, type: "GPT35" | "GPT4") => {
+  await chrome.scripting.executeScript({
+    target: {
+      tabId: gptTabId,
+    },
+    func: () => {
+      const newChatBtn = document.querySelector("nav > a") as HTMLElement;
+      if (!newChatBtn) return;
+      newChatBtn.click();
+    },
+  });
+
+  if(type === "GPT4") {
+    await delay(500);
+    await chrome.scripting.executeScript({
+      target: {
+        tabId: gptTabId,
+      },
+      func: () => {
+        const modelDropDown = document.querySelector(
+          'button[id^="headlessui-listbox-button-"]'
+        ) as HTMLElement;
+        if (!modelDropDown) return;
+        modelDropDown.click();
+      },
+    });
+    await delay(500);
+    // check if gpt4 is available or not
+    const availability_responses = await chrome.scripting.executeScript({
+      target: {
+        tabId: gptTabId,
+      },
+      func: () => {
+        const gpt4DisableIcon = document.querySelector(
+          'li[id^="headlessui-listbox-option-"] path[d="M11.412 15.655L9.75 21.75l3.745-4.012M9.257 13.5H3.75l2.659-2.849m2.048-2.194L14.25 2.25 12 10.5h8.25l-4.707 5.043M8.457 8.457L3 3m5.457 5.457l7.086 7.086m0 0L21 21"]'
+        );
+        if (gpt4DisableIcon) {
+          return false;
+        }
+        return true;
+      },
+    });
+    if (!availability_responses?.[0]?.result) {
+      return false;
+    }
+    await chrome.scripting.executeScript({
+      target: {
+        tabId: gptTabId,
+      },
+      func: () => {
+        const dropdownOptions = document.querySelectorAll(
+          'li[id^="headlessui-listbox-option-"]'
+        );
+        if (!dropdownOptions.length) return;
+        const dropdownOption = dropdownOptions[
+          dropdownOptions.length - 1
+        ] as HTMLElement;
+        dropdownOption.click();
+      },
+    });
+  }
+
+  return true;
+};
