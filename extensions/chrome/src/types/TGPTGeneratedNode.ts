@@ -3,6 +3,10 @@ import { TNodeType } from "./TNodeType"
 
 export type TGPTGeneratedNode = {
   nodeTitle: string,
+  nodeContent?: string,
+  contentPrompt?: string,
+  contentResponse?: string,
+  contentDone: boolean,
   recursion: number,
   prompt: string,
   response: string,
@@ -10,15 +14,16 @@ export type TGPTGeneratedNode = {
     title: String,
     type: TNodeType
   }[],
-  generatedNodes: {
-    prompt: string,
-    response: string,
-    parsedContent: string,
-    nodeId?: string,
-    parentTitles: string[],
-    childrenTitles: string[]
-  }[],
-  startIndex: number,
+  nodes: string[], // we can use this to filter parent documents
+  // generatedNodes: {
+  //   prompt: string,
+  //   response: string,
+  //   parsedContent: string,
+  //   nodeId?: string,
+  //   parentTitles: string[],
+  //   childrenTitles: string[]
+  // }[],
+  // startIndex: number,
   processed: boolean,
   botId?: string,
   createdAt: Timestamp,
