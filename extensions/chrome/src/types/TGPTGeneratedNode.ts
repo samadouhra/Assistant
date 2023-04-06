@@ -2,6 +2,7 @@ import { Timestamp } from "firebase/firestore"
 import { TNodeType } from "./TNodeType"
 
 export type TGPTGeneratedNode = {
+  nodeId?: string,
   nodeTitle: string,
   nodeContent?: string,
   contentPrompt?: string,
