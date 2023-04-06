@@ -6,6 +6,8 @@ export type TGPTGeneratedNode = {
   nodeContent?: string,
   contentPrompt?: string,
   contentResponse?: string,
+  parentTitles?: string[],
+  childrenTitles?: string[],
   contentDone: boolean,
   recursion: number,
   prompt: string,
