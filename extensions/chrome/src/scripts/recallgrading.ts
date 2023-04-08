@@ -147,7 +147,8 @@ const startANewChat = async (gptTabId: number) => {
   if (!availability_responses?.[0]?.result) {
     return false;
   }
-  await chrome.scripting.executeScript({
+
+  const gpt4Selection_responses = await chrome.scripting.executeScript({
     target: {
       tabId: gptTabId,
     },
@@ -155,13 +156,23 @@ const startANewChat = async (gptTabId: number) => {
       const dropdownOptions = document.querySelectorAll(
         'li[id^="headlessui-listbox-option-"]'
       );
-      if (!dropdownOptions.length) return;
-      const dropdownOption = dropdownOptions[
-        dropdownOptions.length - 1
-      ] as HTMLElement;
+      if (!dropdownOptions.length) return false;
+      const labels = Array.from(dropdownOptions)
+        .map((list_item) => (list_item as HTMLElement).innerText.trim())
+        .map((label: string) => label.toLowerCase().replace(/[^a-z0-9]/g, ""));
+      const gpt4Idx = labels.indexOf("gpt4");
+      if(gpt4Idx === -1) {
+        return false;
+      }
+      const dropdownOption = dropdownOptions[gpt4Idx] as HTMLElement;
       dropdownOption.click();
+
+      return true;
     },
   });
+  if(!gpt4Selection_responses?.[0]?.result) {
+    return false;
+  }
 
   return true;
 };
@@ -668,7 +679,7 @@ export const recallGradingBot = async (
     }
   }
 
-  recallGradingBot(gptTabId, prevRecallGrade);
+  // recallGradingBot(gptTabId, prevRecallGrade);
 };
 
 export const recallGradeListener = (
