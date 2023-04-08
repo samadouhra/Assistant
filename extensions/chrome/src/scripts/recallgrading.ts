@@ -616,6 +616,13 @@ export const recallGradingBot = async (
     await delay(4000);
 
     for (const phrase of recallGrade.phrases) {
+      const storageValues = await chrome.storage.local.get(["recallgrading"]);
+      // if someone closed one of these tabs between bot running
+      if (storageValues?.recallgrading?.status === "notStarted") {
+        await stopRecallBot();
+        return;
+      }
+
       const researcherIdx = phrase.researchers.indexOf(gptResearcher);
       let otherResearchers = phrase.researchers.slice();
       if (researcherIdx !== -1) {
@@ -679,7 +686,7 @@ export const recallGradingBot = async (
     }
   }
 
-  // recallGradingBot(gptTabId, prevRecallGrade);
+  recallGradingBot(gptTabId, prevRecallGrade);
 };
 
 export const recallGradeListener = (
