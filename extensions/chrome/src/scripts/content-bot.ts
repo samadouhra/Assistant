@@ -8,14 +8,12 @@ import { signInWithEmailAndPassword } from "firebase/auth";
 import { db, app, auth } from "../lib/firebase";
 import {
   Timestamp,
-  addDoc,
   collection,
   doc,
   getDoc,
   getDocs,
   limit,
   query,
-  updateDoc,
   where,
 } from "firebase/firestore";
 
@@ -131,11 +129,35 @@ const chatGPTPrompt: any = async (
   }
 };
 
+const proposeChildNode: any = async (accessToken: any, payload: any) => {
+  const apiResponse = await fetch(
+    process.env.API_URL + "/api/proposeChildNode",
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify(payload),
+    }
+  );
+  if (!apiResponse.ok) {
+    return await proposeChildNode(accessToken, payload);
+  } else {
+    return true;
+  }
+};
+
 const nodeByIdMap: {
   [nodeId: string]: INode;
 } = {};
 
-const dfs = async (nodeId: string, gptTabId: any, userData: any) => {
+const dfs = async (
+  nodeId: string,
+  gptTabId: any,
+  accessToken: any,
+  userData: any
+) => {
   if (nodeByIdMap[nodeId]) {
     return;
   }
@@ -155,7 +177,6 @@ const dfs = async (nodeId: string, gptTabId: any, userData: any) => {
   ) {
     const nodeTitle = nodeByIdMap[node.id].title;
     const nodeContent = nodeByIdMap[node.id].content;
-    let newChildrens: any = [];
     for (let i = 1; i <= 4 - totalQuestionNodes; i++) {
       const discoveredNode = await chatGPTPrompt(
         nodeTitle,
@@ -163,64 +184,39 @@ const dfs = async (nodeId: string, gptTabId: any, userData: any) => {
         gptTabId
       );
       console.log(discoveredNode, "discoveredNode");
-      const newNode: any = {
-        admin: userData.uname,
-        aImgUrl: userData.imageUrl,
-        aFullname: userData.fName + " " + userData.lName,
-        aChooseUname: userData.chooseUname,
-        maxVersionRating: 1,
-        changedAt: Timestamp.now(),
-        children: [],
-        comments: 0,
-        content: "",
-        nodeImage: "",
-        nodeVideo: "",
-        nodeAudio: "",
-        corrects: 1,
-        createdAt: Timestamp.now(),
-        deleted: false,
-        nodeType: "Question",
-        subType: "",
-        parents: [
-          {
-            lable: "",
-            node: node.id,
-            title: nodeTitle,
-            type: nodeTitle,
-            nodeType: nodeType,
-          },
-        ],
-        choices: discoveredNode.Choices,
-        referenceIds: [],
-        references: [],
-        referenceLabels: [],
-        studied: 0,
-        tagIds: tagIds,
-        tags: tags,
-        title: discoveredNode.Stem,
-        updatedAt: Timestamp.now(),
-        versions: 1,
-        viewers: 1,
-        wrongs: 0,
-        isTag: false,
+      const payload: any = {
+        data: {
+          parentId: String(node.id),
+          parentType: nodeType,
+          nodeType: "Question" as INodeType,
+          children: [],
+          title: discoveredNode.Stem,
+          content: "",
+          parents: [
+            {
+              lable: "",
+              node: node.id,
+              title: nodeTitle,
+              type: nodeType,
+            },
+          ],
+          proposal: "",
+          referenceIds: [],
+          references: [],
+          referenceLabels: [],
+          summary: "",
+          subType: null,
+          tagIds: tagIds,
+          tags: tags,
+          choices: discoveredNode.Choices,
+        },
       };
-      const newNodeRef = await addDoc(collection(db, "nodes"), newNode);
-      newChildrens.push({
-        label: "",
-        node: newNodeRef.id,
-        title: discoveredNode.Stem,
-        type: "Question",
-      });
-      console.log(newNode, "newNode");
+      await proposeChildNode(accessToken, payload);
     }
-    const children = [...nodeByIdMap[node.id].children, ...newChildrens];
-    await updateDoc(nodeRef, {
-      children: children,
-    });
     await delay(1000);
   }
   for (const child of nodeByIdMap[node.id].children) {
-    await dfs(child.node, gptTabId, userData);
+    await dfs(child.node, gptTabId, accessToken, userData);
   }
 };
 
@@ -231,6 +227,7 @@ export const contentGenerationBot = async (gptTabId: number) => {
     process.env.email || "",
     process.env.password || ""
   );
+  const accessToken = await userCredential.user.getIdToken(false);
 
   const nodesRef = collection(db, "users");
   const q = query(
@@ -274,8 +271,8 @@ export const contentGenerationBot = async (gptTabId: number) => {
   if (!isChatAvailable) {
     throw new Error("ChatGPT is not available.");
   }
-  const startId = "r98BjyFDCe4YyLA3U8ZE";
-  await dfs(startId, gptTabId, userData);
+  const startId : any = process.env.NODE_START_ID;
+  await dfs(startId, gptTabId, accessToken, userData);
   // contentGenerationBot(gptTabId);
 };
 
