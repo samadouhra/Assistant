@@ -15,15 +15,75 @@ import {
   DocumentData,
   startAfter,
   runTransaction,
+  Timestamp,
 } from "firebase/firestore";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { db, app, auth } from "../lib/firebase";
+import { db_1cademy, app_1cademy, auth_1cademy } from "../lib/firebase-1cademy";
 
 type RecallGradeProcess = {
   status: "notStarted" | "started" | "completed";
   tabId: number;
   gptTabId: number;
 };
+
+type INodeType =
+  | "Relation"
+  | "Concept"
+  | "Code"
+  | "Reference"
+  | "Idea"
+  | "Question"
+  | "Profile"
+  | "Sequel"
+  | "Advertisement"
+  | "News"
+  | "Private";
+
+type INode = {
+  documentId?: string;
+  aChooseUname: boolean;
+  aImgUrl: string;
+  aFullname: string;
+  admin: string;
+  corrects: number;
+  wrongs: number;
+  nodeType: INodeType;
+  contribNames: string[];
+  title: string;
+  nodeImage?: string;
+  nodeVideo?: string;
+  nodeAudio?: string;
+  comments: number;
+  deleted: boolean;
+  content: string;
+  viewers: number;
+  versions: number;
+  isTag?: boolean;
+  tags: string[];
+  tagIds: string[];
+  height: number; // TODO: remove during migration
+  closedHeight?: number; // TODO: remove during migration
+  bookmarks?: number;
+  studied: number;
+  references: string[];
+  referenceLabels: string[];
+  referenceIds: string[];
+  parents: any;
+  institNames: string[];
+  institutions: {
+    [key: string]: {
+      reputation: number;
+    };
+  };
+  locked?: boolean;
+  changedAt: Date | Timestamp;
+  createdAt: Date | Timestamp;
+  updatedAt: Date | Timestamp;
+  children: any;
+  maxVersionRating: number;
+};
+
 const START_RECALL_GRADING = "start-recall-grading";
 const STOP_RECALL_GRADING = "stop-recall-grading";
 const RECALL_GRADING_STATUS = "recall-grading-status";
@@ -161,7 +221,7 @@ const startANewChat = async (gptTabId: number) => {
         .map((list_item) => (list_item as HTMLElement).innerText.trim())
         .map((label: string) => label.toLowerCase().replace(/[^a-z0-9]/g, ""));
       const gpt4Idx = labels.indexOf("gpt4");
-      if(gpt4Idx === -1) {
+      if (gpt4Idx === -1) {
         return false;
       }
       const dropdownOption = dropdownOptions[gpt4Idx] as HTMLElement;
@@ -170,7 +230,7 @@ const startANewChat = async (gptTabId: number) => {
       return true;
     },
   });
-  if(!gpt4Selection_responses?.[0]?.result) {
+  if (!gpt4Selection_responses?.[0]?.result) {
     return false;
   }
 
@@ -540,16 +600,182 @@ const updateRecallGrades = async (recallGrade: any) => {
   await updateDoc(recallGradeRef, recallGradeUpdate);
 };
 
+const chatGPTPrompt: any = async (
+  nodeTitle: string,
+  nodeContent: string,
+  gptTabId: any
+) => {
+  let discoverPrompt: string = `Please compose a multiple-choice question based on the provided text block enclosed in triple quotes. The output should be formatted as a JSON object and consist of the following components:\n`;
+  discoverPrompt += `- "Stem": This field will contain the central question.\n`;
+  discoverPrompt += `- "Choices": This will be an array of potential answers. Each answer is an individual object, featuring:\n`;
+  discoverPrompt += `- "choice": The text of the choice, starting with a lowercase letter followed by a period, like "a.", "b.",  "c." ...\n`;
+  discoverPrompt += `- "correct": This field should state either "true" if the choice is the right answer, or "false"  if it isn't it should be boolean.\n`;
+  discoverPrompt += `- "feedback": An explanation describing why the given choice is either correct or incorrect.\n`;
+  discoverPrompt += `Remember to follow JSON syntax rules to ensure proper formatting.\n`;
+
+  discoverPrompt += `'''\n`;
+  discoverPrompt += `"${nodeTitle}":\n`;
+  discoverPrompt += `"${nodeContent}"\n`;
+  discoverPrompt += `'''\n`;
+
+  const response: string = await sendPromptAndReceiveResponse(
+    gptTabId,
+    discoverPrompt
+  );
+  try {
+    const startBracket = response.indexOf("{");
+    if (startBracket === -1) {
+      throw new Error(`JSON not found`);
+    }
+    let endBracket = response.indexOf("}");
+    while (response.indexOf("}", endBracket + 1) !== -1) {
+      endBracket = response.indexOf("}", endBracket + 1);
+    }
+    if (endBracket === -1) {
+      throw new Error(`JSON not found`);
+    }
+    console.log(JSON.parse(response.substring(startBracket, endBracket + 1)));
+    return JSON.parse(response.substring(startBracket, endBracket + 1));
+  } catch (err) {
+    console.log(err, "ERROR");
+    return await chatGPTPrompt(nodeTitle, nodeContent, gptTabId);
+  }
+};
+
+const proposeChildNode: any = async (accessToken: any, payload: any) => {
+  const apiResponse = await fetch(
+    process.env.API_URL + "/api/proposeChildNode",
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify(payload),
+    }
+  );
+  if (!apiResponse.ok) {
+    return await proposeChildNode(accessToken, payload);
+  } else {
+    return true;
+  }
+};
+const nodeByIdMap: {
+  [nodeId: string]: INode;
+} = {};
+
+const dfs = async (
+  nodeId: string,
+  gptTabId: any,
+  accessToken: any,
+  userData: any,
+  nodeProcessed: number
+) => {
+  const storageValues = await chrome.storage.local.get(["recallgrading"]);
+  if (storageValues?.recallgrading?.status === "notStarted") {
+    await stopRecallBot();
+    return;
+  }
+  
+  if(nodeProcessed >= 50){
+    return;
+  }
+  
+  if (nodeByIdMap[nodeId]) {
+    return;
+  }
+
+  const nodeRef = doc(db_1cademy, "nodes", nodeId);
+  let node = await getDoc(nodeRef);
+  nodeByIdMap[node.id] = node.data() as INode;
+  const nodeType = nodeByIdMap[node.id].nodeType;
+  const tagIds = nodeByIdMap[node.id].tagIds;
+  const tags = nodeByIdMap[node.id].tags;
+  const totalQuestionNodes = nodeByIdMap[node.id].children.filter(
+    (childNode: any) => childNode.type === "Question"
+  ).length;
+  if (
+    (nodeType === "Concept" || nodeType === "Relation") &&
+    totalQuestionNodes < 4
+  ) {
+    const nodeTitle = nodeByIdMap[node.id].title;
+    const nodeContent = nodeByIdMap[node.id].content;
+    for (let i = 1; i <= 4 - totalQuestionNodes; i++) {
+      if (storageValues?.recallgrading?.status === "notStarted") {
+        await stopRecallBot();
+        return;
+      }
+
+      const discoveredNode = await chatGPTPrompt(
+        nodeTitle,
+        nodeContent,
+        gptTabId
+      );
+      console.log(discoveredNode, "discoveredNode");
+      const payload: any = {
+        data: {
+          parentId: String(node.id),
+          parentType: nodeType,
+          nodeType: "Question" as INodeType,
+          children: [],
+          title: discoveredNode.Stem,
+          content: "",
+          parents: [
+            {
+              lable: "",
+              node: node.id,
+              title: nodeTitle,
+              type: nodeType,
+            },
+          ],
+          proposal: "",
+          referenceIds: [],
+          references: [],
+          referenceLabels: [],
+          summary: "",
+          subType: null,
+          tagIds: tagIds,
+          tags: tags,
+          choices: discoveredNode.Choices,
+        },
+      };
+      await proposeChildNode(accessToken, payload);
+      nodeProcessed++;
+    }
+    await delay(1000);
+  }
+  for (const child of nodeByIdMap[node.id].children) {
+    await dfs(child.node, gptTabId, accessToken, userData, nodeProcessed);
+  }
+};
+
 export const recallGradingBot = async (
   gptTabId: number,
   prevRecallGrade?: QueryDocumentSnapshot<DocumentData>
 ) => {
+  const startId: any = process.env.NODE_START_ID;
   // response from participant
   await signInWithEmailAndPassword(
     auth,
     process.env.email || "",
     process.env.password || ""
   );
+
+  const userCredential = await signInWithEmailAndPassword(
+    auth_1cademy,
+    process.env.ONECADEMY_EMAIL || "",
+    process.env.ONECADEMY_PASSWORD || ""
+  );
+
+  const accessToken = await userCredential.user.getIdToken(false);
+  const nodesRef = collection(db_1cademy, "users");
+  const q = query(
+    nodesRef,
+    where("userId", "==", userCredential.user.uid),
+    limit(1)
+  );
+  const userDoc = await getDocs(q);
+  const userData = userDoc.docs[0].data();
 
   let gptTab: chrome.tabs.Tab;
 
@@ -599,7 +825,9 @@ export const recallGradingBot = async (
     let isChatStarted = await startANewChat(gptTabId);
     while (!isChatStarted) {
       console.log("Waiting for 10 min for chatGPT to return.");
-      await delay(10 * 60 * 1000); // 10 minutes
+      // await delay(10 * 60 * 1000); // 10 minutes
+      let nodeProcessed = 0;
+      await dfs(startId, gptTabId, accessToken, userData, nodeProcessed);
       const chatgpt = await chrome.tabs.get(gptTabId);
       await chrome.tabs.update(gptTabId, { url: chatgpt.url }); // reloading tab
       isChatStarted = await startANewChat(gptTabId);
