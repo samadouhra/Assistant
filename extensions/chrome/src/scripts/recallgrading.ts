@@ -601,6 +601,7 @@ export const recallGradingBot = async (
       console.log("Waiting for 10 min for chatGPT to return.");
       await delay(10 * 60 * 1000); // 10 minutes
       const chatgpt = await chrome.tabs.get(gptTabId);
+      await sendPromptAndReceiveResponse(gptTabId, "test"); // sending a test message to prevent the bot from looping forever
       await chrome.tabs.update(gptTabId, { url: chatgpt.url }); // reloading tab
       isChatStarted = await startANewChat(gptTabId);
     }
@@ -674,6 +675,7 @@ export const recallGradingBot = async (
           console.log("Waiting for 10 min for chatGPT to return.");
           await delay(10 * 60 * 1000); // 10 minutes
           const chatgpt = await chrome.tabs.get(gptTabId);
+          await sendPromptAndReceiveResponse(gptTabId, "test"); // sending a test message to prevent the bot from looping forever
           await chrome.tabs.update(gptTabId, { url: chatgpt.url }); // reloading tab
           isChatStarted = await startANewChat(gptTabId);
         }
