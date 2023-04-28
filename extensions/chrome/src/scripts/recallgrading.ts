@@ -1,5 +1,5 @@
 import { getStorage, ref, uploadString } from "firebase/storage";
-import { doesReloadRequired } from "../helpers/chatgpt";
+import { doesReloadRequired, startANewChat } from "../helpers/chatgpt";
 import { delay } from "../helpers/common";
 import {
   collection,
@@ -162,79 +162,6 @@ const deleteGPTConversation = async (gptTabId: number) => {
     },
   });
   await delay(5000);
-};
-
-const startANewChat = async (gptTabId: number) => {
-  await chrome.scripting.executeScript({
-    target: {
-      tabId: gptTabId,
-    },
-    func: () => {
-      const newChatBtn = document.querySelector("nav > a") as HTMLElement;
-      if (!newChatBtn) return;
-      newChatBtn.click();
-    },
-  });
-  await delay(500);
-  await chrome.scripting.executeScript({
-    target: {
-      tabId: gptTabId,
-    },
-    func: () => {
-      const modelDropDown = document.querySelector(
-        'button[id^="headlessui-listbox-button-"]'
-      ) as HTMLElement;
-      if (!modelDropDown) return;
-      modelDropDown.click();
-    },
-  });
-  await delay(500);
-  // check if gpt4 is available or not
-  const availability_responses = await chrome.scripting.executeScript({
-    target: {
-      tabId: gptTabId,
-    },
-    func: () => {
-      const gpt4DisableIcon = document.querySelector(
-        'li[id^="headlessui-listbox-option-"] path[d="M11.412 15.655L9.75 21.75l3.745-4.012M9.257 13.5H3.75l2.659-2.849m2.048-2.194L14.25 2.25 12 10.5h8.25l-4.707 5.043M8.457 8.457L3 3m5.457 5.457l7.086 7.086m0 0L21 21"]'
-      );
-      if (gpt4DisableIcon) {
-        return false;
-      }
-      return true;
-    },
-  });
-  if (!availability_responses?.[0]?.result) {
-    return false;
-  }
-
-  const gpt4Selection_responses = await chrome.scripting.executeScript({
-    target: {
-      tabId: gptTabId,
-    },
-    func: () => {
-      const dropdownOptions = document.querySelectorAll(
-        'li[id^="headlessui-listbox-option-"]'
-      );
-      if (!dropdownOptions.length) return false;
-      const labels = Array.from(dropdownOptions)
-        .map((list_item) => (list_item as HTMLElement).innerText.trim())
-        .map((label: string) => label.toLowerCase().replace(/[^a-z0-9]/g, ""));
-      const gpt4Idx = labels.indexOf("gpt4");
-      if (gpt4Idx === -1) {
-        return false;
-      }
-      const dropdownOption = dropdownOptions[gpt4Idx] as HTMLElement;
-      dropdownOption.click();
-
-      return true;
-    },
-  });
-  if (!gpt4Selection_responses?.[0]?.result) {
-    return false;
-  }
-
-  return true;
 };
 
 const reloadGptIfRequired = async (gptTabId: number) => {
@@ -691,7 +618,7 @@ const dfs = async (
   const nodeType = nodeByIdMap[node.id].nodeType;
   const tagIds = nodeByIdMap[node.id].tagIds;
   const tags = nodeByIdMap[node.id].tags;
-  const totalQuestionNodes = nodeByIdMap[node.id].children.filter(
+  let totalQuestionNodes = nodeByIdMap[node.id].children.filter(
     (childNode: any) => childNode.type === "Question"
   ).length;
   if (
@@ -700,7 +627,8 @@ const dfs = async (
   ) {
     const nodeTitle = nodeByIdMap[node.id].title;
     const nodeContent = nodeByIdMap[node.id].content;
-    for (let i = 1; i <= 4 - totalQuestionNodes; i++) {
+    let i = 0;
+    while(totalQuestionNodes <= 4 && i <= 4) {
       if (storageValues?.recallgrading?.status === "notStarted") {
         await stopRecallBot();
         return;
@@ -741,6 +669,13 @@ const dfs = async (
       };
       await proposeChildNode(accessToken, payload);
       nodeProcessed++;
+      i++;
+
+      node = await getDoc(nodeRef);
+      nodeByIdMap[node.id] = node.data() as INode;
+      totalQuestionNodes = nodeByIdMap[node.id].children.filter(
+        (childNode: any) => childNode.type === "Question"
+      ).length;
     }
     await delay(1000);
   }
@@ -822,15 +757,16 @@ export const recallGradingBot = async (
   }
 
   for (let recallGrade of recallGrades) {
-    let isChatStarted = await startANewChat(gptTabId);
+    let isChatStarted = await startANewChat(gptTabId, "GPT4");
     while (!isChatStarted) {
       console.log("Waiting for 10 min for chatGPT to return.");
       // await delay(10 * 60 * 1000); // 10 minutes
       let nodeProcessed = 0;
+      await startANewChat(gptTabId, "GPT35")
       await dfs(startId, gptTabId, accessToken, userData, nodeProcessed);
       const chatgpt = await chrome.tabs.get(gptTabId);
       await chrome.tabs.update(gptTabId, { url: chatgpt.url }); // reloading tab
-      isChatStarted = await startANewChat(gptTabId);
+      isChatStarted = await startANewChat(gptTabId, "GPT4");
     }
 
     const storageValues = await chrome.storage.local.get(["recallgrading"]);
@@ -897,13 +833,13 @@ export const recallGradingBot = async (
         }
 
         await deleteGPTConversation(gptTabId);
-        let isChatStarted = await startANewChat(gptTabId);
+        let isChatStarted = await startANewChat(gptTabId, "GPT4");
         while (!isChatStarted) {
           console.log("Waiting for 10 min for chatGPT to return.");
           await delay(10 * 60 * 1000); // 10 minutes
           const chatgpt = await chrome.tabs.get(gptTabId);
           await chrome.tabs.update(gptTabId, { url: chatgpt.url }); // reloading tab
-          isChatStarted = await startANewChat(gptTabId);
+          isChatStarted = await startANewChat(gptTabId, "GPT4");
         }
 
         if (phrase["GPT-4-Mentioned"] !== null) {
