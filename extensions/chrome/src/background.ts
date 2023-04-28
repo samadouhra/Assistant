@@ -1,6 +1,7 @@
 import { db } from "./lib/firebase";
 import { doc, writeBatch, collection, getDocs, query, where, Timestamp } from "firebase/firestore";
 import { doesReloadRequired, fetchClientInfo, sendPromptAndReceiveResponse } from "./helpers/chatgpt";
+import { contentBotListener } from "./scripts/content-bot";
 declare const createToaster: (toasterType: string, message: string) => void;
 
 const MAIN_MENUITEM_ID: string = "1cademy-assitant-ctx-mt";
@@ -391,6 +392,10 @@ chrome.runtime.onMessage.addListener((command, context) => {
     await chrome.tabs.sendMessage(tabId, "current-vote-" + JSON.stringify(currentVote))
   })();
 })
+
+
+
+chrome.runtime.onMessage.addListener(contentBotListener);
 
 // set vote to firebase
 chrome.runtime.onMessage.addListener((command: string) => {
