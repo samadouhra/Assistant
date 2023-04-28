@@ -103,6 +103,11 @@ export const stopContentBot = async () => {
   );
 };
 
+export const isBotStopped = async () => {
+  const storageValues = await chrome.storage.local.get(["contentBot"]);
+  return storageValues?.contentBot?.status === "notStarted";
+};
+
 const chatGPTPrompt: any = async (
   nodeTitle: string,
   nodeContent: string,
@@ -113,18 +118,31 @@ const chatGPTPrompt: any = async (
   discoverPrompt += `- "Choices": This will be an array of potential answers. Each answer is an individual object, featuring:\n`;
   discoverPrompt += `- "choice": The text of the choice, starting with a lowercase letter followed by a period, like "a.", "b.",  "c." ...\n`;
   discoverPrompt += `- "correct": This field should state either "true" if the choice is the right answer, or "false"  if it isn't it should be boolean.\n`;
-  discoverPrompt += `- "feedback": An explanation describing why the given choice is either correct or incorrect.
-      Remember to follow JSON syntax rules to ensure proper formatting.\n`;
+  discoverPrompt += `- "feedback": An explanation describing why the given choice is either correct or incorrect.\n`;
+  discoverPrompt += `Remember to follow JSON syntax rules to ensure proper formatting.\n`;
 
   discoverPrompt += `'''\n`;
   discoverPrompt += `"${nodeTitle}":\n`;
   discoverPrompt += `"${nodeContent}"\n`;
   discoverPrompt += `'''\n`;
 
-  const response = await sendPromptAndReceiveResponse(gptTabId, discoverPrompt);
+  const response: string = await sendPromptAndReceiveResponse(gptTabId, discoverPrompt);
   try {
-    return JSON.parse(response);
+    const startBracket = response.indexOf('{');
+    if(startBracket === -1) {
+      throw new Error(`JSON not found`);
+    }
+    let endBracket = response.indexOf('}');
+    while(response.indexOf('}', endBracket + 1) !== -1) {
+      endBracket = response.indexOf('}', endBracket + 1);
+    }
+    if(endBracket === -1) {
+      throw new Error(`JSON not found`);
+    }
+    console.log(JSON.parse(response.substring(startBracket, endBracket + 1)));
+    return JSON.parse(response.substring(startBracket, endBracket + 1));
   } catch (err) {
+    console.log(err, "ERROR");
     return await chatGPTPrompt(nodeTitle, nodeContent, gptTabId);
   }
 };
@@ -161,6 +179,11 @@ const dfs = async (
   if (nodeByIdMap[nodeId]) {
     return;
   }
+
+  if(await isBotStopped()) {
+    return;
+  }
+
   const nodeRef = doc(db, "nodes", nodeId);
   let node = await getDoc(nodeRef);
   nodeByIdMap[node.id] = node.data() as INode;
@@ -178,6 +201,10 @@ const dfs = async (
     const nodeTitle = nodeByIdMap[node.id].title;
     const nodeContent = nodeByIdMap[node.id].content;
     for (let i = 1; i <= 4 - totalQuestionNodes; i++) {
+      if(await isBotStopped()) {
+        return;
+      }
+
       const discoveredNode = await chatGPTPrompt(
         nodeTitle,
         nodeContent,
