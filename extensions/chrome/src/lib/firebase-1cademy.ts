@@ -9,7 +9,7 @@ const app_1cademy = initializeApp({
   storageBucket: process.env.ONECADEMY_FIREBASE_STORAGE_BUCKET,
   messagingSenderId: process.env.ONECADEMY_FIREBASE_MESSAGING_SENDER_ID,
   appId: process.env.ONECADEMY_FIREBASE_APP_ID,
-});
+}, "onecademy");
 
 const db_1cademy = getFirestore(app_1cademy);
 
