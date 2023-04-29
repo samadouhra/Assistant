@@ -573,7 +573,7 @@ const chatGPTPrompt: any = async (
     let question = JSON.parse(jsonStr);
     for(const Choice of question.Choices) {
       Choice.choice = Choice.choice.replace(/~~~~/g, "\\");
-      Choice.feedback = Choice.feedback.replace(/~~~~/g, "\\");
+      Choice.feedback = Choice.feedback.replace(/~~~~/g, "\\").replace(/^(Correct|Wrong)[!]?[ ]?[,]?/, "").trim();
     }
     console.log(question);
     return question;
