@@ -530,7 +530,8 @@ const updateRecallGrades = async (recallGrade: any) => {
 const chatGPTPrompt: any = async (
   nodeTitle: string,
   nodeContent: string,
-  gptTabId: any
+  gptTabId: any,
+  excludingQuestions: string[]
 ) => {
   let discoverPrompt: string = `Please compose a multiple-choice question based on the provided text block enclosed in triple quotes. The output should be formatted as a JSON object and consist of the following components:\n`;
   discoverPrompt += `- "Stem": This field will contain the central question.\n`;
@@ -539,6 +540,12 @@ const chatGPTPrompt: any = async (
   discoverPrompt += `- "correct": This field should state either "true" if the choice is the right answer, or "false"  if it isn't it should be boolean.\n`;
   discoverPrompt += `- "feedback": An explanation describing why the given choice is either correct or incorrect.\n`;
   discoverPrompt += `Remember to follow JSON syntax rules to ensure proper formatting.\n`;
+  if(excludingQuestions.length) {
+    discoverPrompt += `Note that  following questions are already added. Don't create them again:\n`;
+    for(const excludingQuestion of excludingQuestions) {
+      discoverPrompt += `- ${excludingQuestion}\n`;
+    }
+  }
 
   discoverPrompt += `'''\n`;
   discoverPrompt += `"${nodeTitle}":\n`;
@@ -572,7 +579,7 @@ const chatGPTPrompt: any = async (
     return question;
   } catch (err) {
     console.log(err, "ERROR");
-    return await chatGPTPrompt(nodeTitle, nodeContent, gptTabId);
+    return await chatGPTPrompt(nodeTitle, nodeContent, gptTabId, excludingQuestions);
   }
 };
 
@@ -641,11 +648,15 @@ const dfs = async (
   ) {
     const nodeTitle = nodeByIdMap[node.id].title;
     const nodeContent = nodeByIdMap[node.id].content;
+    const excludingQuestions: string[] = nodeByIdMap[node.id].children.filter(
+      (childNode: any) => childNode.type === "Question"
+    ).map((childNode: any) => childNode.title);
     let i = 0;
     const discoveredNode = await chatGPTPrompt(
       nodeTitle,
       nodeContent,
-      gptTabId
+      gptTabId,
+      excludingQuestions
     );
     console.log(discoveredNode, "discoveredNode");
     const payload: any = {
