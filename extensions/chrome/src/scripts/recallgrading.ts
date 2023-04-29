@@ -620,12 +620,18 @@ const dfs = async (
     return;
   }
 
+  console.log(nodeId);
   const nodeRef = doc(db_1cademy, "nodes", nodeId);
   let node = await getDoc(nodeRef);
   nodeByIdMap[node.id] = node.data() as INode;
   const nodeType = nodeByIdMap[node.id].nodeType;
   const tagIds = nodeByIdMap[node.id].tagIds;
   const tags = nodeByIdMap[node.id].tags;
+
+  if(!tagIds.includes(process.env.ONECADEMY_NODE_TAG_ID!)) {
+    return;
+  }
+
   let totalQuestionNodes = nodeByIdMap[node.id].children.filter(
     (childNode: any) => childNode.type === "Question"
   ).length;
@@ -636,55 +642,44 @@ const dfs = async (
     const nodeTitle = nodeByIdMap[node.id].title;
     const nodeContent = nodeByIdMap[node.id].content;
     let i = 0;
-    while(totalQuestionNodes <= 4 && i <= 4) {
-      if (storageValues?.recallgrading?.status === "notStarted") {
-        await stopRecallBot();
-        return;
-      }
-
-      const discoveredNode = await chatGPTPrompt(
-        nodeTitle,
-        nodeContent,
-        gptTabId
-      );
-      console.log(discoveredNode, "discoveredNode");
-      const payload: any = {
-        data: {
-          parentId: String(node.id),
-          parentType: nodeType,
-          nodeType: "Question" as INodeType,
-          children: [],
-          title: discoveredNode.Stem,
-          content: "",
-          parents: [
-            {
-              lable: "",
-              node: node.id,
-              title: nodeTitle,
-              type: nodeType,
-            },
-          ],
-          proposal: "",
-          referenceIds: [],
-          references: [],
-          referenceLabels: [],
-          summary: "",
-          subType: null,
-          tagIds: tagIds,
-          tags: tags,
-          choices: discoveredNode.Choices,
-        },
-      };
-      await proposeChildNode(accessToken, payload);
-      nodeProcessed.n++;
-      i++;
-
-      node = await getDoc(nodeRef);
-      nodeByIdMap[node.id] = node.data() as INode;
-      totalQuestionNodes = nodeByIdMap[node.id].children.filter(
-        (childNode: any) => childNode.type === "Question"
-      ).length;
-    }
+    const discoveredNode = await chatGPTPrompt(
+      nodeTitle,
+      nodeContent,
+      gptTabId
+    );
+    console.log(discoveredNode, "discoveredNode");
+    const payload: any = {
+      data: {
+        parentId: String(node.id),
+        parentType: nodeType,
+        nodeType: "Question" as INodeType,
+        children: [],
+        title: discoveredNode.Stem,
+        content: "",
+        nodeImage: "",
+        nodeVideo: "",
+        parents: [
+          {
+            lable: "",
+            node: node.id,
+            title: nodeTitle,
+            type: nodeType,
+          },
+        ],
+        proposal: "",
+        referenceIds: [],
+        references: [],
+        referenceLabels: [],
+        summary: "",
+        subType: null,
+        tagIds: tagIds,
+        tags: tags,
+        choices: discoveredNode.Choices,
+        notebookId: "BuTGsO8zzj6CD9AYjGnN" // "uCxQLVQtn8dqxpd2SKG9",//
+      },
+    };
+    await proposeChildNode(accessToken, payload);
+    nodeProcessed.n++;
     await delay(1000);
   }
   
@@ -711,9 +706,9 @@ export const recallGradingBot = async (
     process.env.ONECADEMY_PASSWORD || ""
   );
 
-  const nodesRef = collection(db_1cademy, "users");
+  const usersRef = collection(db_1cademy, "users");
   const q = query(
-    nodesRef,
+    usersRef,
     where("userId", "==", userCredential.user.uid),
     limit(1)
   );
@@ -767,7 +762,7 @@ export const recallGradingBot = async (
   for (let recallGrade of recallGrades) {
     let isChatStarted = await startANewChat(gptTabId, "GPT4");
     while (!isChatStarted) {
-      console.log("Waiting for 10 min for chatGPT to return.");
+      console.log("Waiting for 10 min for chatGPT to return. (start)");
       // await delay(10 * 60 * 1000); // 10 minutes
       let nodeProcessed = {n: 0};
       await startANewChat(gptTabId, "GPT35");
@@ -776,7 +771,6 @@ export const recallGradingBot = async (
       await dfs(startId, gptTabId, accessToken, userData, nodeProcessed);
       nodeByIdMap = {};
       const chatgpt = await chrome.tabs.get(gptTabId);
-      await sendPromptAndReceiveResponse(gptTabId, "test"); // sending a test message to prevent the bot from looping forever
       await chrome.tabs.update(gptTabId, { url: chatgpt.url }); // reloading tab
       isChatStarted = await startANewChat(gptTabId, "GPT4");
     }
@@ -853,7 +847,7 @@ export const recallGradingBot = async (
         await deleteGPTConversation(gptTabId);
         let isChatStarted = await startANewChat(gptTabId, "GPT4");
         while (!isChatStarted) {
-          console.log("Waiting for 10 min for chatGPT to return.");
+          console.log("Waiting for 10 min for chatGPT to return. (end)");
           let nodeProcessed = {n: 0};
           await startANewChat(gptTabId, "GPT35");
           const accessToken = await userCredential.user.getIdToken(false);
@@ -862,7 +856,6 @@ export const recallGradingBot = async (
           nodeByIdMap = {};
           // await delay(10 * 60 * 1000); // 10 minutes
           const chatgpt = await chrome.tabs.get(gptTabId);
-          await sendPromptAndReceiveResponse(gptTabId, "test"); // sending a test message to prevent the bot from looping forever
           await chrome.tabs.update(gptTabId, { url: chatgpt.url }); // reloading tab
           isChatStarted = await startANewChat(gptTabId, "GPT4");
         }
