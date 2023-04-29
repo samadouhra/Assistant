@@ -620,10 +620,10 @@ const dfs = async (
     return;
   }
 
-  console.log(nodeId);
   const nodeRef = doc(db_1cademy, "nodes", nodeId);
   let node = await getDoc(nodeRef);
   nodeByIdMap[node.id] = node.data() as INode;
+  console.log(`${nodeId} -> ${nodeByIdMap[node.id].title}`);
   const nodeType = nodeByIdMap[node.id].nodeType;
   const tagIds = nodeByIdMap[node.id].tagIds;
   const tags = nodeByIdMap[node.id].tags;
