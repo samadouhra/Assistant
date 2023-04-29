@@ -548,7 +548,7 @@ const chatGPTPrompt: any = async (
   }
 
   discoverPrompt += `'''\n`;
-  discoverPrompt += `"${nodeTitle}":\n`;
+  discoverPrompt += `${nodeTitle}:\n`;
   discoverPrompt += `"${nodeContent}"\n`;
   discoverPrompt += `'''\n`;
 
