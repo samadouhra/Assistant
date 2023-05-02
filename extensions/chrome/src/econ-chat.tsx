@@ -6,7 +6,8 @@ import { initFirebaseClientSDK } from './utils/firestoreClient.config'
 initFirebaseClientSDK()
 
 let container = document.getElementById("oa-econ-chat");
-if(!container) {
+if (!container) {
+  console.log('will mount')
   container = document.createElement('div');
   container.setAttribute("id", "oa-econ-chat");
   document.body.appendChild(container);

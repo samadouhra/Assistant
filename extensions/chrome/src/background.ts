@@ -1,6 +1,7 @@
 import { db } from "./lib/firebase";
 import { doc, writeBatch, collection, getDocs, query, where, Timestamp } from "firebase/firestore";
 import { doesReloadRequired, fetchClientInfo, sendPromptAndReceiveResponse } from "./helpers/chatgpt";
+import { ENDPOINT_BASE } from "./utils/constants";
 declare const createToaster: (toasterType: string, message: string) => void;
 
 const MAIN_MENUITEM_ID: string = "1cademy-assitant-ctx-mt";
@@ -52,9 +53,9 @@ const tryExecutionUsingChatGPT = async (paragraph: string, commandType: ICommand
   const tabs = await chrome.tabs.query({
     url: "https://chat.openai.com/chat*"
   })
-  
+
   // create a new tab for chat gpt if it doesn't exists
-  if(tabs.length === 0) {
+  if (tabs.length === 0) {
     const openedTab = await chrome.tabs.create({
       url: "https://chat.openai.com/chat"
     })
@@ -77,16 +78,16 @@ const tryExecutionUsingChatGPT = async (paragraph: string, commandType: ICommand
   const startedAt = new Date().getTime();
 
   const reloadRequired = await doesReloadRequired(tabId);
-  if(reloadRequired) {
+  if (reloadRequired) {
     const chatgpt = await chrome.tabs.get(tabId);
-    await chrome.tabs.update(tabId, {url: chatgpt.url}); // reloading tab
+    await chrome.tabs.update(tabId, { url: chatgpt.url }); // reloading tab
   }
 
   // waiting until chatgpt tab is loaded
   let isLoadingComplete = false;
-  while(!isLoadingComplete) {
+  while (!isLoadingComplete) {
     const chatgpt = await chrome.tabs.get(tabId);
-    if(chatgpt.status === "complete") {
+    if (chatgpt.status === "complete") {
       isLoadingComplete = true;
     }
   }
@@ -103,8 +104,8 @@ const tryExecutionUsingChatGPT = async (paragraph: string, commandType: ICommand
             return !!Array.from(document.querySelectorAll("a")).filter((anc) => anc.innerText.trim().toLowerCase() === "new chat").length;
           }
         }).then((result) => {
-          if(result.length) {
-            if(result[0].result) {
+          if (result.length) {
+            if (result[0].result) {
               resolve(true);
               return;
             }
@@ -112,7 +113,7 @@ const tryExecutionUsingChatGPT = async (paragraph: string, commandType: ICommand
             // checking memory leak
             const currentTime = new Date().getTime();
             const timeDiff = (startedAt - currentTime) / 1000;
-            if(timeDiff >= 180) {
+            if (timeDiff >= 180) {
               reject("Stopped due to memory leak");
               return; // don't run recursion
             }
@@ -127,7 +128,7 @@ const tryExecutionUsingChatGPT = async (paragraph: string, commandType: ICommand
   await waitUntilChatGPTLogin();
 
   let commandText: string = "";
-  switch(commandType) {
+  switch (commandType) {
     case "Analyze-CGPT":
       commandText += "Write a report on the following triple-quoted text. The report should include document statistics, vocabulary statistics, readability score, tone type (available options are Formal, Informal, Optimistic, Worried, Friendly, Curious, Assertive, Encouraging, Surprised, or Cooperative), intent type (available options are Inform, Describe, Convince, or Tell A Story), audience type (available options are General, Knowledgeable, or Expert), style type (available options are Formal or Informal), emotion type (available options are Mild or Strong), and domain type (available options are General, Academic, Business, Technical, Creative, or Casual). ";
       break;
@@ -171,13 +172,13 @@ const tryExecutionUsingChatGPT = async (paragraph: string, commandType: ICommand
   const clientStorage = await chrome.storage.local.get(["clientInfo", "onecademyUname"]);
   let clientInfo = clientStorage?.clientInfo;
   // fetching client info
-  if(!clientInfo) {
+  if (!clientInfo) {
     clientInfo = (await (await fetch("https://www.cloudflare.com/cdn-cgi/trace")).text()).split("\n").filter((p) => p).reduce((c: any, d) => {
       const _ps = d.split("=")
       const paramName = _ps.shift() as string;
       const paramValue = _ps.join("=");
-      return {...c, [paramName]: paramValue};
-    },{});
+      return { ...c, [paramName]: paramValue };
+    }, {});
 
     await chrome.storage.local.set({
       clientInfo
@@ -209,15 +210,15 @@ const tryExecutionUsingChatGPT = async (paragraph: string, commandType: ICommand
       lastActionTime: new Date().getTime(),
       startedIndex: String(startedAt)
     })
-  } catch(e) {}
+  } catch (e) { }
 
 }
 
 const onParaphraseRequest = (onClickData: chrome.contextMenus.OnClickData) => {
   const mItemId = String(onClickData.menuItemId);
   const menuItemIds = Object.keys(menuItems);
-  if(!menuItemIds.includes(mItemId)) return;
-  
+  if (!menuItemIds.includes(mItemId)) return;
+
   tryExecutionUsingChatGPT(
     String(onClickData.selectionText),
     menuItems[mItemId][0]
@@ -225,16 +226,16 @@ const onParaphraseRequest = (onClickData: chrome.contextMenus.OnClickData) => {
 }
 
 const onPasteDetection = (message: any) => {
-  return (async() => {
-    if(message === "paste-done") {
+  return (async () => {
+    if (message === "paste-done") {
       const storagedActions = await chrome.storage.local.get(["lastActionId", "lastActionTime"])
-      if(storagedActions?.lastActionId) {
+      if (storagedActions?.lastActionId) {
         const lastAction = parseInt(storagedActions?.lastActionTime);
         const currentTime = new Date().getTime();
         const timeDiff = (lastAction - currentTime) / 1000;
         // should be less than or equal to 20 mints
-        if(timeDiff > 1200) return;
-        
+        if (timeDiff > 1200) return;
+
         // saving paste status to last action document
         const colRef = collection(db, "assistantActions")
         const actionRef = doc(colRef, storagedActions?.lastActionId);
@@ -247,19 +248,19 @@ const onPasteDetection = (message: any) => {
           await batch.commit();
           // reseting local storage
           // await chrome.storage.local.remove(["lastActionId", "lastActionTime"])
-        } catch(e) {}
+        } catch (e) { }
       }
     }
   })()
 }
 
 const onUnameDetection = (message: any, sender: chrome.runtime.MessageSender) => {
-  if(typeof message !== "string") return;
+  if (typeof message !== "string") return;
 
   const url = sender.url || "";
-  if(!url.match(/(1cademy|knowledge\-dev|localhost)/)) return;
+  if (!url.match(/(1cademy|knowledge\-dev|localhost)/)) return;
 
-  if(!message.startsWith("onecademy-user-")) return;
+  if (!message.startsWith("onecademy-user-")) return;
 
   const uname = message.replace(/^onecademy-user-/, "");
 
@@ -271,28 +272,28 @@ const onUnameDetection = (message: any, sender: chrome.runtime.MessageSender) =>
 }
 
 const onVoteDetection = (message: any, sender: chrome.runtime.MessageSender) => {
-  if(typeof message !== "string") return;
+  if (typeof message !== "string") return;
 
   const url = sender.url || "";
-  if(!url.match(/chat\.openai\.com/)) return;
+  if (!url.match(/chat\.openai\.com/)) return;
 
-  if(!message.startsWith("oa-gpt-")) return;
+  if (!message.startsWith("oa-gpt-")) return;
 
   let startedIndex = "";
   let vote = 0;
 
   // on like clicked
-  if(message.match(/^oa-gpt-like-clicked-/)) {
+  if (message.match(/^oa-gpt-like-clicked-/)) {
     startedIndex = message.replace(/^oa-gpt-like-clicked-/, "");
     vote = 1;
-  } else if(message.match(/^oa-gpt-dislike-clicked-/)) {
+  } else if (message.match(/^oa-gpt-dislike-clicked-/)) {
     // on dislike clicked
     startedIndex = message.replace(/^oa-gpt-dislike-clicked-/, "");
   }
 
   (async () => {
     const storagedActions = await chrome.storage.local.get(["lastActionId", "startedIndex"])
-    if(startedIndex === storagedActions?.startedIndex && storagedActions?.lastActionId) {
+    if (startedIndex === storagedActions?.startedIndex && storagedActions?.lastActionId) {
       const colRef = collection(db, "assistantActions")
       const actionRef = doc(colRef, storagedActions.lastActionId);
       const batch = writeBatch(db);
@@ -304,8 +305,30 @@ const onVoteDetection = (message: any, sender: chrome.runtime.MessageSender) => 
         await batch.commit();
         // reseting local storage
         await chrome.storage.local.remove(["startedIndex"])
-      } catch(e) {}
+      } catch (e) { }
     }
+  })()
+}
+
+const onAskAssistant = (message: any, sender: chrome.runtime.MessageSender) => {
+
+  (async () => {
+    console.log({ message })
+    if (message?.messageType !== 'assistant') return
+    if (!sender.tab?.id) return console.error('Cant find tab id')
+
+    console.log('call endpont')
+    const res = await fetch(`${ENDPOINT_BASE}/assistant`, {
+      method: "POST",
+      body: JSON.stringify(message.payload),
+      headers: {
+        "Content-Type": "application/json"
+      }
+    })
+    const data = await res.json()
+    // console.log({ data })
+    await chrome.tabs.sendMessage(sender.tab.id, { ...data, messageType: "assistant" })
+
   })()
 }
 
@@ -315,8 +338,8 @@ chrome.runtime.onInstalled.addListener(() => {
     title: "1Cademy Assistant",
     contexts: ["selection"]
   })
-  
-  for(const menuItemId in menuItems) {
+
+  for (const menuItemId in menuItems) {
     const menuItem = menuItems[menuItemId];
     chrome.contextMenus.create({
       id: menuItemId,
@@ -337,6 +360,10 @@ chrome.runtime.onMessage.addListener(onUnameDetection)
 // to detect like or dislike on response
 chrome.runtime.onMessage.addListener(onVoteDetection)
 
+// ------------------------------------1cademy asistant listener
+// detect to call assistant endpoint
+chrome.runtime.onMessage.addListener(onAskAssistant)
+
 const shortcutCommands: {
   [commandName: string]: ICommandType
 } = {
@@ -352,7 +379,7 @@ const shortcutCommands: {
 
 // shortcut handles
 chrome.commands.onCommand.addListener((command, tab) => {
-  if(!shortcutCommands.hasOwnProperty(command)) return;
+  if (!shortcutCommands.hasOwnProperty(command)) return;
 
   (async () => {
     const responses = await chrome.scripting.executeScript({
@@ -366,7 +393,7 @@ chrome.commands.onCommand.addListener((command, tab) => {
       }
     });
     const _responses = responses.filter((response) => response.result);
-    if(!_responses.length) {
+    if (!_responses.length) {
       return;
     }
     const selectedText = _responses[0].result;
@@ -378,14 +405,14 @@ chrome.commands.onCommand.addListener((command, tab) => {
 // sending current vote to Extension UI
 chrome.runtime.onMessage.addListener((command, context) => {
   const tabId = context?.tab?.id || 0;
-  if(!["current-vote"].includes(command)) {
+  if (!["current-vote"].includes(command)) {
     return;
   }
 
-  return (async() => {
+  return (async () => {
     let currentVote: boolean | null;
     const storageValues = await chrome.storage.local.get(["current-vote"]);
-    if([undefined, null].includes(storageValues["current-vote"])) {
+    if ([undefined, null].includes(storageValues["current-vote"])) {
       currentVote = null;
     } else {
       currentVote = !!storageValues["current-vote"];
@@ -396,7 +423,7 @@ chrome.runtime.onMessage.addListener((command, context) => {
 
 // set vote to firebase
 chrome.runtime.onMessage.addListener((command: string) => {
-  if(!String(command).startsWith("set-vote-")) {
+  if (!String(command).startsWith("set-vote-")) {
     return;
   }
 
@@ -405,7 +432,7 @@ chrome.runtime.onMessage.addListener((command: string) => {
     const storageValues = await chrome.storage.local.get([
       "voterIdentifier"
     ]);
-    if(storageValues.voterIdentifier) {
+    if (storageValues.voterIdentifier) {
       voterIdentifier = storageValues.voterIdentifier;
     } else {
       voterIdentifier = doc(
@@ -415,17 +442,17 @@ chrome.runtime.onMessage.addListener((command: string) => {
         voterIdentifier
       });
     }
-  
+
     let vote: null | boolean = null;
     try {
       vote = JSON.parse(String(command).replace(/^set\-vote\-/, ""));
-    } catch(e) {}
-  
-    return (async() => {
+    } catch (e) { }
+
+    return (async () => {
       await chrome.storage.local.set({
         "current-vote": vote
       });
-  
+
       const batch = writeBatch(db);
       const assistantVotes = await getDocs(
         query(
@@ -433,7 +460,7 @@ chrome.runtime.onMessage.addListener((command: string) => {
           where("voter", "==", voterIdentifier)
         )
       );
-      if(assistantVotes.docs.length) {
+      if (assistantVotes.docs.length) {
         const assistantVoteRef = doc(collection(db, "assistantVotes"), assistantVotes.docs[0].id);
         batch.update(assistantVoteRef, {
           vote,

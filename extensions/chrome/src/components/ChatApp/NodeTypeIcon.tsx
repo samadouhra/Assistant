@@ -63,13 +63,13 @@ const NodeTypeIcon = ({ nodeType, tooltipPlacement, color = "primary", ...rest }
   if (tooltipPlacement)
     return (
       <Tooltip title={`${nodeType} node`} placement={tooltipPlacement}>
-        <Box sx={{ width: "20px", height: "20px", display: "flex", alignItems: "center", justifyContent: "center", borderRadius: "50px", backgroundColor: DESIGN_SYSTEM_COLORS.primary600 }}>
+        <Box sx={{ minWidth: "20px", width: "20px", minHeight: "20px", height: "20px", display: "flex", alignItems: "center", justifyContent: "center", borderRadius: "50px", backgroundColor: DESIGN_SYSTEM_COLORS.primary600 }}>
           {renderIcon()}
         </Box>
       </Tooltip>
     );
 
-  return <Box sx={{ width: "20px", height: "20px", display: "flex", alignItems: "center", justifyContent: "center", borderRadius: "50px", backgroundColor: DESIGN_SYSTEM_COLORS.primary600 }}>
+  return <Box sx={{ minWidth: "20px", width: "20px", minHeight: "20px", height: "20px", display: "flex", alignItems: "center", justifyContent: "center", borderRadius: "50px", backgroundColor: DESIGN_SYSTEM_COLORS.primary600 }}>
     {renderIcon()}
   </Box>
 };

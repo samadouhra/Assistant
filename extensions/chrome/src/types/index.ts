@@ -202,3 +202,34 @@ export type AuthActions = {
     dispatch: Dispatch<DispatchAuthActions>;
     handleError: (options: ErrorOptions) => void;
 };
+
+export type IAssitantRequestAction =
+    | "Practice"
+    | "TeachContent"
+    | "PracticeLater"
+    | "Understood"
+    | "ExplainMore"
+    | "GeneralExplanation"
+    | "IllContribute"
+    | "DirectQuestion";
+
+export type IAssistantRequestPayload = {
+    actionType: IAssitantRequestAction;
+    message: string;
+    conversationId?: string;
+};
+
+export type IAssistantResponse = {
+    conversationId: string;
+    message: string;
+    nodes?: {
+        type: NodeType;
+        node: string;
+        title: string;
+    }[];
+    actions?: {
+        type: IAssitantRequestAction;
+        title: string;
+        variant: "contained" | "outline";
+    }[];
+};

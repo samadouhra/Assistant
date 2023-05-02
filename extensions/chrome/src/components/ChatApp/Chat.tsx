@@ -19,25 +19,17 @@ import {
 import { RiveComponentMemoized } from "./RiveMemoized";
 import { getFirestore } from "firebase/firestore";
 import { useAuth } from "../../utils/AuthContext";
-import { NodeType } from "../../types";
+import { IAssistantRequestPayload, IAssistantResponse, IAssitantRequestAction, NodeType } from "../../types";
 import { NodeLink } from "./NodeLink";
 import {
   CHAT_BACKGROUND_IMAGE_URL,
+  ENDPOINT_BASE,
   LOGO_URL,
   SEARCH_ANIMATION_URL,
 } from "../../utils/constants";
 import { useTheme } from "../../hooks/useTheme";
+import { getCurrentDateYYMMDD, getCurrentHourHHMM } from "../../utils/date";
 
-export type IAssitantRequestAction =
-  | "Practice"
-  | "TeachContent"
-  | "RemindLater"
-  | "Yes"
-  | "ExplainMore"
-  | "GiveMoreExplanation"
-  | "IllContribute"
-  | "Question"
-  | "Text";
 
 /**
  * - NORMAL: is only content
@@ -52,22 +44,26 @@ export type NodeLinkType = {
   id: string;
   title: string;
 };
+
+type ActionVariant = "contained" | "outlined"
+
+type MessageData = {
+  id: string;
+  type: "WRITER" | "READER";
+  uname: string;
+  image: string;
+  content: string;
+  nodes: NodeLinkType[];
+  actions: {
+    type: IAssitantRequestAction;
+    title: string;
+    variant: ActionVariant;
+  }[];
+  hour: string;
+}
 type Message = {
   date: string;
-  messages: {
-    id: string;
-    type: "WRITER" | "READER";
-    uname: string;
-    image: string;
-    content: string;
-    nodes: NodeLinkType[];
-    actions: {
-      type: IAssitantRequestAction;
-      title: string;
-      variant: "contained" | "outlined";
-    }[];
-    hour: string;
-  }[];
+  messages: MessageData[];
 };
 const MESSAGES: Message[] = [
   {
@@ -87,26 +83,26 @@ const MESSAGES: Message[] = [
             type: "TeachContent",
             variant: "outlined",
           },
-          {
-            title: "Remind me later",
-            type: "RemindLater",
-            variant: "outlined",
-          },
-          { title: "Yes", type: "Yes", variant: "outlined" },
-          { title: "ExplainMore", type: "ExplainMore", variant: "outlined" },
-          {
-            title: "Provide me an explanation",
-            type: "GiveMoreExplanation",
-            variant: "outlined",
-          },
-          {
-            title: "I’ll contribute",
-            type: "IllContribute",
-            variant: "outlined",
-          },
-          { title: "Question", type: "Question", variant: "outlined" },
-          { title: "Text", type: "Text", variant: "outlined" },
-          { title: "Let’s practice", type: "Practice", variant: "outlined" },
+          // {
+          //   title: "Remind me later",
+          //   type: "RemindLater",
+          //   variant: "outlined",
+          // },
+          // { title: "Yes", type: "Yes", variant: "outlined" },
+          // { title: "ExplainMore", type: "ExplainMore", variant: "outlined" },
+          // {
+          //   title: "Provide me an explanation",
+          //   type: "GiveMoreExplanation",
+          //   variant: "outlined",
+          // },
+          // {
+          //   title: "I’ll contribute",
+          //   type: "IllContribute",
+          //   variant: "outlined",
+          // },
+          // { title: "Question", type: "Question", variant: "outlined" },
+          // { title: "Text", type: "Text", variant: "outlined" },
+          // { title: "Let’s practice", type: "Practice", variant: "outlined" },
         ],
       },
       {
@@ -204,6 +200,11 @@ const MESSAGES: Message[] = [
   },
 ];
 
+const tempMap = (variant: string): ActionVariant => {
+  if (variant === "outline") return "outlined"
+  return "contained"
+}
+
 export const Chat = () => {
   const db = getFirestore();
   const [{ user, reputation, settings }, { dispatch }] = useAuth();
@@ -211,14 +212,66 @@ export const Chat = () => {
   const [messagesObj, setMessagesObj] = useState<Message[]>([]);
   const [speakingMessageId, setSpeakingMessageId] = useState<string>("");
   const chatElementRef = useRef<HTMLDivElement | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
+  const [conversationId, setConversationId] = useState("")
   const { mode } = useTheme();
+
+  const [userMessage, setUserMessage] = useState('')
+
+  const pushMessage = useCallback((message: MessageData, currentDateYYMMDD: string) => {
+    setMessagesObj(prev => {
+      if (prev.length === 0) return [{ date: currentDateYYMMDD, messages: [message] }]
+      const res = prev.reduce((acu: { found: boolean, result: Message[] }, cur) => {
+        if (cur.date === currentDateYYMMDD) return { found: true, result: [...acu.result, { ...cur, messages: [...cur.messages, message] }] }
+        return { ...acu, result: [...acu.result, cur] }
+      }, { found: false, result: [] })
+      const newMessageObj: Message[] = res.found ? res.result : [...res.result, { date: currentDateYYMMDD, messages: [message] }]
+      return newMessageObj
+    })
+  }, [])
+
+  const onPushAssistantMessage = (newMessage: IAssistantResponse) => {
+
+    const currentDateYYMMDD = getCurrentDateYYMMDD()
+    const message: MessageData = mapAssistantResponseToMessage(newMessage)
+    pushMessage(message, currentDateYYMMDD)
+  }
+
+  const onPushUserMessage = (userMessage: string) => {
+
+    const currentDateYYMMDD = getCurrentDateYYMMDD()
+    const message = mapUserMessageToMessage(userMessage)
+    pushMessage(message, currentDateYYMMDD)
+  }
+
+  useEffect(() => {
+    chrome.runtime.onMessage.addListener((message) => {
+      if (message.messageType === 'assistant') {
+        console.log('answer:message form assistant', { message })
+        onPushAssistantMessage(message)
+      }
+    });
+  }, [])
+
+  const onSubmitMessage = useCallback(async () => {
+    console.log({ userMessage })
+    onPushUserMessage(userMessage)
+    const payload: IAssistantRequestPayload = {
+      actionType: "DirectQuestion",
+      message: userMessage,
+      conversationId
+    }
+    chrome.runtime.sendMessage(chrome.runtime.id || process.env.EXTENSION_ID, { payload, messageType: "assistant" });
+    setUserMessage('')
+  }, [userMessage, conversationId])
+
   const scrollToTheEnd = () => {
     if (!chatElementRef.current) return;
     chatElementRef.current.scrollTop = chatElementRef.current.scrollHeight;
   };
 
   const narrateMessage = useCallback((id: string, message: string) => {
+    console.log("narrateMessage", { message })
     if (!window.speechSynthesis.speaking) {
       const msg = new SpeechSynthesisUtterance(message);
       window.speechSynthesis.speak(msg);
@@ -230,14 +283,6 @@ export const Chat = () => {
       window.speechSynthesis.cancel();
       setSpeakingMessageId("");
     }
-  }, []);
-
-  useEffect(() => {
-    const idTimeout = setTimeout(() => {
-      setMessagesObj(MESSAGES);
-      setIsLoading(false);
-    }, 1000);
-    return () => clearTimeout(idTimeout);
   }, []);
 
   useEffect(() => {
@@ -257,11 +302,10 @@ export const Chat = () => {
           mode === "dark"
             ? DESIGN_SYSTEM_COLORS.notebookG900
             : DESIGN_SYSTEM_COLORS.gray50,
-        border: `solid 2px ${
-          mode === "light"
-            ? DESIGN_SYSTEM_COLORS.primary200
-            : DESIGN_SYSTEM_COLORS.primary400
-        }`,
+        border: `solid 2px ${mode === "light"
+          ? DESIGN_SYSTEM_COLORS.primary200
+          : DESIGN_SYSTEM_COLORS.primary400
+          }`,
       }}
     >
       {/* header */}
@@ -274,11 +318,10 @@ export const Chat = () => {
           alignItems: "center",
           gridTemplateColumns: "48px auto",
           gap: "11px",
-          borderBottom: `solid 1px ${
-            mode === "light"
-              ? DESIGN_SYSTEM_COLORS.gray300
-              : DESIGN_SYSTEM_COLORS.notebookG500
-          }`,
+          borderBottom: `solid 1px ${mode === "light"
+            ? DESIGN_SYSTEM_COLORS.gray300
+            : DESIGN_SYSTEM_COLORS.notebookG500
+            }`,
         }}
       >
         <CustomAvatar
@@ -334,11 +377,10 @@ export const Chat = () => {
           p: "10px 24px",
           display: "grid",
           placeItems: "center",
-          borderBottom: `solid 1px ${
-            mode === "light"
-              ? DESIGN_SYSTEM_COLORS.gray300
-              : DESIGN_SYSTEM_COLORS.notebookG500
-          }`,
+          borderBottom: `solid 1px ${mode === "light"
+            ? DESIGN_SYSTEM_COLORS.gray300
+            : DESIGN_SYSTEM_COLORS.notebookG500
+            }`,
         }}
       >
         <Typography
@@ -364,7 +406,7 @@ export const Chat = () => {
           overflowY: "auto",
           scrollBehavior: "smooth",
           flexGrow: 1,
-          ...(!messagesObj.length && {
+          ...(!messagesObj.length && !isLoading && {
             backgroundImage: `url(${CHAT_BACKGROUND_IMAGE_URL})`,
             backgroundRepeat: "no-repeat",
             backgroundPosition: "center",
@@ -389,18 +431,16 @@ export const Chat = () => {
                   <Divider
                     sx={{
                       ":before": {
-                        borderTop: `solid 1px ${
-                          mode === "light"
-                            ? DESIGN_SYSTEM_COLORS.notebookG100
-                            : DESIGN_SYSTEM_COLORS.notebookG500
-                        }`,
+                        borderTop: `solid 1px ${mode === "light"
+                          ? DESIGN_SYSTEM_COLORS.notebookG100
+                          : DESIGN_SYSTEM_COLORS.notebookG500
+                          }`,
                       },
                       ":after": {
-                        borderTop: `solid 1px ${
-                          mode === "light"
-                            ? DESIGN_SYSTEM_COLORS.notebookG100
-                            : DESIGN_SYSTEM_COLORS.notebookG500
-                        }`,
+                        borderTop: `solid 1px ${mode === "light"
+                          ? DESIGN_SYSTEM_COLORS.notebookG100
+                          : DESIGN_SYSTEM_COLORS.notebookG500
+                          }`,
                       },
                     }}
                   >
@@ -453,34 +493,34 @@ export const Chat = () => {
                           </Typography>
                           {c.type ===
                             "READER" /* && <Tooltip title={speakingMessageId === c.id ? "Stop narrating" : "Narrate message"} placement='top'> */ && (
-                            <IconButton
-                              onClick={() => narrateMessage(c.id, c.content)}
-                              size="small"
-                              sx={{ p: "4px", ml: "4px" }}
-                            >
-                              {speakingMessageId === c.id ? (
-                                <VolumeOffIcon
-                                  sx={{
-                                    fontSize: "16px",
-                                    color:
-                                      mode === "dark"
-                                        ? DESIGN_SYSTEM_COLORS.gray25
-                                        : DESIGN_SYSTEM_COLORS.gray900,
-                                  }}
-                                />
-                              ) : (
-                                <VolumeUpIcon
-                                  sx={{
-                                    fontSize: "16px",
-                                    color:
-                                      mode === "dark"
-                                        ? DESIGN_SYSTEM_COLORS.gray25
-                                        : DESIGN_SYSTEM_COLORS.gray900,
-                                  }}
-                                />
-                              )}
-                            </IconButton>
-                          )}
+                              <IconButton
+                                onClick={() => narrateMessage(c.id, c.content)}
+                                size="small"
+                                sx={{ p: "4px", ml: "4px" }}
+                              >
+                                {speakingMessageId === c.id ? (
+                                  <VolumeOffIcon
+                                    sx={{
+                                      fontSize: "16px",
+                                      color:
+                                        mode === "dark"
+                                          ? DESIGN_SYSTEM_COLORS.gray25
+                                          : DESIGN_SYSTEM_COLORS.gray900,
+                                    }}
+                                  />
+                                ) : (
+                                  <VolumeUpIcon
+                                    sx={{
+                                      fontSize: "16px",
+                                      color:
+                                        mode === "dark"
+                                          ? DESIGN_SYSTEM_COLORS.gray25
+                                          : DESIGN_SYSTEM_COLORS.gray900,
+                                    }}
+                                  />
+                                )}
+                              </IconButton>
+                            )}
                         </Box>
                         <Typography
                           sx={{
@@ -506,8 +546,8 @@ export const Chat = () => {
                             c.type === "WRITER"
                               ? DESIGN_SYSTEM_COLORS.orange100
                               : mode === "light"
-                              ? DESIGN_SYSTEM_COLORS.gray200
-                              : DESIGN_SYSTEM_COLORS.notebookG600,
+                                ? DESIGN_SYSTEM_COLORS.gray200
+                                : DESIGN_SYSTEM_COLORS.notebookG600,
                         }}
                       >
                         {c.nodes.length > 0 && (
@@ -575,7 +615,13 @@ export const Chat = () => {
           }}
         >
           <InputBase
-            id="message chat"
+            id="message-chat"
+            value={userMessage}
+            onChange={(e) => {
+              console.log('in', e.target.value)
+              setUserMessage(e.target.value)
+            }}
+            onKeyDown={(e) => (e.key === 'Enter' || e.keyCode === 13) && onSubmitMessage()}
             fullWidth
             placeholder="Type your message here..."
             sx={{ p: "10px 14px", fontSize: "14px" }}
@@ -593,6 +639,7 @@ export const Chat = () => {
               <MicIcon />
             </IconButton>
             <Button
+              onClick={onSubmitMessage}
               variant="contained"
               sx={{
                 minWidth: "0px",
@@ -624,3 +671,32 @@ export const Chat = () => {
     </Stack>
   );
 };
+
+
+const mapAssistantResponseToMessage = (newMessage: IAssistantResponse): MessageData => {
+  const message: MessageData = {
+    actions: newMessage.actions ? newMessage.actions.map(c => ({ title: c.title, type: c.type, variant: tempMap(c.variant as string) })) : [],
+    content: newMessage.message,
+    hour: getCurrentHourHHMM(),
+    id: Math.ceil(Math.random() * 10000000000).toString(),
+    image: "",
+    nodes: newMessage.nodes ? newMessage.nodes.map(c => ({ id: c.node, title: c.title, type: c.type })) : [],
+    type: "READER",
+    uname: "1Cademy Assistant"
+  }
+  return message
+}
+
+const mapUserMessageToMessage = (userMessage: string): MessageData => {
+  const message: MessageData = {
+    actions: [],
+    content: userMessage,
+    hour: getCurrentHourHHMM(),
+    id: Math.ceil(Math.random() * 10000000000).toString(),
+    image: "",
+    nodes: [],
+    type: "WRITER",
+    uname: "you"
+  }
+  return message
+}
