@@ -18,6 +18,6 @@ const RiveMemoized = ({ src, artboard, animations, autoplay }: RiveProps) => {
     autoplay,
   });
 
-  return <RiveComponent className={`rive-canvas`} />;
+  return <RiveComponent style={{width:"70px",height:"70px"}}/>;
 };
 export const RiveComponentMemoized = React.memo(RiveMemoized);

@@ -1,6 +1,7 @@
 import { Box } from '@mui/material'
 import React from 'react'
 import { DESIGN_SYSTEM_COLORS } from '../../utils/colors'
+import { useTheme } from '../../hooks/useTheme'
 
 
 type AvatarSize = "md" | "lg"
@@ -17,7 +18,7 @@ const AVATAR_SIZE_COMPONENTS: { [key in AvatarSize]: { wrapper: string, img: str
 }
 
 export const CustomAvatar = ({ imageUrl, alt, size = "md" }: CustomAvatarProps) => {
-
+    const {mode}=useTheme()
     return (
         <Box sx={{
             minWidth: AVATAR_SIZE_COMPONENTS[size].wrapper,
@@ -27,7 +28,10 @@ export const CustomAvatar = ({ imageUrl, alt, size = "md" }: CustomAvatarProps) 
             display: "grid",
             placeItems: "center",
             borderRadius: "50%",
-            backgroundColor: DESIGN_SYSTEM_COLORS.gray100
+            backgroundColor:
+                  mode === "light"
+                    ? DESIGN_SYSTEM_COLORS.gray100
+                    : DESIGN_SYSTEM_COLORS.notebookG800,
         }}>
             <img src={imageUrl} alt={alt} style={{
                 width: AVATAR_SIZE_COMPONENTS[size].img,
