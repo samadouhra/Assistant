@@ -324,7 +324,7 @@ export const Chat = () => {
       sx={{
         width: "420px",
         height: "600px",
-        position: "absolute",
+        position: "fixed",
         bottom: "112px",
         right: "38px",
         borderRadius: "8px",
