@@ -47,6 +47,14 @@
     {
       "matches": ["https://chat.openai.com/chat*"],
       "js": ["app.js"]
+    },
+    {
+      "matches": ["https://www.core-econ.org/the-economy/book*"],
+      "js": ["econ-chat.js"]
+    },
+    {
+      "matches": ["https://www.core-econ.org/the-economy/book*"],
+      "js": ["econ-events.js"]
     }
   ],
   "externally_connectable": {
