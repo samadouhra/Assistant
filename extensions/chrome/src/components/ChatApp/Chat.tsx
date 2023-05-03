@@ -36,11 +36,14 @@ import { useTheme } from "../../hooks/useTheme";
 import { getCurrentDateYYMMDD, getCurrentHourHHMM } from "../../utils/date";
 import { Theme } from "@mui/system";
 import { generateRandomId } from "../../utils/others";
-import { generateContinueDisplayingNodeMessage, generateNodeMessage } from "../../utils/messages";
+import {
+  generateContinueDisplayingNodeMessage,
+  generateNodeMessage,
+} from "../../utils/messages";
 import SearchMessage from "./SearchMessage";
 import momment from "moment";
 import moment from "moment";
-
+import MarkdownRender from "./MarkdownRender";
 
 /**
  * - NORMAL: is only content
@@ -56,7 +59,7 @@ export type NodeLinkType = {
   title: string;
   link: string;
   content: string;
-  unit: string
+  unit: string;
 };
 
 type ActionVariant = "contained" | "outlined";
@@ -65,7 +68,7 @@ type MessageAction = {
   type: IAssitantRequestAction | "LOCAL_DISPLAY_NEXT_MESSAGE_NODE";
   title: string;
   variant: ActionVariant;
-}
+};
 
 export type MessageData = {
   id: string;
@@ -222,8 +225,8 @@ const tempMap = (variant: string): ActionVariant => {
 };
 
 type ChatProps = {
-  sx?: SxProps<Theme>
-}
+  sx?: SxProps<Theme>;
+};
 
 export const Chat = ({ sx }: ChatProps) => {
   const db = getFirestore();
@@ -233,8 +236,10 @@ export const Chat = ({ sx }: ChatProps) => {
   const [speakingMessageId, setSpeakingMessageId] = useState<string>("");
   const chatElementRef = useRef<HTMLDivElement | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [conversationId, setConversationId] = useState("")
-  const [nodesToBeDisplayed, setNodesToBeDisplayed] = useState<NodeLinkType[]>([])
+  const [conversationId, setConversationId] = useState("");
+  const [nodesToBeDisplayed, setNodesToBeDisplayed] = useState<NodeLinkType[]>(
+    []
+  );
   const { mode } = useTheme();
 
   const [userMessage, setUserMessage] = useState("");
@@ -268,16 +273,16 @@ export const Chat = ({ sx }: ChatProps) => {
   );
 
   const onPushAssistantMessage = (newMessage: IAssistantResponse) => {
-    const currentDateYYMMDD = getCurrentDateYYMMDD()
-    const message: MessageData = mapAssistantResponseToMessage(newMessage)
-    pushMessage(message, currentDateYYMMDD)
-  }
+    const currentDateYYMMDD = getCurrentDateYYMMDD();
+    const message: MessageData = mapAssistantResponseToMessage(newMessage);
+    pushMessage(message, currentDateYYMMDD);
+  };
 
   const onPushUserMessage = (userMessage: string) => {
-    const currentDateYYMMDD = getCurrentDateYYMMDD()
-    const message = mapUserMessageToMessage(userMessage)
-    pushMessage(message, currentDateYYMMDD)
-  }
+    const currentDateYYMMDD = getCurrentDateYYMMDD();
+    const message = mapUserMessageToMessage(userMessage);
+    pushMessage(message, currentDateYYMMDD);
+  };
 
   const onSubmitMessage = useCallback(async () => {
     console.log({ userMessage });
@@ -288,7 +293,7 @@ export const Chat = ({ sx }: ChatProps) => {
       message: userMessage,
       conversationId,
     };
-  
+
     chrome.runtime.sendMessage(chrome.runtime.id || process.env.EXTENSION_ID, {
       payload,
       messageType: "assistant",
@@ -317,72 +322,105 @@ export const Chat = ({ sx }: ChatProps) => {
     }
   }, []);
 
-  const onDisplayNextNodeToBeDisplayed = (nodesToBeDisplayed: NodeLinkType[]) => {
-    const copyNodesToBeDisplayed = [...nodesToBeDisplayed]
-    const firstElement = copyNodesToBeDisplayed.shift()
-    if (!firstElement) return
-    pushMessage(generateNodeMessage(firstElement), getCurrentDateYYMMDD())
-    const thereIsNextNode = Boolean(copyNodesToBeDisplayed.length)
-    pushMessage(generateContinueDisplayingNodeMessage(firstElement.title, firstElement.unit, thereIsNextNode), getCurrentDateYYMMDD())
-    setNodesToBeDisplayed(copyNodesToBeDisplayed)
-  }
+  const onDisplayNextNodeToBeDisplayed = (
+    nodesToBeDisplayed: NodeLinkType[]
+  ) => {
+    const copyNodesToBeDisplayed = [...nodesToBeDisplayed];
+    const firstElement = copyNodesToBeDisplayed.shift();
+    if (!firstElement) return;
+    pushMessage(generateNodeMessage(firstElement), getCurrentDateYYMMDD());
+    const thereIsNextNode = Boolean(copyNodesToBeDisplayed.length);
+    pushMessage(
+      generateContinueDisplayingNodeMessage(
+        firstElement.title,
+        firstElement.unit,
+        thereIsNextNode
+      ),
+      getCurrentDateYYMMDD()
+    );
+    setNodesToBeDisplayed(copyNodesToBeDisplayed);
+  };
 
   const getAction = (action: MessageAction) => {
-    if (action.type === 'LOCAL_DISPLAY_NEXT_MESSAGE_NODE') return (
-      <Button onClick={() => onDisplayNextNodeToBeDisplayed(nodesToBeDisplayed)} variant={action.variant} fullWidth>
-        {action.title}
-      </Button>
-    )
+    if (action.type === "LOCAL_DISPLAY_NEXT_MESSAGE_NODE")
+      return (
+        <Button
+          onClick={() => onDisplayNextNodeToBeDisplayed(nodesToBeDisplayed)}
+          variant={action.variant}
+          fullWidth
+        >
+          {action.title}
+        </Button>
+      );
 
     return (
       <Button variant={action.variant} fullWidth>
         {action.title}
       </Button>
-    )
-
-  }
+    );
+  };
 
   useEffect(() => {
     scrollToTheEnd();
   }, [messagesObj]);
 
   useEffect(() => {
-    chrome.runtime.onMessage.addListener((message: IAssistantResponse & { messageType: string }) => {
-      if (message.messageType === 'assistant') {
-        console.log('answer:message form assistant', { message })
-        onPushAssistantMessage({ ...message, nodes: [] })
-        onPushAssistantMessage({
-
-          conversationId: "sdfsdf",
-          message: `I just created a new notebook for you called "[Put the first few words of the question here]" and added the nodes explaining the answer to your question. Would you like to open the notebook or prefer to see the explanation of the nodes here in text.`,
-          nodes: [],
-          actions: [{ title: "Open the notebook", type: "Understood", variant: "outline" }, { title: "Explain the nodes here", type: "Understood", variant: "outline" }]
-        })
-        const nodesOnMessage = message.nodes ? message.nodes.map(c => ({ content: c.content, id: c.node, link: c.link, title: c.title, type: c.type, unit: c.unit })) : []
-        onDisplayNextNodeToBeDisplayed(nodesOnMessage)
-        // const firstElement = nodesOnMessage.shift()
-        // if (!firstElement) return
-        // pushMessage(generateNodeMessage(firstElement), getCurrentDateYYMMDD())
-        // pushMessage(generateContinueDisplayingNodeMessage(firstElement.title, firstElement.unit), getCurrentDateYYMMDD())
-        // setNodesToBeDisplayed(nodesOnMessage)
+    chrome.runtime.onMessage.addListener(
+      (message: IAssistantResponse & { messageType: string }) => {
+        if (message.messageType === "assistant") {
+          console.log("answer:message form assistant", { message });
+          onPushAssistantMessage({ ...message, nodes: [] });
+          onPushAssistantMessage({
+            conversationId: "sdfsdf",
+            message: `I just created a new notebook for you called "[Put the first few words of the question here]" and added the nodes explaining the answer to your question. Would you like to open the notebook or prefer to see the explanation of the nodes here in text.`,
+            nodes: [],
+            actions: [
+              {
+                title: "Open the notebook",
+                type: "Understood",
+                variant: "outline",
+              },
+              {
+                title: "Explain the nodes here",
+                type: "Understood",
+                variant: "outline",
+              },
+            ],
+          });
+          const nodesOnMessage = message.nodes
+            ? message.nodes.map((c) => ({
+                content: c.content,
+                id: c.node,
+                link: c.link,
+                title: c.title,
+                type: c.type,
+                unit: c.unit,
+              }))
+            : [];
+          onDisplayNextNodeToBeDisplayed(nodesOnMessage);
+          // const firstElement = nodesOnMessage.shift()
+          // if (!firstElement) return
+          // pushMessage(generateNodeMessage(firstElement), getCurrentDateYYMMDD())
+          // pushMessage(generateContinueDisplayingNodeMessage(firstElement.title, firstElement.unit), getCurrentDateYYMMDD())
+          // setNodesToBeDisplayed(nodesOnMessage)
+        }
       }
-    });
-  }, [])
+    );
+  }, []);
 
-
-  const formatDate=(date:string)=>{
-    const _date=new Date();
-    const today=moment().startOf('day');
-    const yesterday=moment().subtract(1,"days").startOf('day');
-    let formatedDate=date;
-    if(moment(_date).isSame(today,"day")){
-      formatedDate= 'Today'
+  const formatDate = (date: string) => {
+    const _date = new Date();
+    const today = moment().startOf("day");
+    const yesterday = moment().subtract(1, "days").startOf("day");
+    let formatedDate = date;
+    if (moment(_date).isSame(today, "day")) {
+      formatedDate = "Today";
     }
-    if(moment(_date).isSame(yesterday,"day")){
-      formatedDate="Yesterday";
+    if (moment(_date).isSame(yesterday, "day")) {
+      formatedDate = "Yesterday";
     }
     return formatedDate;
-  }
+  };
 
   return (
     <Stack
@@ -398,10 +436,11 @@ export const Chat = ({ sx }: ChatProps) => {
           mode === "dark"
             ? DESIGN_SYSTEM_COLORS.notebookG900
             : DESIGN_SYSTEM_COLORS.gray50,
-        border: `solid 2px ${mode === "light"
-          ? DESIGN_SYSTEM_COLORS.primary200
-          : DESIGN_SYSTEM_COLORS.primary400
-          }`,
+        border: `solid 2px ${
+          mode === "light"
+            ? DESIGN_SYSTEM_COLORS.primary200
+            : DESIGN_SYSTEM_COLORS.primary400
+        }`,
       }}
     >
       {/* header */}
@@ -414,10 +453,11 @@ export const Chat = ({ sx }: ChatProps) => {
           alignItems: "center",
           gridTemplateColumns: "48px auto",
           gap: "11px",
-          borderBottom: `solid 1px ${mode === "light"
-            ? DESIGN_SYSTEM_COLORS.gray300
-            : DESIGN_SYSTEM_COLORS.notebookG500
-            }`,
+          borderBottom: `solid 1px ${
+            mode === "light"
+              ? DESIGN_SYSTEM_COLORS.gray300
+              : DESIGN_SYSTEM_COLORS.notebookG500
+          }`,
         }}
       >
         <CustomAvatar
@@ -456,7 +496,7 @@ export const Chat = ({ sx }: ChatProps) => {
                 fontWeight: 400,
               }}
             >
-             Powered by GPT-4
+              Powered by GPT-4
             </Typography>
           </Box>
           {messagesObj.length > 0 && (
@@ -473,10 +513,11 @@ export const Chat = ({ sx }: ChatProps) => {
           p: "10px 24px",
           display: "grid",
           placeItems: "center",
-          borderBottom: `solid 1px ${mode === "light"
-            ? DESIGN_SYSTEM_COLORS.gray300
-            : DESIGN_SYSTEM_COLORS.notebookG500
-            }`,
+          borderBottom: `solid 1px ${
+            mode === "light"
+              ? DESIGN_SYSTEM_COLORS.gray300
+              : DESIGN_SYSTEM_COLORS.notebookG500
+          }`,
         }}
       >
         <Typography
@@ -504,30 +545,31 @@ export const Chat = ({ sx }: ChatProps) => {
           flexGrow: 1,
           ...(!messagesObj.length &&
             !isLoading && {
-            backgroundImage: `url(${CHAT_BACKGROUND_IMAGE_URL})`,
-            backgroundRepeat: "no-repeat",
-            backgroundPosition: "center",
-          }),
+              backgroundImage: `url(${CHAT_BACKGROUND_IMAGE_URL})`,
+              backgroundRepeat: "no-repeat",
+              backgroundPosition: "center",
+            }),
         }}
       >
-       
-        { messagesObj.map((cur) => {
+        {messagesObj.map((cur) => {
           return (
             <Fragment key={cur.date}>
               <Box>
                 <Divider
                   sx={{
                     ":before": {
-                      borderTop: `solid 1px ${mode === "light"
-                        ? DESIGN_SYSTEM_COLORS.notebookG100
-                        : DESIGN_SYSTEM_COLORS.notebookG500
-                        }`,
+                      borderTop: `solid 1px ${
+                        mode === "light"
+                          ? DESIGN_SYSTEM_COLORS.notebookG100
+                          : DESIGN_SYSTEM_COLORS.notebookG500
+                      }`,
                     },
                     ":after": {
-                      borderTop: `solid 1px ${mode === "light"
-                        ? DESIGN_SYSTEM_COLORS.notebookG100
-                        : DESIGN_SYSTEM_COLORS.notebookG500
-                        }`,
+                      borderTop: `solid 1px ${
+                        mode === "light"
+                          ? DESIGN_SYSTEM_COLORS.notebookG100
+                          : DESIGN_SYSTEM_COLORS.notebookG500
+                      }`,
                     },
                   }}
                 >
@@ -539,7 +581,7 @@ export const Chat = ({ sx }: ChatProps) => {
                           : DESIGN_SYSTEM_COLORS.gray900,
                     }}
                   >
-                  {formatDate(cur.date)}
+                    {formatDate(cur.date)}
                   </Typography>
                 </Divider>
               </Box>
@@ -579,34 +621,34 @@ export const Chat = ({ sx }: ChatProps) => {
                         </Typography>
                         {c.type ===
                           "READER" /* && <Tooltip title={speakingMessageId === c.id ? "Stop narrating" : "Narrate message"} placement='top'> */ && (
-                            <IconButton
-                              onClick={() => narrateMessage(c.id, c.content)}
-                              size="small"
-                              sx={{ p: "4px", ml: "4px" }}
-                            >
-                              {speakingMessageId === c.id ? (
-                                <VolumeOffIcon
-                                  sx={{
-                                    fontSize: "16px",
-                                    color:
-                                      mode === "dark"
-                                        ? DESIGN_SYSTEM_COLORS.gray25
-                                        : DESIGN_SYSTEM_COLORS.gray900,
-                                  }}
-                                />
-                              ) : (
-                                <VolumeUpIcon
-                                  sx={{
-                                    fontSize: "16px",
-                                    color:
-                                      mode === "dark"
-                                        ? DESIGN_SYSTEM_COLORS.gray25
-                                        : DESIGN_SYSTEM_COLORS.gray900,
-                                  }}
-                                />
-                              )}
-                            </IconButton>
-                          )}
+                          <IconButton
+                            onClick={() => narrateMessage(c.id, c.content)}
+                            size="small"
+                            sx={{ p: "4px", ml: "4px" }}
+                          >
+                            {speakingMessageId === c.id ? (
+                              <VolumeOffIcon
+                                sx={{
+                                  fontSize: "16px",
+                                  color:
+                                    mode === "dark"
+                                      ? DESIGN_SYSTEM_COLORS.gray25
+                                      : DESIGN_SYSTEM_COLORS.gray900,
+                                }}
+                              />
+                            ) : (
+                              <VolumeUpIcon
+                                sx={{
+                                  fontSize: "16px",
+                                  color:
+                                    mode === "dark"
+                                      ? DESIGN_SYSTEM_COLORS.gray25
+                                      : DESIGN_SYSTEM_COLORS.gray900,
+                                }}
+                              />
+                            )}
+                          </IconButton>
+                        )}
                       </Box>
                       <Typography
                         sx={{
@@ -670,7 +712,7 @@ export const Chat = ({ sx }: ChatProps) => {
                           )
                         }
                       </Box > */}
-                    </Box >
+                    </Box>
                     <Box
                       sx={{
                         p: "10px 14px",
@@ -682,8 +724,8 @@ export const Chat = ({ sx }: ChatProps) => {
                           c.type === "WRITER"
                             ? DESIGN_SYSTEM_COLORS.orange100
                             : mode === "light"
-                              ? DESIGN_SYSTEM_COLORS.gray200
-                              : DESIGN_SYSTEM_COLORS.notebookG600,
+                            ? DESIGN_SYSTEM_COLORS.gray200
+                            : DESIGN_SYSTEM_COLORS.notebookG600,
                       }}
                     >
                       {c.nodes.length > 0 && (
@@ -694,25 +736,30 @@ export const Chat = ({ sx }: ChatProps) => {
                               title={node.title}
                               type={node.type}
                               link={node.link}
-                            // id={node.id}
+                              // id={node.id}
                             />
                           ))}
                         </Stack>
                       )}
-                      <Typography
+
+                      <Box
                         sx={{
                           fontSize: "14px",
-                          color:
-                            `${mode === "dark"
-                            ? c.type === "WRITER"
-                              ? DESIGN_SYSTEM_COLORS.notebookG700
-                              : DESIGN_SYSTEM_COLORS.gray25
-                            : DESIGN_SYSTEM_COLORS.gray900} !important`
+                          "& p": {
+                            color: `${
+                              mode === "dark"
+                                ? c.type === "WRITER"
+                                  ? DESIGN_SYSTEM_COLORS.notebookG700
+                                  : DESIGN_SYSTEM_COLORS.gray25
+                                : DESIGN_SYSTEM_COLORS.gray900
+                            } !important`,
+                          },
+                          lineHeight: "21px",
                         }}
                       >
-                        {c.content}
-                      </Typography>
-                     
+                        <MarkdownRender text={c.content} />
+                      </Box>
+
                       {c.actions.length > 0 && (
                         <Stack spacing={"12px"} sx={{ mt: "12px" }}>
                           {c.actions.map((action, idx) => (
@@ -727,36 +774,36 @@ export const Chat = ({ sx }: ChatProps) => {
                         </Stack>
                       )}
                     </Box>
-                  </Box >
-                </Stack >
+                  </Box>
+                </Stack>
               ))}
-              {!isLoading &&  
-                <SearchMessage/>
-              }
-            </Fragment >
+              {!isLoading && <SearchMessage />}
+            </Fragment>
           );
         })}
-      </Stack >
+      </Stack>
 
       {/* footer options */}
-      < Box
+      <Box
         sx={{
           width: "100%",
           height: "124px",
           p: "16px 24px",
-          borderTop: `solid 1px ${mode === "light"
-            ? DESIGN_SYSTEM_COLORS.gray300
-            : DESIGN_SYSTEM_COLORS.notebookG500
-            }`,
+          borderTop: `solid 1px ${
+            mode === "light"
+              ? DESIGN_SYSTEM_COLORS.gray300
+              : DESIGN_SYSTEM_COLORS.notebookG500
+          }`,
         }}
       >
         <Box
           sx={{
             height: "92px",
-            border: `solid 1px ${mode === "light"
-              ? DESIGN_SYSTEM_COLORS.gray300
-              : DESIGN_SYSTEM_COLORS.notebookG500
-              }`,
+            border: `solid 1px ${
+              mode === "light"
+                ? DESIGN_SYSTEM_COLORS.gray300
+                : DESIGN_SYSTEM_COLORS.notebookG500
+            }`,
             borderRadius: "4px",
             backgroundColor:
               mode === "dark"
@@ -840,8 +887,8 @@ export const Chat = ({ sx }: ChatProps) => {
             </Button>
           </Box>
         </Box>
-      </Box >
-    </Stack >
+      </Box>
+    </Stack>
   );
 };
 
@@ -851,16 +898,25 @@ const mapAssistantResponseToMessage = (
   const message: MessageData = {
     actions: newMessage.actions
       ? newMessage.actions.map((c) => ({
-        title: c.title,
-        type: c.type,
-        variant: tempMap(c.variant as string),
-      }))
+          title: c.title,
+          type: c.type,
+          variant: tempMap(c.variant as string),
+        }))
       : [],
     content: newMessage.message,
     hour: getCurrentHourHHMM(),
     id: generateRandomId(),
     image: "",
-    nodes: newMessage.nodes ? newMessage.nodes.map(c => ({ id: c.node, title: c.title, type: c.type, content: c.content, link: c.link, unit: c.unit })) : [],
+    nodes: newMessage.nodes
+      ? newMessage.nodes.map((c) => ({
+          id: c.node,
+          title: c.title,
+          type: c.type,
+          content: c.content,
+          link: c.link,
+          unit: c.unit,
+        }))
+      : [],
     type: "READER",
     uname: "1Cademy Assistant",
   };
@@ -876,7 +932,7 @@ const mapUserMessageToMessage = (userMessage: string): MessageData => {
     image: "",
     nodes: [],
     type: "WRITER",
-    uname: "You"
-  }
-  return message
-}
+    uname: "You",
+  };
+  return message;
+};
