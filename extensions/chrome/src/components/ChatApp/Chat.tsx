@@ -456,7 +456,7 @@ export const Chat = ({ sx }: ChatProps) => {
                 fontWeight: 400,
               }}
             >
-              AI Powered
+             Powered by GPT-4
             </Typography>
           </Box>
           {messagesObj.length > 0 && (
