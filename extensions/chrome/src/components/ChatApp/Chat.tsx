@@ -38,7 +38,6 @@ import { Theme } from "@mui/system";
 import { generateRandomId } from "../../utils/others";
 import { generateContinueDisplayingNodeMessage, generateNodeMessage } from "../../utils/messages";
 import SearchMessage from "./SearchMessage";
-import momment from "moment";
 import moment from "moment";
 
 
@@ -228,7 +227,7 @@ type ChatProps = {
 export const Chat = ({ sx }: ChatProps) => {
   const db = getFirestore();
   const [{ user, reputation, settings }, { dispatch }] = useAuth();
-  console.log({ user });
+  // console.log({ user });
   const [messagesObj, setMessagesObj] = useState<Message[]>([]);
   const [speakingMessageId, setSpeakingMessageId] = useState<string>("");
   const chatElementRef = useRef<HTMLDivElement | null>(null);
@@ -303,6 +302,27 @@ export const Chat = ({ sx }: ChatProps) => {
     chatElementRef.current.scrollTop = chatElementRef.current.scrollHeight;
   };
 
+  const onLoadNextNodeToBeDisplayed = useCallback(() => {
+    if (!chatElementRef.current) return
+
+    const scrollTop = chatElementRef.current.scrollTop;
+    const scrollHeight = chatElementRef.current.scrollHeight;
+    const clientHeight = chatElementRef.current.clientHeight;
+
+    const scrollDistanceFromTop = scrollTop + clientHeight;
+    const distanceToBottom = scrollHeight - scrollDistanceFromTop;
+
+    const threshold = 0.1; // 10% of the element's height
+    const thresholdValue = threshold * scrollHeight;
+
+    if (distanceToBottom < thresholdValue) {
+      // User is close to the bottom of the element
+      // console.log('Scroll is near to the end!.', nodesToBeDisplayed.length);
+      if (nodesToBeDisplayed.length < 0) return
+      onDisplayNextNodeToBeDisplayed(nodesToBeDisplayed)
+    }
+  }, [nodesToBeDisplayed])
+
   const narrateMessage = useCallback((id: string, message: string) => {
     console.log("narrateMessage", { message });
     if (!window.speechSynthesis.speaking) {
@@ -343,9 +363,9 @@ export const Chat = ({ sx }: ChatProps) => {
 
   }
 
-  useEffect(() => {
-    scrollToTheEnd();
-  }, [messagesObj]);
+  // useEffect(() => {
+  //   scrollToTheEnd();
+  // }, [messagesObj]);
 
   useEffect(() => {
     chrome.runtime.onMessage.addListener((message: IAssistantResponse & { messageType: string }) => {
@@ -497,25 +517,7 @@ export const Chat = ({ sx }: ChatProps) => {
       <Stack
         ref={chatElementRef}
         spacing="14px"
-        onScroll={e => {
-          if (!chatElementRef.current) return
-
-          const scrollTop = chatElementRef.current.scrollTop;
-          const scrollHeight = chatElementRef.current.scrollHeight;
-          const clientHeight = chatElementRef.current.clientHeight;
-
-          const scrollDistanceFromTop = scrollTop + clientHeight;
-          const distanceToBottom = scrollHeight - scrollDistanceFromTop;
-
-          const threshold = 0.1; // 10% of the element's height
-          const thresholdValue = threshold * scrollHeight;
-
-          if (distanceToBottom < thresholdValue) {
-            // User is close to the bottom of the element
-            console.log('Scroll is near to the end!');
-          }
-          // console.log(e)
-        }}
+        onScroll={onLoadNextNodeToBeDisplayed}
         sx={{
           // height: "358px",
           p: "12px 24px",
