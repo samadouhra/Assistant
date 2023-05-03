@@ -38,6 +38,7 @@ import { getCurrentDateYYMMDD, getCurrentHourHHMM } from "../../utils/date";
 import { Theme } from "@mui/system";
 import { generateRandomId } from "../../utils/others";
 import { generateContinueDisplayingNodeMessage, generateNodeMessage } from "../../utils/messages";
+import SearchMessage from "./SearchMessage";
 
 /**
  * - NORMAL: is only content
@@ -285,10 +286,7 @@ export const Chat = ({ sx }: ChatProps) => {
       message: userMessage,
       conversationId,
     };
-    onPushAssistantMessage({
-      conversationId: "",
-      message: "",
-    });
+  
     // chrome.runtime.sendMessage(chrome.runtime.id || process.env.EXTENSION_ID, {
     //   payload,
     //   messageType: "assistant",
@@ -498,17 +496,8 @@ export const Chat = ({ sx }: ChatProps) => {
           }),
         }}
       >
-        {isLoading && (
-          <Box sx={{ width: "300px", height: "300px", mx: "auto" }}>
-            <RiveComponentMemoized
-              src={SEARCH_ANIMATION_URL}
-              artboard="New Artboard"
-              animations={"Timeline 1"}
-              autoplay={true}
-            />
-          </Box>
-        )}
-        {!isLoading && messagesObj.map((cur) => {
+       
+        { messagesObj.map((cur) => {
           return (
             <Fragment key={cur.date}>
               <Box>
@@ -536,7 +525,6 @@ export const Chat = ({ sx }: ChatProps) => {
                           : DESIGN_SYSTEM_COLORS.gray900,
                     }}
                   >
-                    {" "}
                     {cur.date}
                   </Typography>
                 </Divider>
@@ -618,7 +606,7 @@ export const Chat = ({ sx }: ChatProps) => {
                       >
                         {c.hour}
                       </Typography>
-                      <Box
+                      {/* <Box
                         sx={{
                           p: "10px 14px",
                           borderRadius:
@@ -667,7 +655,7 @@ export const Chat = ({ sx }: ChatProps) => {
                             </Stack>
                           )
                         }
-                      </Box >
+                      </Box > */}
                     </Box >
                     <Box
                       sx={{
@@ -701,33 +689,16 @@ export const Chat = ({ sx }: ChatProps) => {
                         sx={{
                           fontSize: "14px",
                           color:
-                            mode === "dark"
-                              ? c.type === "WRITER"
-                                ? DESIGN_SYSTEM_COLORS.notebookG700
-                                : DESIGN_SYSTEM_COLORS.gray25
-                              : DESIGN_SYSTEM_COLORS.gray900,
+                            `${mode === "dark"
+                            ? c.type === "WRITER"
+                              ? DESIGN_SYSTEM_COLORS.notebookG700
+                              : DESIGN_SYSTEM_COLORS.gray25
+                            : DESIGN_SYSTEM_COLORS.gray900} !important`
                         }}
                       >
                         {c.content}
                       </Typography>
-                      {idx === messagesObj.length &&
-                        c.type === "READER" &&
-                        isLoading && (
-                          <Box
-                            sx={{
-                              width: "70px",
-                              height: "70px",
-                              mx: "auto",
-                            }}
-                          >
-                            <RiveComponentMemoized
-                              src={SEARCH_ANIMATION_URL}
-                              artboard="New Artboard"
-                              animations={"Timeline 1"}
-                              autoplay={true}
-                            />
-                          </Box>
-                        )}
+                     
                       {c.actions.length > 0 && (
                         <Stack spacing={"12px"} sx={{ mt: "12px" }}>
                           {c.actions.map((action, idx) => (
@@ -745,6 +716,9 @@ export const Chat = ({ sx }: ChatProps) => {
                   </Box >
                 </Stack >
               ))}
+              {!isLoading && 
+                <SearchMessage/>
+              }
             </Fragment >
           );
         })}

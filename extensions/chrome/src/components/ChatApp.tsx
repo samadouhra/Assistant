@@ -24,6 +24,7 @@ function ChatApp() {
   const { mode } = useTheme();
   return (
     <Box
+     className="oassitant-bot"  
       sx={{
         "*": {
           boxSizing: "border-box",
