@@ -227,11 +227,10 @@ const tempMap = (variant: string): ActionVariant => {
 };
 
 type ChatProps = {
-  selectedText?: string
   sx?: SxProps<Theme>;
 };
 
-export const Chat = ({ selectedText = "", sx }: ChatProps) => {
+export const Chat = ({ sx }: ChatProps) => {
   const db = getFirestore();
   const [{ user, reputation, settings }, { dispatch }] = useAuth();
   // console.log({ user });

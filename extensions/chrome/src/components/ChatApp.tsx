@@ -7,6 +7,7 @@ import { styled } from "@mui/material/styles";
 import {
   Box,
   Button,
+  IconButton,
   ThemeProvider,
   Tooltip,
   tooltipClasses,
@@ -22,12 +23,10 @@ import { IAssistantRequestPayload } from "../types";
 function ChatApp() {
   const [displayAssistant, setDisplayAssistant] = useState(false);
   const [selectedText, setSelectedText] = useState("");
+  const [selectedTextMouseUpPosition, setSelectedTextMouseUpPosition] = useState<{ mouseX: number, mouseY: number } | null>(null);
   const { mode } = useTheme();
 
-  const onOpenChat = () => {
-    setDisplayAssistant(true)
-    if (!selectedText) return
-
+  const askSelectedTextToAssistant = (selectedText: string) => {
     const payload: IAssistantRequestPayload = {
       actionType: "TeachContent",
       message: selectedText,
@@ -36,17 +35,54 @@ function ChatApp() {
       payload,
       messageType: "assistant",
     });
+  }
+
+  const onOpenChat = () => {
+    setDisplayAssistant(true)
+    if (!selectedText) return
+
+    askSelectedTextToAssistant(selectedText)
     setSelectedText("")
+    setSelectedTextMouseUpPosition(null)
+  }
+
+  const onAskSelectedText = () => {
+    askSelectedTextToAssistant(selectedText)
+    setSelectedTextMouseUpPosition(null)
+    setDisplayAssistant(true)
   }
 
   useEffect(() => {
+
     const onDetectSelectedText = () => {
-      const selection = window.getSelection();
-      if (!selection) return;
+      var selection = window.getSelection();
+      if (!selection) {
+        setSelectedTextMouseUpPosition(null)
+        setSelectedText("")
+        return
+      }
 
       const selectionText = selection.toString();
-      console.log({ selectionText }, "chat app")
-      setSelectedText(selectionText)
+      const selectionProcess = selectionText.trim()
+      if (selectionProcess) {
+        const range = selection.getRangeAt(0);
+        const rect = range.getBoundingClientRect();
+        const posX = rect.left + window.pageXOffset;
+        const posY = rect.top + window.pageYOffset;
+
+        const elementWidth = 48;
+        const elementHeight = 48;
+        const shiftX = 20;
+        const shiftY = 0;
+        const windowHeight = window.innerHeight;
+        const positionBelow = posY + shiftX + elementHeight > windowHeight;
+        const positionY = positionBelow ? posY - shiftY - elementHeight : posY + shiftY;
+        const positionX = posX - shiftX - elementWidth;
+        // console.log('Mouse position relative to page:', positionX, positionY);
+
+        setSelectedText(selectionProcess)
+        setSelectedTextMouseUpPosition({ mouseX: positionX, mouseY: positionY })
+      }
     }
 
     document.addEventListener("mouseup", onDetectSelectedText);
@@ -63,6 +99,29 @@ function ChatApp() {
         },
       }}
     >
+      {displayAssistant && selectedText && selectedTextMouseUpPosition && <IconButton
+        onClick={onAskSelectedText}
+        sx={{
+          position: "absolute",
+          top: selectedTextMouseUpPosition.mouseY,
+          left: selectedTextMouseUpPosition.mouseX,
+          backgroundColor: mode === "light"
+            ? DESIGN_SYSTEM_COLORS.gray100
+            : DESIGN_SYSTEM_COLORS.notebookG800,
+          ":hover": {
+            backgroundColor: mode === "light"
+              ? DESIGN_SYSTEM_COLORS.gray200
+              : DESIGN_SYSTEM_COLORS.notebookG600,
+          }
+        }}
+      >
+        <img
+          src={LOGO_URL}
+          alt="onecademy assistant logo"
+          style={{ width: "32px", height: "32px" }}
+        />
+      </IconButton>}
+
       {/* floating buttons */}
       <Box sx={{ position: "fixed", bottom: "38px", right: "38px" }}>
         {displayAssistant && (
@@ -136,7 +195,7 @@ function ChatApp() {
       </Box>
 
       {/* chat */}
-      {displayAssistant && <Chat selectedText={selectedText} sx={{ position: "fixed", bottom: "112px", right: "38px" }} />}
+      {displayAssistant && <Chat sx={{ position: "fixed", bottom: "112px", right: "38px" }} />}
     </Box >
   )
 }
