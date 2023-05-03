@@ -23,6 +23,7 @@ import {
   IAssistantRequestPayload,
   IAssistantResponse,
   IAssitantRequestAction,
+  NodeAssistantResponse,
   NodeType,
 } from "../../types";
 import { NodeLink } from "./NodeLink";
@@ -36,7 +37,7 @@ import { useTheme } from "../../hooks/useTheme";
 import { getCurrentDateYYMMDD, getCurrentHourHHMM } from "../../utils/date";
 import { Theme } from "@mui/system";
 import { generateRandomId } from "../../utils/others";
-import { generateContinueDisplayingNodeMessage, generateNodeMessage, generateUserActionAnswer, generateWhereContinueExplanation } from "../../utils/messages";
+import { generateContinueDisplayingNodeMessage, generateNodeMessage, generateTopicNotFound, generateUserActionAnswer, generateWhereContinueExplanation } from "../../utils/messages";
 import SearchMessage from "./SearchMessage";
 import moment from "moment";
 
@@ -398,10 +399,23 @@ export const Chat = ({ sx }: ChatProps) => {
     chrome.runtime.onMessage.addListener((message: IAssistantResponse & { messageType: string }) => {
       if (message.messageType === 'assistant') {
         console.log('answer:message form assistant', { message })
-        onPushAssistantMessage({ ...message, nodes: [] })
-        pushMessage(generateWhereContinueExplanation('[notebook name here]'), getCurrentDateYYMMDD())
-        const nodesOnMessage = message.nodes ? message.nodes.map(c => ({ content: c.content, id: c.node, link: c.link, title: c.title, type: c.type, unit: c.unit })) : []
-        setTmpNodesToBeDisplayed(nodesOnMessage)
+        if (message.is404) {
+          console.log(1)
+          pushMessage(generateTopicNotFound(), getCurrentDateYYMMDD())
+        } else {
+          console.log(2)
+          onPushAssistantMessage({ ...message, nodes: [] })
+          pushMessage(generateWhereContinueExplanation('[notebook name here]'), getCurrentDateYYMMDD())
+          const nodesOnMessage = message.nodes ? message.nodes.map(mapNodesToNodeLink) : []
+          setTmpNodesToBeDisplayed(nodesOnMessage)
+
+          // if is authenticated create notebook
+
+          // chrome.runtime.sendMessage(chrome.runtime.id || process.env.EXTENSION_ID, {
+          //   payload,
+          //   messageType: "assistant",
+          // });
+        }
         setIsLoading(false);
       }
     });
@@ -836,7 +850,7 @@ const mapAssistantResponseToMessage = (
     hour: getCurrentHourHHMM(),
     id: generateRandomId(),
     image: "",
-    nodes: newMessage.nodes ? newMessage.nodes.map(c => ({ id: c.node, title: c.title, type: c.type, content: c.content, link: c.link, unit: c.unit })) : [],
+    nodes: newMessage.nodes ? newMessage.nodes.map(mapNodesToNodeLink) : [],
     type: "READER",
     uname: "1Cademy Assistant",
   };
@@ -855,4 +869,10 @@ const mapUserMessageToMessage = (userMessage: string): MessageData => {
     uname: "You"
   }
   return message
+}
+
+const mapNodesToNodeLink = (node: NodeAssistantResponse): NodeLinkType => {
+  const nodeCopy = { ...node } as any
+  delete nodeCopy.node
+  return { ...nodeCopy, id: node.node }
 }

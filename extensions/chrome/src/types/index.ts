@@ -219,17 +219,24 @@ export type IAssistantRequestPayload = {
     conversationId?: string;
 };
 
+export type NodeAssistantResponse = {
+    type: NodeType;
+    node: string;
+    title: string;
+    link: string;
+    content: string;
+    unit: string
+    practice?: {
+        totalQuestions: number;
+        answered: number;
+    };
+}
+
 export type IAssistantResponse = {
     conversationId: string;
     message: string;
-    nodes?: {
-        type: NodeType;
-        node: string;
-        title: string;
-        link: string;
-        content: string;
-        unit: string
-    }[];
+    nodes?: NodeAssistantResponse[];
+    is404?: boolean
     actions?: {
         type: IAssitantRequestAction;
         title: string;

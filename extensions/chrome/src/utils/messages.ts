@@ -48,16 +48,17 @@ export const generateNodeMessage = (node: NodeLinkType): MessageData => {
 
 export const generateWhereContinueExplanation = (notebookName: string): MessageData => {
     return {
-        actions: [{
-            title: "Open the notebook",
-            type: "LOCAL_OPEN_NOTEBOOK",
-            variant: "outlined"
-        },
-        {
-            title: "Explain the nodes here",
-            type: "LOCAL_CONTINUE_EXPLANATION_HERE",
-            variant: "outlined"
-        },
+        actions: [
+            {
+                title: "Open the notebook",
+                type: "LOCAL_OPEN_NOTEBOOK",
+                variant: "outlined"
+            },
+            {
+                title: "Explain the nodes here",
+                type: "LOCAL_CONTINUE_EXPLANATION_HERE",
+                variant: "outlined"
+            },
         ],
         content: `I just created a new notebook for you called "${notebookName}" and added the nodes explaining the answer to your question. Would you like to open the notebook or prefer to see the explanation of the nodes here in text.`,
         nodes: [],
@@ -75,6 +76,23 @@ export const generateUserActionAnswer = (content: string): MessageData => {
         content,
         nodes: [],
         type: "WRITER",
+        hour: getCurrentHourHHMM(),
+        id: generateRandomId(),
+        image: "",
+        uname: "You"
+    }
+}
+
+export const generateTopicNotFound = (): MessageData => {
+    return {
+        actions: [],
+        content: `
+        I'm afraid this topic is not included in the course content that I have been trained on. However, I would be happy to help you in one of the following ways:
+- I can provide you with an explanation based on my general knowledge outside of the course content.
+- Alternatively, if you would like to contribute to the knowledge graph of the course, I am open to learning from you and expanding my knowledge on the topic.
+        `,
+        nodes: [],
+        type: "READER",
         hour: getCurrentHourHHMM(),
         id: generateRandomId(),
         image: "",
