@@ -5,7 +5,6 @@ import MicIcon from "@mui/icons-material/Mic";
 import { Fragment, useCallback, useEffect, useRef, useState } from "react";
 import { CustomAvatar } from "./CustomAvatar";
 import { DESIGN_SYSTEM_COLORS } from "../../utils/colors";
-
 import {
   Box,
   Button,
@@ -39,6 +38,9 @@ import { Theme } from "@mui/system";
 import { generateRandomId } from "../../utils/others";
 import { generateContinueDisplayingNodeMessage, generateNodeMessage } from "../../utils/messages";
 import SearchMessage from "./SearchMessage";
+import momment from "moment";
+import moment from "moment";
+
 
 /**
  * - NORMAL: is only content
@@ -288,14 +290,10 @@ export const Chat = ({ sx }: ChatProps) => {
       message: userMessageProcessed,
       conversationId,
     };
-
     chrome.runtime.sendMessage(chrome.runtime.id || process.env.EXTENSION_ID, {
       payload,
       messageType: "assistant",
     });
-    // setTimeout(() => {
-    //   setIsLoading(false);
-    // }, 2000);
 
     setUserMessage("");
   }, [userMessage, conversationId]);
@@ -372,6 +370,21 @@ export const Chat = ({ sx }: ChatProps) => {
     });
   }, [])
 
+
+  const formatDate = (date: string) => {
+    const _date = new Date();
+    const today = moment().startOf('day');
+    const yesterday = moment().subtract(1, "days").startOf('day');
+    let formatedDate = date;
+    if (moment(_date).isSame(today, "day")) {
+      formatedDate = 'Today'
+    }
+    if (moment(_date).isSame(yesterday, "day")) {
+      formatedDate = "Yesterday";
+    }
+    return formatedDate;
+  }
+
   return (
     <Stack
       sx={{
@@ -444,7 +457,7 @@ export const Chat = ({ sx }: ChatProps) => {
                 fontWeight: 400,
               }}
             >
-              AI Powered
+              Powered by GPT-4
             </Typography>
           </Box>
           {messagesObj.length > 0 && (
@@ -546,7 +559,7 @@ export const Chat = ({ sx }: ChatProps) => {
                           : DESIGN_SYSTEM_COLORS.gray900,
                     }}
                   >
-                    {cur.date}
+                    {formatDate(cur.date)}
                   </Typography>
                 </Divider>
               </Box>
