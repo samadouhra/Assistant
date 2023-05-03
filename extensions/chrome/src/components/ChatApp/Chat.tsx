@@ -278,22 +278,24 @@ export const Chat = ({ sx }: ChatProps) => {
   }
 
   const onSubmitMessage = useCallback(async () => {
-    console.log({ userMessage });
+    const userMessageProcessed = userMessage.trim()
+    if (!userMessageProcessed) return
+
     setIsLoading(true);
-    onPushUserMessage(userMessage);
+    onPushUserMessage(userMessageProcessed);
     const payload: IAssistantRequestPayload = {
       actionType: "DirectQuestion",
-      message: userMessage,
+      message: userMessageProcessed,
       conversationId,
     };
-  
-    // chrome.runtime.sendMessage(chrome.runtime.id || process.env.EXTENSION_ID, {
-    //   payload,
-    //   messageType: "assistant",
-    // });
-    setTimeout(() => {
-      setIsLoading(false);
-    }, 2000);
+
+    chrome.runtime.sendMessage(chrome.runtime.id || process.env.EXTENSION_ID, {
+      payload,
+      messageType: "assistant",
+    });
+    // setTimeout(() => {
+    //   setIsLoading(false);
+    // }, 2000);
 
     setUserMessage("");
   }, [userMessage, conversationId]);
@@ -353,7 +355,6 @@ export const Chat = ({ sx }: ChatProps) => {
         console.log('answer:message form assistant', { message })
         onPushAssistantMessage({ ...message, nodes: [] })
         onPushAssistantMessage({
-
           conversationId: "sdfsdf",
           message: `I just created a new notebook for you called "[Put the first few words of the question here]" and added the nodes explaining the answer to your question. Would you like to open the notebook or prefer to see the explanation of the nodes here in text.`,
           nodes: [],
@@ -361,6 +362,7 @@ export const Chat = ({ sx }: ChatProps) => {
         })
         const nodesOnMessage = message.nodes ? message.nodes.map(c => ({ content: c.content, id: c.node, link: c.link, title: c.title, type: c.type, unit: c.unit })) : []
         onDisplayNextNodeToBeDisplayed(nodesOnMessage)
+        setIsLoading(false);
         // const firstElement = nodesOnMessage.shift()
         // if (!firstElement) return
         // pushMessage(generateNodeMessage(firstElement), getCurrentDateYYMMDD())
@@ -482,6 +484,25 @@ export const Chat = ({ sx }: ChatProps) => {
       <Stack
         ref={chatElementRef}
         spacing="14px"
+        onScroll={e => {
+          if (!chatElementRef.current) return
+
+          const scrollTop = chatElementRef.current.scrollTop;
+          const scrollHeight = chatElementRef.current.scrollHeight;
+          const clientHeight = chatElementRef.current.clientHeight;
+
+          const scrollDistanceFromTop = scrollTop + clientHeight;
+          const distanceToBottom = scrollHeight - scrollDistanceFromTop;
+
+          const threshold = 0.1; // 10% of the element's height
+          const thresholdValue = threshold * scrollHeight;
+
+          if (distanceToBottom < thresholdValue) {
+            // User is close to the bottom of the element
+            console.log('Scroll is near to the end!');
+          }
+          // console.log(e)
+        }}
         sx={{
           // height: "358px",
           p: "12px 24px",
@@ -496,8 +517,8 @@ export const Chat = ({ sx }: ChatProps) => {
           }),
         }}
       >
-       
-        { messagesObj.map((cur) => {
+
+        {messagesObj.map((cur) => {
           return (
             <Fragment key={cur.date}>
               <Box>
@@ -606,56 +627,6 @@ export const Chat = ({ sx }: ChatProps) => {
                       >
                         {c.hour}
                       </Typography>
-                      {/* <Box
-                        sx={{
-                          p: "10px 14px",
-                          borderRadius:
-                            c.type === "WRITER"
-                              ? "8px 0px 8px 8px"
-                              : "0px 8px 8px 8px",
-                          backgroundColor:
-                            c.type === "WRITER"
-                              ? DESIGN_SYSTEM_COLORS.orange100
-                              : mode === "light"
-                                ? DESIGN_SYSTEM_COLORS.gray200
-                                : DESIGN_SYSTEM_COLORS.notebookG600,
-                        }}
-                      >
-                        {
-                          c.nodes.length > 0 && (
-                            <Stack spacing={"12px"} sx={{ mb: "10px" }}>
-                              {c.nodes.map((node) => (
-                                <NodeLink
-                                  key={node.id}
-                                  title={node.title}
-                                  type={node.type}
-                                  link={node.link}
-                                />
-                              ))}
-                            </Stack>
-                          )
-                        }
-                        <Typography
-                          sx={{
-                            fontSize: "14px",
-                            color:
-                              mode === "dark"
-                                ? c.type === "WRITER"
-                                  ? DESIGN_SYSTEM_COLORS.notebookG700
-                                  : DESIGN_SYSTEM_COLORS.gray25
-                                : DESIGN_SYSTEM_COLORS.gray900,
-                          }}
-                        >
-                          {c.content}
-                        </Typography>
-                        {
-                          c.actions.length > 0 && (
-                            <Stack spacing={"12px"} sx={{ mt: "12px" }}>
-                              {c.actions.map((action, idx) => getAction(action))}
-                            </Stack>
-                          )
-                        }
-                      </Box > */}
                     </Box >
                     <Box
                       sx={{
@@ -690,15 +661,15 @@ export const Chat = ({ sx }: ChatProps) => {
                           fontSize: "14px",
                           color:
                             `${mode === "dark"
-                            ? c.type === "WRITER"
-                              ? DESIGN_SYSTEM_COLORS.notebookG700
-                              : DESIGN_SYSTEM_COLORS.gray25
-                            : DESIGN_SYSTEM_COLORS.gray900} !important`
+                              ? c.type === "WRITER"
+                                ? DESIGN_SYSTEM_COLORS.notebookG700
+                                : DESIGN_SYSTEM_COLORS.gray25
+                              : DESIGN_SYSTEM_COLORS.gray900} !important`
                         }}
                       >
                         {c.content}
                       </Typography>
-                     
+
                       {c.actions.length > 0 && (
                         <Stack spacing={"12px"} sx={{ mt: "12px" }}>
                           {c.actions.map((action, idx) => (
@@ -716,9 +687,7 @@ export const Chat = ({ sx }: ChatProps) => {
                   </Box >
                 </Stack >
               ))}
-              {!isLoading && 
-                <SearchMessage/>
-              }
+              {isLoading && <SearchMessage />}
             </Fragment >
           );
         })}
@@ -753,10 +722,7 @@ export const Chat = ({ sx }: ChatProps) => {
           <InputBase
             id="message-chat"
             value={userMessage}
-            onChange={(e) => {
-              console.log("in", e.target.value);
-              setUserMessage(e.target.value);
-            }}
+            onChange={(e) => setUserMessage(e.target.value)}
             onKeyDown={(e) =>
               (e.key === "Enter" || e.keyCode === 13) && onSubmitMessage()
             }
