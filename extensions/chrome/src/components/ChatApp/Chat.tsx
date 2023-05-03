@@ -457,6 +457,7 @@ export const Chat = ({ sx }: ChatProps) => {
         }
         setIsLoading(false);
       }
+    }
     );
   }, []);
 
@@ -489,8 +490,8 @@ export const Chat = ({ sx }: ChatProps) => {
             ? DESIGN_SYSTEM_COLORS.notebookG900
             : DESIGN_SYSTEM_COLORS.gray50,
         border: `solid 2px ${mode === "light"
-            ? DESIGN_SYSTEM_COLORS.primary200
-            : DESIGN_SYSTEM_COLORS.primary400
+          ? DESIGN_SYSTEM_COLORS.primary200
+          : DESIGN_SYSTEM_COLORS.primary400
           }`,
       }}
     >
@@ -505,8 +506,8 @@ export const Chat = ({ sx }: ChatProps) => {
           gridTemplateColumns: "48px auto",
           gap: "11px",
           borderBottom: `solid 1px ${mode === "light"
-              ? DESIGN_SYSTEM_COLORS.gray300
-              : DESIGN_SYSTEM_COLORS.notebookG500
+            ? DESIGN_SYSTEM_COLORS.gray300
+            : DESIGN_SYSTEM_COLORS.notebookG500
             }`,
         }}
       >
@@ -564,8 +565,8 @@ export const Chat = ({ sx }: ChatProps) => {
           display: "grid",
           placeItems: "center",
           borderBottom: `solid 1px ${mode === "light"
-              ? DESIGN_SYSTEM_COLORS.gray300
-              : DESIGN_SYSTEM_COLORS.notebookG500
+            ? DESIGN_SYSTEM_COLORS.gray300
+            : DESIGN_SYSTEM_COLORS.notebookG500
             }`,
         }}
       >
@@ -609,14 +610,14 @@ export const Chat = ({ sx }: ChatProps) => {
                   sx={{
                     ":before": {
                       borderTop: `solid 1px ${mode === "light"
-                          ? DESIGN_SYSTEM_COLORS.notebookG100
-                          : DESIGN_SYSTEM_COLORS.notebookG500
+                        ? DESIGN_SYSTEM_COLORS.notebookG100
+                        : DESIGN_SYSTEM_COLORS.notebookG500
                         }`,
                     },
                     ":after": {
                       borderTop: `solid 1px ${mode === "light"
-                          ? DESIGN_SYSTEM_COLORS.notebookG100
-                          : DESIGN_SYSTEM_COLORS.notebookG500
+                        ? DESIGN_SYSTEM_COLORS.notebookG100
+                        : DESIGN_SYSTEM_COLORS.notebookG500
                         }`,
                     },
                   }}
@@ -748,8 +749,8 @@ export const Chat = ({ sx }: ChatProps) => {
                           color: "red",
                           "& *": {
                             color: `${mode === "dark"
-                                ? DESIGN_SYSTEM_COLORS.gray25
-                                : DESIGN_SYSTEM_COLORS.gray800
+                              ? DESIGN_SYSTEM_COLORS.gray25
+                              : DESIGN_SYSTEM_COLORS.gray800
                               } !important`,
                           },
                           lineHeight: "21px",
@@ -785,8 +786,8 @@ export const Chat = ({ sx }: ChatProps) => {
           height: "124px",
           p: "16px 24px",
           borderTop: `solid 1px ${mode === "light"
-              ? DESIGN_SYSTEM_COLORS.gray300
-              : DESIGN_SYSTEM_COLORS.notebookG500
+            ? DESIGN_SYSTEM_COLORS.gray300
+            : DESIGN_SYSTEM_COLORS.notebookG500
             }`,
         }}
       >
@@ -794,8 +795,8 @@ export const Chat = ({ sx }: ChatProps) => {
           sx={{
             height: "92px",
             border: `solid 1px ${mode === "light"
-                ? DESIGN_SYSTEM_COLORS.gray300
-                : DESIGN_SYSTEM_COLORS.notebookG500
+              ? DESIGN_SYSTEM_COLORS.gray300
+              : DESIGN_SYSTEM_COLORS.notebookG500
               }`,
             borderRadius: "4px",
             backgroundColor:
