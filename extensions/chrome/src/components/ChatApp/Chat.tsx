@@ -289,13 +289,10 @@ export const Chat = ({ sx }: ChatProps) => {
       conversationId,
     };
   
-    // chrome.runtime.sendMessage(chrome.runtime.id || process.env.EXTENSION_ID, {
-    //   payload,
-    //   messageType: "assistant",
-    // });
-    setTimeout(() => {
-      setIsLoading(false);
-    }, 2000);
+    chrome.runtime.sendMessage(chrome.runtime.id || process.env.EXTENSION_ID, {
+      payload,
+      messageType: "assistant",
+    });
 
     setUserMessage("");
   }, [userMessage, conversationId]);
