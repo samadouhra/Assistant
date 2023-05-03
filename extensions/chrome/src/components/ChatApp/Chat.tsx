@@ -722,10 +722,12 @@ export const Chat = ({ sx }: ChatProps) => {
                             : "0px 8px 8px 8px",
                         backgroundColor:
                           c.type === "WRITER"
-                            ? DESIGN_SYSTEM_COLORS.orange100
+                            ? mode === "light"
+                              ? DESIGN_SYSTEM_COLORS.orange100
+                              : DESIGN_SYSTEM_COLORS.primary600
                             : mode === "light"
-                            ? DESIGN_SYSTEM_COLORS.gray200
-                            : DESIGN_SYSTEM_COLORS.notebookG600,
+                              ? DESIGN_SYSTEM_COLORS.gray200
+                              : DESIGN_SYSTEM_COLORS.notebookG600,
                       }}
                     >
                       {c.nodes.length > 0 && (
@@ -745,20 +747,22 @@ export const Chat = ({ sx }: ChatProps) => {
                       <Box
                         sx={{
                           fontSize: "14px",
-                          "& p": {
+                          color: "red",
+                          "& *": {
                             color: `${
                               mode === "dark"
-                                ? c.type === "WRITER"
-                                  ? DESIGN_SYSTEM_COLORS.notebookG700
-                                  : DESIGN_SYSTEM_COLORS.gray25
-                                : DESIGN_SYSTEM_COLORS.gray900
+                                ? DESIGN_SYSTEM_COLORS.gray25
+                                : DESIGN_SYSTEM_COLORS.gray800
                             } !important`,
                           },
                           lineHeight: "21px",
                         }}
                       >
-                        <MarkdownRender text={c.content} />
-                      </Box>  
+                        <MarkdownRender
+                          text={c.content}
+                          customClass="one-react-markdown"
+                        />
+                      </Box>
 
                       {c.actions.length > 0 && (
                         <Stack spacing={"12px"} sx={{ mt: "12px" }}>

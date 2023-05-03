@@ -19,6 +19,7 @@ const MarkdownRender: FC<Props> = ({ text, customClass, sx = { fontSize: "inheri
       remarkPlugins={[remarkMath]}
       // rehypePlugins={[rehypeKatex]}
       className={customClass}
+      
       components={{
         p: ({ ...props }) => (
           <Typography lineHeight={"inherit"} {...props} sx={{ p: "0px", wordBreak: "break-word",color:"inherit", ...sx }} />
