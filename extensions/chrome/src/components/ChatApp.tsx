@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { brandingLightTheme } from "../utils/brandingTheme";
 import "./ChatApp/styles.css";
 
@@ -22,9 +22,23 @@ function ChatApp() {
   const [displayAssistant, setDisplayAssistant] = useState(false);
   const [selectedText, setSelectedText] = useState("");
   const { mode } = useTheme();
+
+  useEffect(() => {
+    const onDetectSelectedText = () => {
+      const selection = window.getSelection();
+      if (!selection) return;
+
+      const selectionText = selection.toString();
+      console.log({ selectionText }, "chat app")
+    }
+
+    document.addEventListener("mouseup", onDetectSelectedText);
+    return () => document.removeEventListener('mouseup', onDetectSelectedText)
+  }, [])
+
   return (
     <Box
-     className="oassitant-bot"  
+      className="oassitant-bot"
       sx={{
         "*": {
           boxSizing: "border-box",

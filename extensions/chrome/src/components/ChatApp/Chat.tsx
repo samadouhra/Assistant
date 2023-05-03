@@ -471,13 +471,13 @@ export const Chat = ({ sx }: ChatProps) => {
           pushMessage(generateWhereContinueExplanation('[notebook name here]'), getCurrentDateYYMMDD())
           const nodesOnMessage = message.nodes ? message.nodes.map(mapNodesToNodeLink) : []
           setTmpNodesToBeDisplayed(nodesOnMessage)
-          setConversationId(message.conversationId)
           // if is authenticated create notebook
           // chrome.runtime.sendMessage(chrome.runtime.id || process.env.EXTENSION_ID, {
           //   payload,
           //   messageType: "assistant",
           // });
         }
+        setConversationId(message.conversationId)
         setIsLoading(false);
       }
     }
