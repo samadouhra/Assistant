@@ -4,12 +4,21 @@ import { DESIGN_SYSTEM_COLORS } from "../../utils/colors";
 import { NodeLinkType } from "./Chat";
 import NodeTypeIcon from "./NodeTypeIcon";
 import { useTheme } from "../../hooks/useTheme";
+import { NodeType } from "../../types";
 
-export const NodeLink = ({ title, type, id }: NodeLinkType) => {
-  const onOpenNode = useCallback(() => {
-    console.log("opening:", id);
-  }, []);
+type NodeLinkProps = {
+  type: NodeType;
+  title: string;
+  link: string;
+}
+export const NodeLink = ({ title, type, link }: NodeLinkProps) => {
   const { mode } = useTheme();
+  const onOpenNode = useCallback(() => {
+    if (!window) return
+    window.open(link, '_blank')?.focus();
+  }, []);
+
+
   return (
     <Stack
       onClick={onOpenNode}
@@ -26,10 +35,12 @@ export const NodeLink = ({ title, type, id }: NodeLinkType) => {
         boxShadow:
           "0px 1px 2px rgba(0, 0, 0, 0.06), 0px 1px 3px rgba(0, 0, 0, 0.1)",
         cursor: "pointer",
-        ":hover": { backgroundColor:
+        ":hover": {
+          backgroundColor:
             mode === "light"
               ? DESIGN_SYSTEM_COLORS.primary50
-              : DESIGN_SYSTEM_COLORS.notebookO200,},
+              : DESIGN_SYSTEM_COLORS.notebookO200,
+        },
       }}
     >
       <NodeTypeIcon nodeType={type} />

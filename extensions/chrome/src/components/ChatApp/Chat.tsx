@@ -13,6 +13,7 @@ import {
   IconButton,
   InputBase,
   Stack,
+  SxProps,
   Tooltip,
   Typography,
 } from "@mui/material";
@@ -29,6 +30,9 @@ import {
 } from "../../utils/constants";
 import { useTheme } from "../../hooks/useTheme";
 import { getCurrentDateYYMMDD, getCurrentHourHHMM } from "../../utils/date";
+import { Theme } from "@mui/system";
+import { generateRandomId } from "../../utils/others";
+import { generateContinueDisplayingNodeMessage, generateNodeMessage } from "../../utils/messages";
 
 
 /**
@@ -43,169 +47,178 @@ export type NodeLinkType = {
   type: NodeType;
   id: string;
   title: string;
+  link: string;
+  content: string;
+  unit: string
 };
 
 type ActionVariant = "contained" | "outlined"
 
-type MessageData = {
+type MessageAction = {
+  type: IAssitantRequestAction | "LOCAL_DISPLAY_NEXT_MESSAGE_NODE";
+  title: string;
+  variant: ActionVariant;
+}
+
+export type MessageData = {
   id: string;
   type: "WRITER" | "READER";
   uname: string;
   image: string;
   content: string;
   nodes: NodeLinkType[];
-  actions: {
-    type: IAssitantRequestAction;
-    title: string;
-    variant: ActionVariant;
-  }[];
+  actions: MessageAction[];
   hour: string;
 }
 type Message = {
   date: string;
   messages: MessageData[];
 };
-const MESSAGES: Message[] = [
-  {
-    date: "12/12/12",
-    messages: [
-      {
-        id: "01",
-        type: "READER",
-        hour: "20:00",
-        image: "",
-        content: "Message with actions",
-        nodes: [],
-        uname: "1Cademy Assistant",
-        actions: [
-          {
-            title: "Teach me the content of this page",
-            type: "TeachContent",
-            variant: "outlined",
-          },
-          // {
-          //   title: "Remind me later",
-          //   type: "RemindLater",
-          //   variant: "outlined",
-          // },
-          // { title: "Yes", type: "Yes", variant: "outlined" },
-          // { title: "ExplainMore", type: "ExplainMore", variant: "outlined" },
-          // {
-          //   title: "Provide me an explanation",
-          //   type: "GiveMoreExplanation",
-          //   variant: "outlined",
-          // },
-          // {
-          //   title: "I’ll contribute",
-          //   type: "IllContribute",
-          //   variant: "outlined",
-          // },
-          // { title: "Question", type: "Question", variant: "outlined" },
-          // { title: "Text", type: "Text", variant: "outlined" },
-          // { title: "Let’s practice", type: "Practice", variant: "outlined" },
-        ],
-      },
-      {
-        id: "03",
-        type: "READER",
-        hour: "20:00",
-        image: "",
-        content: "Message with Nodes",
-        nodes: [
-          {
-            id: "01",
-            title: "Advertisement Node title",
-            type: "Advertisement",
-          },
-          { id: "02", title: "Code Node title", type: "Code" },
-          { id: "03", title: "Concept Node title", type: "Concept" },
-          { id: "04", title: "Idea Node title", type: "Idea" },
-          { id: "05", title: "News Node title", type: "News" },
-          { id: "06", title: "Private Node title", type: "Private" },
-          { id: "07", title: "Profile Node title", type: "Profile" },
-          { id: "08", title: "Question Node title", type: "Question" },
-          { id: "09", title: "Reference Node title", type: "Reference" },
-          { id: "10", title: "Relation Node title", type: "Relation" },
-          { id: "11", title: "Sequel Node title", type: "Sequel" },
-        ],
-        uname: "1Cademy Assistant",
-        actions: [],
-      },
-      {
-        id: "07",
-        type: "READER",
-        hour: "20:00",
-        image: "",
-        content: "klkljg",
-        nodes: [],
-        uname: "1Cademy Assistant",
-        actions: [],
-      },
-      {
-        id: "05",
-        type: "READER",
-        hour: "20:00",
-        image: "",
-        content: "klkljg",
-        nodes: [],
-        uname: "1Cademy Assistant",
-        actions: [],
-      },
-      {
-        id: "06",
-        type: "WRITER",
-        hour: "20:00",
-        image: "",
-        content: "klkljg",
-        nodes: [],
-        uname: "You",
-        actions: [],
-      },
-      {
-        id: "04",
-        type: "WRITER",
-        hour: "20:00",
-        image: "",
-        content: "klkljg",
-        nodes: [],
-        uname: "You",
-        actions: [],
-      },
-      {
-        id: "02",
-        type: "WRITER",
-        hour: "20:00",
-        image: "",
-        content: "What can you tell me about Visual Communications?",
-        nodes: [],
-        uname: "You",
-        actions: [],
-      },
-    ],
-  },
-  {
-    date: "11/11/11",
-    messages: [
-      {
-        id: "08",
-        type: "READER",
-        hour: "20:00",
-        image: "",
-        content: "klkljg",
-        nodes: [{ type: "Idea", id: "dfdgfsdf", title: "adasd" }],
-        uname: "1Cademy Assistant",
-        actions: [],
-      },
-    ],
-  },
-];
+// const MESSAGES: Message[] = [
+//   {
+//     date: "12/12/12",
+//     messages: [
+//       {
+//         id: "01",
+//         type: "READER",
+//         hour: "20:00",
+//         image: "",
+//         content: "Message with actions",
+//         nodes: [],
+//         uname: "1Cademy Assistant",
+//         actions: [
+//           {
+//             title: "Teach me the content of this page",
+//             type: "TeachContent",
+//             variant: "outlined",
+//           },
+//           // {
+//           //   title: "Remind me later",
+//           //   type: "RemindLater",
+//           //   variant: "outlined",
+//           // },
+//           // { title: "Yes", type: "Yes", variant: "outlined" },
+//           // { title: "ExplainMore", type: "ExplainMore", variant: "outlined" },
+//           // {
+//           //   title: "Provide me an explanation",
+//           //   type: "GiveMoreExplanation",
+//           //   variant: "outlined",
+//           // },
+//           // {
+//           //   title: "I’ll contribute",
+//           //   type: "IllContribute",
+//           //   variant: "outlined",
+//           // },
+//           // { title: "Question", type: "Question", variant: "outlined" },
+//           // { title: "Text", type: "Text", variant: "outlined" },
+//           // { title: "Let’s practice", type: "Practice", variant: "outlined" },
+//         ],
+//       },
+//       {
+//         id: "03",
+//         type: "READER",
+//         hour: "20:00",
+//         image: "",
+//         content: "Message with Nodes",
+//         nodes: [
+//           {
+//             id: "01",
+//             title: "Advertisement Node title",
+//             type: "Advertisement",
+//           },
+//           { id: "02", title: "Code Node title", type: "Code" },
+//           { id: "03", title: "Concept Node title", type: "Concept" },
+//           { id: "04", title: "Idea Node title", type: "Idea" },
+//           { id: "05", title: "News Node title", type: "News" },
+//           { id: "06", title: "Private Node title", type: "Private" },
+//           { id: "07", title: "Profile Node title", type: "Profile" },
+//           { id: "08", title: "Question Node title", type: "Question" },
+//           { id: "09", title: "Reference Node title", type: "Reference" },
+//           { id: "10", title: "Relation Node title", type: "Relation" },
+//           { id: "11", title: "Sequel Node title", type: "Sequel" },
+//         ],
+//         uname: "1Cademy Assistant",
+//         actions: [],
+//       },
+//       {
+//         id: "07",
+//         type: "READER",
+//         hour: "20:00",
+//         image: "",
+//         content: "klkljg",
+//         nodes: [],
+//         uname: "1Cademy Assistant",
+//         actions: [],
+//       },
+//       {
+//         id: "05",
+//         type: "READER",
+//         hour: "20:00",
+//         image: "",
+//         content: "klkljg",
+//         nodes: [],
+//         uname: "1Cademy Assistant",
+//         actions: [],
+//       },
+//       {
+//         id: "06",
+//         type: "WRITER",
+//         hour: "20:00",
+//         image: "",
+//         content: "klkljg",
+//         nodes: [],
+//         uname: "You",
+//         actions: [],
+//       },
+//       {
+//         id: "04",
+//         type: "WRITER",
+//         hour: "20:00",
+//         image: "",
+//         content: "klkljg",
+//         nodes: [],
+//         uname: "You",
+//         actions: [],
+//       },
+//       {
+//         id: "02",
+//         type: "WRITER",
+//         hour: "20:00",
+//         image: "",
+//         content: "What can you tell me about Visual Communications?",
+//         nodes: [],
+//         uname: "You",
+//         actions: [],
+//       },
+//     ],
+//   },
+//   {
+//     date: "11/11/11",
+//     messages: [
+//       {
+//         id: "08",
+//         type: "READER",
+//         hour: "20:00",
+//         image: "",
+//         content: "klkljg",
+//         nodes: [{ type: "Idea", id: "dfdgfsdf", title: "adasd" }],
+//         uname: "1Cademy Assistant",
+//         actions: [],
+//       },
+//     ],
+//   },
+// ];
 
 const tempMap = (variant: string): ActionVariant => {
   if (variant === "outline") return "outlined"
   return "contained"
 }
 
-export const Chat = () => {
+type ChatProps = {
+  sx?: SxProps<Theme>
+}
+
+export const Chat = ({ sx }: ChatProps) => {
   const db = getFirestore();
   const [{ user, reputation, settings }, { dispatch }] = useAuth();
   console.log({ user });
@@ -214,6 +227,7 @@ export const Chat = () => {
   const chatElementRef = useRef<HTMLDivElement | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [conversationId, setConversationId] = useState("")
+  const [nodesToBeDisplayed, setNodesToBeDisplayed] = useState<NodeLinkType[]>([])
   const { mode } = useTheme();
 
   const [userMessage, setUserMessage] = useState('')
@@ -231,27 +245,16 @@ export const Chat = () => {
   }, [])
 
   const onPushAssistantMessage = (newMessage: IAssistantResponse) => {
-
     const currentDateYYMMDD = getCurrentDateYYMMDD()
     const message: MessageData = mapAssistantResponseToMessage(newMessage)
     pushMessage(message, currentDateYYMMDD)
   }
 
   const onPushUserMessage = (userMessage: string) => {
-
     const currentDateYYMMDD = getCurrentDateYYMMDD()
     const message = mapUserMessageToMessage(userMessage)
     pushMessage(message, currentDateYYMMDD)
   }
-
-  useEffect(() => {
-    chrome.runtime.onMessage.addListener((message) => {
-      if (message.messageType === 'assistant') {
-        console.log('answer:message form assistant', { message })
-        onPushAssistantMessage(message)
-      }
-    });
-  }, [])
 
   const onSubmitMessage = useCallback(async () => {
     console.log({ userMessage })
@@ -285,18 +288,64 @@ export const Chat = () => {
     }
   }, []);
 
+  const onDisplayNextNodeToBeDisplayed = (nodesToBeDisplayed: NodeLinkType[]) => {
+    const copyNodesToBeDisplayed = [...nodesToBeDisplayed]
+    const firstElement = copyNodesToBeDisplayed.shift()
+    if (!firstElement) return
+    pushMessage(generateNodeMessage(firstElement), getCurrentDateYYMMDD())
+    const thereIsNextNode = Boolean(copyNodesToBeDisplayed.length)
+    pushMessage(generateContinueDisplayingNodeMessage(firstElement.title, firstElement.unit, thereIsNextNode), getCurrentDateYYMMDD())
+    setNodesToBeDisplayed(copyNodesToBeDisplayed)
+  }
+
+  const getAction = (action: MessageAction) => {
+    if (action.type === 'LOCAL_DISPLAY_NEXT_MESSAGE_NODE') return (
+      <Button onClick={() => onDisplayNextNodeToBeDisplayed(nodesToBeDisplayed)} variant={action.variant} fullWidth>
+        {action.title}
+      </Button>
+    )
+
+    return (
+      <Button variant={action.variant} fullWidth>
+        {action.title}
+      </Button>
+    )
+
+  }
+
   useEffect(() => {
     scrollToTheEnd();
   }, [messagesObj]);
 
+  useEffect(() => {
+    chrome.runtime.onMessage.addListener((message: IAssistantResponse & { messageType: string }) => {
+      if (message.messageType === 'assistant') {
+        console.log('answer:message form assistant', { message })
+        onPushAssistantMessage({ ...message, nodes: [] })
+        onPushAssistantMessage({
+
+          conversationId: "sdfsdf",
+          message: `I just created a new notebook for you called "[Put the first few words of the question here]" and added the nodes explaining the answer to your question. Would you like to open the notebook or prefer to see the explanation of the nodes here in text.`,
+          nodes: [],
+          actions: [{ title: "Open the notebook", type: "Understood", variant: "outline" }, { title: "Explain the nodes here", type: "Understood", variant: "outline" }]
+        })
+        const nodesOnMessage = message.nodes ? message.nodes.map(c => ({ content: c.content, id: c.node, link: c.link, title: c.title, type: c.type, unit: c.unit })) : []
+        onDisplayNextNodeToBeDisplayed(nodesOnMessage)
+        // const firstElement = nodesOnMessage.shift()
+        // if (!firstElement) return
+        // pushMessage(generateNodeMessage(firstElement), getCurrentDateYYMMDD())
+        // pushMessage(generateContinueDisplayingNodeMessage(firstElement.title, firstElement.unit), getCurrentDateYYMMDD())
+        // setNodesToBeDisplayed(nodesOnMessage)
+      }
+    });
+  }, [])
+
   return (
     <Stack
       sx={{
+        ...sx,
         width: "420px",
         height: "600px",
-        position: "absolute",
-        bottom: "112px",
-        right: "38px",
         borderRadius: "8px",
         backgroundColor:
           mode === "dark"
@@ -557,7 +606,7 @@ export const Chat = () => {
                                 key={node.id}
                                 title={node.title}
                                 type={node.type}
-                                id={node.id}
+                                link={node.link}
                               />
                             ))}
                           </Stack>
@@ -577,15 +626,7 @@ export const Chat = () => {
                         </Typography>
                         {c.actions.length > 0 && (
                           <Stack spacing={"12px"} sx={{ mt: "12px" }}>
-                            {c.actions.map((action, idx) => (
-                              <Button
-                                key={idx}
-                                variant={action.variant}
-                                fullWidth
-                              >
-                                {action.title}
-                              </Button>
-                            ))}
+                            {c.actions.map((action, idx) => getAction(action))}
                           </Stack>
                         )}
                       </Box>
@@ -678,9 +719,9 @@ const mapAssistantResponseToMessage = (newMessage: IAssistantResponse): MessageD
     actions: newMessage.actions ? newMessage.actions.map(c => ({ title: c.title, type: c.type, variant: tempMap(c.variant as string) })) : [],
     content: newMessage.message,
     hour: getCurrentHourHHMM(),
-    id: Math.ceil(Math.random() * 10000000000).toString(),
+    id: generateRandomId(),
     image: "",
-    nodes: newMessage.nodes ? newMessage.nodes.map(c => ({ id: c.node, title: c.title, type: c.type })) : [],
+    nodes: newMessage.nodes ? newMessage.nodes.map(c => ({ id: c.node, title: c.title, type: c.type, content: c.content, link: c.link, unit: c.unit })) : [],
     type: "READER",
     uname: "1Cademy Assistant"
   }
@@ -692,11 +733,11 @@ const mapUserMessageToMessage = (userMessage: string): MessageData => {
     actions: [],
     content: userMessage,
     hour: getCurrentHourHHMM(),
-    id: Math.ceil(Math.random() * 10000000000).toString(),
+    id: generateRandomId(),
     image: "",
     nodes: [],
     type: "WRITER",
-    uname: "you"
+    uname: "You"
   }
   return message
 }

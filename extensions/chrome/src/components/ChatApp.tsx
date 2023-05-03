@@ -70,7 +70,7 @@ function ChatApp() {
       </Box >
 
       {/* chat */}
-      {displayAssistant && <Chat />}
+      {displayAssistant && <Chat sx={{ position: "fixed", bottom: "112px", right: "38px" }} />}
     </Box >
   )
 }

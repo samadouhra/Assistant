@@ -226,6 +226,9 @@ export type IAssistantResponse = {
         type: NodeType;
         node: string;
         title: string;
+        link: string;
+        content: string;
+        unit: string
     }[];
     actions?: {
         type: IAssitantRequestAction;
