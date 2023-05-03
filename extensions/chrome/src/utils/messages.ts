@@ -32,12 +32,49 @@ export const generateContinueDisplayingNodeMessage = (title: string, unit: strin
         uname: "You"
     }
 }
+
 export const generateNodeMessage = (node: NodeLinkType): MessageData => {
     return {
         actions: [],
         content: node.content,
         nodes: [node],
         type: "READER",
+        hour: getCurrentHourHHMM(),
+        id: generateRandomId(),
+        image: "",
+        uname: "You"
+    }
+}
+
+export const generateWhereContinueExplanation = (notebookName: string): MessageData => {
+    return {
+        actions: [{
+            title: "Open the notebook",
+            type: "LOCAL_OPEN_NOTEBOOK",
+            variant: "outlined"
+        },
+        {
+            title: "Explain the nodes here",
+            type: "LOCAL_CONTINUE_EXPLANATION_HERE",
+            variant: "outlined"
+        },
+        ],
+        content: `I just created a new notebook for you called "${notebookName}" and added the nodes explaining the answer to your question. Would you like to open the notebook or prefer to see the explanation of the nodes here in text.`,
+        nodes: [],
+        type: "READER",
+        hour: getCurrentHourHHMM(),
+        id: generateRandomId(),
+        image: "",
+        uname: "You"
+    }
+}
+
+export const generateUserActionAnswer = (content: string): MessageData => {
+    return {
+        actions: [],
+        content,
+        nodes: [],
+        type: "WRITER",
         hour: getCurrentHourHHMM(),
         id: generateRandomId(),
         image: "",

@@ -36,7 +36,7 @@ import { useTheme } from "../../hooks/useTheme";
 import { getCurrentDateYYMMDD, getCurrentHourHHMM } from "../../utils/date";
 import { Theme } from "@mui/system";
 import { generateRandomId } from "../../utils/others";
-import { generateContinueDisplayingNodeMessage, generateNodeMessage } from "../../utils/messages";
+import { generateContinueDisplayingNodeMessage, generateNodeMessage, generateUserActionAnswer, generateWhereContinueExplanation } from "../../utils/messages";
 import SearchMessage from "./SearchMessage";
 import moment from "moment";
 
@@ -61,7 +61,7 @@ export type NodeLinkType = {
 type ActionVariant = "contained" | "outlined";
 
 type MessageAction = {
-  type: IAssitantRequestAction | "LOCAL_DISPLAY_NEXT_MESSAGE_NODE";
+  type: IAssitantRequestAction | "LOCAL_OPEN_NOTEBOOK" | "LOCAL_CONTINUE_EXPLANATION_HERE";
   title: string;
   variant: ActionVariant;
 }
@@ -234,6 +234,7 @@ export const Chat = ({ sx }: ChatProps) => {
   const [isLoading, setIsLoading] = useState(false);
   const [conversationId, setConversationId] = useState("")
   const [nodesToBeDisplayed, setNodesToBeDisplayed] = useState<NodeLinkType[]>([])
+  const [tmpNodesToBeDisplayed, setTmpNodesToBeDisplayed] = useState<NodeLinkType[]>([])
   const { mode } = useTheme();
 
   const [userMessage, setUserMessage] = useState("");
@@ -265,6 +266,12 @@ export const Chat = ({ sx }: ChatProps) => {
     },
     []
   );
+
+  const removeActionOfAMessage = (messageId: string, date: string) => {
+    const removeActionOFMessage = (message: MessageData): MessageData => message.id === messageId ? ({ ...message, actions: [] }) : message
+    setMessagesObj(prev => prev.map(cur => cur.date === date ? ({ ...cur, messages: cur.messages.map(removeActionOFMessage) }) : cur))
+    // idMessage
+  }
 
   const onPushAssistantMessage = (newMessage: IAssistantResponse) => {
     const currentDateYYMMDD = getCurrentDateYYMMDD()
@@ -348,9 +355,29 @@ export const Chat = ({ sx }: ChatProps) => {
     setNodesToBeDisplayed(copyNodesToBeDisplayed)
   }
 
-  const getAction = (action: MessageAction) => {
-    if (action.type === 'LOCAL_DISPLAY_NEXT_MESSAGE_NODE') return (
-      <Button onClick={() => onDisplayNextNodeToBeDisplayed(nodesToBeDisplayed)} variant={action.variant} fullWidth>
+  const getAction = (messageId: string, date: string, action: MessageAction) => {
+
+    if (action.type === 'LOCAL_OPEN_NOTEBOOK') return (
+      <Button onClick={() => {
+        console.log('-> Open Notebook')
+        const messageWithSelectedAction = generateUserActionAnswer(action.title)
+        pushMessage(messageWithSelectedAction, getCurrentDateYYMMDD())
+        setTmpNodesToBeDisplayed([])
+        removeActionOfAMessage(messageId, date)
+      }} variant={action.variant} fullWidth>
+        {action.title}
+      </Button>
+    )
+
+    if (action.type === 'LOCAL_CONTINUE_EXPLANATION_HERE') return (
+      <Button onClick={() => {
+        console.log('-> Continue explanation here', tmpNodesToBeDisplayed)
+        const messageWithSelectedAction = generateUserActionAnswer(action.title)
+        pushMessage(messageWithSelectedAction, getCurrentDateYYMMDD())
+        onDisplayNextNodeToBeDisplayed(tmpNodesToBeDisplayed)
+        setTmpNodesToBeDisplayed([])
+        removeActionOfAMessage(messageId, date)
+      }} variant={action.variant} fullWidth>
         {action.title}
       </Button>
     )
@@ -372,20 +399,10 @@ export const Chat = ({ sx }: ChatProps) => {
       if (message.messageType === 'assistant') {
         console.log('answer:message form assistant', { message })
         onPushAssistantMessage({ ...message, nodes: [] })
-        onPushAssistantMessage({
-          conversationId: "sdfsdf",
-          message: `I just created a new notebook for you called "[Put the first few words of the question here]" and added the nodes explaining the answer to your question. Would you like to open the notebook or prefer to see the explanation of the nodes here in text.`,
-          nodes: [],
-          actions: [{ title: "Open the notebook", type: "Understood", variant: "outline" }, { title: "Explain the nodes here", type: "Understood", variant: "outline" }]
-        })
+        pushMessage(generateWhereContinueExplanation('[notebook name here]'), getCurrentDateYYMMDD())
         const nodesOnMessage = message.nodes ? message.nodes.map(c => ({ content: c.content, id: c.node, link: c.link, title: c.title, type: c.type, unit: c.unit })) : []
-        onDisplayNextNodeToBeDisplayed(nodesOnMessage)
+        setTmpNodesToBeDisplayed(nodesOnMessage)
         setIsLoading(false);
-        // const firstElement = nodesOnMessage.shift()
-        // if (!firstElement) return
-        // pushMessage(generateNodeMessage(firstElement), getCurrentDateYYMMDD())
-        // pushMessage(generateContinueDisplayingNodeMessage(firstElement.title, firstElement.unit), getCurrentDateYYMMDD())
-        // setNodesToBeDisplayed(nodesOnMessage)
       }
     });
   }, [])
@@ -687,15 +704,7 @@ export const Chat = ({ sx }: ChatProps) => {
 
                       {c.actions.length > 0 && (
                         <Stack spacing={"12px"} sx={{ mt: "12px" }}>
-                          {c.actions.map((action, idx) => (
-                            <Button
-                              key={idx}
-                              variant={action.variant}
-                              fullWidth
-                            >
-                              {action.title}
-                            </Button>
-                          ))}
+                          {c.actions.map((action, idx) => getAction(c.id, cur.date, action))}
                         </Stack>
                       )}
                     </Box>
