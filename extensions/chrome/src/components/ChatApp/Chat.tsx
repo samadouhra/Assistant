@@ -40,7 +40,7 @@ import { generateRandomId } from "../../utils/others";
 import { generateContinueDisplayingNodeMessage, generateNodeMessage, generateTopicNotFound, generateUserActionAnswer, generateWhereContinueExplanation } from "../../utils/messages";
 import SearchMessage from "./SearchMessage";
 import moment from "moment";
-
+import MarkdownRender from "./MarkdownRender";
 
 /**
  * - NORMAL: is only content
@@ -56,16 +56,19 @@ export type NodeLinkType = {
   title: string;
   link: string;
   content: string;
-  unit: string
+  unit: string;
 };
 
 type ActionVariant = "contained" | "outlined";
 
 type MessageAction = {
-  type: IAssitantRequestAction | "LOCAL_OPEN_NOTEBOOK" | "LOCAL_CONTINUE_EXPLANATION_HERE";
+  type:
+  | IAssitantRequestAction
+  | "LOCAL_OPEN_NOTEBOOK"
+  | "LOCAL_CONTINUE_EXPLANATION_HERE";
   title: string;
   variant: ActionVariant;
-}
+};
 
 export type MessageData = {
   id: string;
@@ -222,8 +225,8 @@ const tempMap = (variant: string): ActionVariant => {
 };
 
 type ChatProps = {
-  sx?: SxProps<Theme>
-}
+  sx?: SxProps<Theme>;
+};
 
 export const Chat = ({ sx }: ChatProps) => {
   const db = getFirestore();
@@ -233,9 +236,13 @@ export const Chat = ({ sx }: ChatProps) => {
   const [speakingMessageId, setSpeakingMessageId] = useState<string>("");
   const chatElementRef = useRef<HTMLDivElement | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [conversationId, setConversationId] = useState("")
-  const [nodesToBeDisplayed, setNodesToBeDisplayed] = useState<NodeLinkType[]>([])
-  const [tmpNodesToBeDisplayed, setTmpNodesToBeDisplayed] = useState<NodeLinkType[]>([])
+  const [conversationId, setConversationId] = useState("");
+  const [nodesToBeDisplayed, setNodesToBeDisplayed] = useState<NodeLinkType[]>(
+    []
+  );
+  const [tmpNodesToBeDisplayed, setTmpNodesToBeDisplayed] = useState<
+    NodeLinkType[]
+  >([]);
   const { mode } = useTheme();
 
   const [userMessage, setUserMessage] = useState("");
@@ -269,26 +276,33 @@ export const Chat = ({ sx }: ChatProps) => {
   );
 
   const removeActionOfAMessage = (messageId: string, date: string) => {
-    const removeActionOFMessage = (message: MessageData): MessageData => message.id === messageId ? ({ ...message, actions: [] }) : message
-    setMessagesObj(prev => prev.map(cur => cur.date === date ? ({ ...cur, messages: cur.messages.map(removeActionOFMessage) }) : cur))
+    const removeActionOFMessage = (message: MessageData): MessageData =>
+      message.id === messageId ? { ...message, actions: [] } : message;
+    setMessagesObj((prev) =>
+      prev.map((cur) =>
+        cur.date === date
+          ? { ...cur, messages: cur.messages.map(removeActionOFMessage) }
+          : cur
+      )
+    );
     // idMessage
-  }
+  };
 
   const onPushAssistantMessage = (newMessage: IAssistantResponse) => {
-    const currentDateYYMMDD = getCurrentDateYYMMDD()
-    const message: MessageData = mapAssistantResponseToMessage(newMessage)
-    pushMessage(message, currentDateYYMMDD)
-  }
+    const currentDateYYMMDD = getCurrentDateYYMMDD();
+    const message: MessageData = mapAssistantResponseToMessage(newMessage);
+    pushMessage(message, currentDateYYMMDD);
+  };
 
   const onPushUserMessage = (userMessage: string) => {
-    const currentDateYYMMDD = getCurrentDateYYMMDD()
-    const message = mapUserMessageToMessage(userMessage)
-    pushMessage(message, currentDateYYMMDD)
-  }
+    const currentDateYYMMDD = getCurrentDateYYMMDD();
+    const message = mapUserMessageToMessage(userMessage);
+    pushMessage(message, currentDateYYMMDD);
+  };
 
   const onSubmitMessage = useCallback(async () => {
-    const userMessageProcessed = userMessage.trim()
-    if (!userMessageProcessed) return
+    const userMessageProcessed = userMessage.trim();
+    if (!userMessageProcessed) return;
 
     setIsLoading(true);
     onPushUserMessage(userMessageProcessed);
@@ -311,7 +325,7 @@ export const Chat = ({ sx }: ChatProps) => {
   };
 
   const onLoadNextNodeToBeDisplayed = useCallback(() => {
-    if (!chatElementRef.current) return
+    if (!chatElementRef.current) return;
 
     const scrollTop = chatElementRef.current.scrollTop;
     const scrollHeight = chatElementRef.current.scrollHeight;
@@ -326,10 +340,10 @@ export const Chat = ({ sx }: ChatProps) => {
     if (distanceToBottom < thresholdValue) {
       // User is close to the bottom of the element
       // console.log('Scroll is near to the end!.', nodesToBeDisplayed.length);
-      if (nodesToBeDisplayed.length < 0) return
-      onDisplayNextNodeToBeDisplayed(nodesToBeDisplayed)
+      if (nodesToBeDisplayed.length < 0) return;
+      onDisplayNextNodeToBeDisplayed(nodesToBeDisplayed);
     }
-  }, [nodesToBeDisplayed])
+  }, [nodesToBeDisplayed]);
 
   const narrateMessage = useCallback((id: string, message: string) => {
     console.log("narrateMessage", { message });
@@ -346,50 +360,75 @@ export const Chat = ({ sx }: ChatProps) => {
     }
   }, []);
 
-  const onDisplayNextNodeToBeDisplayed = (nodesToBeDisplayed: NodeLinkType[]) => {
-    const copyNodesToBeDisplayed = [...nodesToBeDisplayed]
-    const firstElement = copyNodesToBeDisplayed.shift()
-    if (!firstElement) return
-    pushMessage(generateNodeMessage(firstElement), getCurrentDateYYMMDD())
-    const thereIsNextNode = Boolean(copyNodesToBeDisplayed.length)
-    pushMessage(generateContinueDisplayingNodeMessage(firstElement.title, firstElement.unit, thereIsNextNode), getCurrentDateYYMMDD())
-    setNodesToBeDisplayed(copyNodesToBeDisplayed)
-  }
+  const onDisplayNextNodeToBeDisplayed = (
+    nodesToBeDisplayed: NodeLinkType[]
+  ) => {
+    const copyNodesToBeDisplayed = [...nodesToBeDisplayed];
+    const firstElement = copyNodesToBeDisplayed.shift();
+    if (!firstElement) return;
+    pushMessage(generateNodeMessage(firstElement), getCurrentDateYYMMDD());
+    const thereIsNextNode = Boolean(copyNodesToBeDisplayed.length);
+    pushMessage(
+      generateContinueDisplayingNodeMessage(
+        firstElement.title,
+        firstElement.unit,
+        thereIsNextNode
+      ),
+      getCurrentDateYYMMDD()
+    );
+    setNodesToBeDisplayed(copyNodesToBeDisplayed);
+  };
 
-  const getAction = (messageId: string, date: string, action: MessageAction) => {
+  const getAction = (
+    messageId: string,
+    date: string,
+    action: MessageAction
+  ) => {
+    if (action.type === "LOCAL_OPEN_NOTEBOOK")
+      return (
+        <Button
+          onClick={() => {
+            console.log("-> Open Notebook");
+            const messageWithSelectedAction = generateUserActionAnswer(
+              action.title
+            );
+            pushMessage(messageWithSelectedAction, getCurrentDateYYMMDD());
+            setTmpNodesToBeDisplayed([]);
+            removeActionOfAMessage(messageId, date);
+          }}
+          variant={action.variant}
+          fullWidth
+        >
+          {action.title}
+        </Button>
+      );
 
-    if (action.type === 'LOCAL_OPEN_NOTEBOOK') return (
-      <Button onClick={() => {
-        console.log('-> Open Notebook')
-        const messageWithSelectedAction = generateUserActionAnswer(action.title)
-        pushMessage(messageWithSelectedAction, getCurrentDateYYMMDD())
-        setTmpNodesToBeDisplayed([])
-        removeActionOfAMessage(messageId, date)
-      }} variant={action.variant} fullWidth>
-        {action.title}
-      </Button>
-    )
-
-    if (action.type === 'LOCAL_CONTINUE_EXPLANATION_HERE') return (
-      <Button onClick={() => {
-        console.log('-> Continue explanation here', tmpNodesToBeDisplayed)
-        const messageWithSelectedAction = generateUserActionAnswer(action.title)
-        pushMessage(messageWithSelectedAction, getCurrentDateYYMMDD())
-        onDisplayNextNodeToBeDisplayed(tmpNodesToBeDisplayed)
-        setTmpNodesToBeDisplayed([])
-        removeActionOfAMessage(messageId, date)
-      }} variant={action.variant} fullWidth>
-        {action.title}
-      </Button>
-    )
+    if (action.type === "LOCAL_CONTINUE_EXPLANATION_HERE")
+      return (
+        <Button
+          onClick={() => {
+            console.log("-> Continue explanation here", tmpNodesToBeDisplayed);
+            const messageWithSelectedAction = generateUserActionAnswer(
+              action.title
+            );
+            pushMessage(messageWithSelectedAction, getCurrentDateYYMMDD());
+            onDisplayNextNodeToBeDisplayed(tmpNodesToBeDisplayed);
+            setTmpNodesToBeDisplayed([]);
+            removeActionOfAMessage(messageId, date);
+          }}
+          variant={action.variant}
+          fullWidth
+        >
+          {action.title}
+        </Button>
+      );
 
     return (
       <Button variant={action.variant} fullWidth>
         {action.title}
       </Button>
-    )
-
-  }
+    );
+  };
 
   // useEffect(() => {
   //   scrollToTheEnd();
@@ -418,23 +457,22 @@ export const Chat = ({ sx }: ChatProps) => {
         }
         setIsLoading(false);
       }
-    });
-  }, [])
-
+    );
+  }, []);
 
   const formatDate = (date: string) => {
     const _date = new Date();
-    const today = moment().startOf('day');
-    const yesterday = moment().subtract(1, "days").startOf('day');
+    const today = moment().startOf("day");
+    const yesterday = moment().subtract(1, "days").startOf("day");
     let formatedDate = date;
     if (moment(_date).isSame(today, "day")) {
-      formatedDate = 'Today'
+      formatedDate = "Today";
     }
     if (moment(_date).isSame(yesterday, "day")) {
       formatedDate = "Yesterday";
     }
     return formatedDate;
-  }
+  };
 
   return (
     <Stack
@@ -451,8 +489,8 @@ export const Chat = ({ sx }: ChatProps) => {
             ? DESIGN_SYSTEM_COLORS.notebookG900
             : DESIGN_SYSTEM_COLORS.gray50,
         border: `solid 2px ${mode === "light"
-          ? DESIGN_SYSTEM_COLORS.primary200
-          : DESIGN_SYSTEM_COLORS.primary400
+            ? DESIGN_SYSTEM_COLORS.primary200
+            : DESIGN_SYSTEM_COLORS.primary400
           }`,
       }}
     >
@@ -467,8 +505,8 @@ export const Chat = ({ sx }: ChatProps) => {
           gridTemplateColumns: "48px auto",
           gap: "11px",
           borderBottom: `solid 1px ${mode === "light"
-            ? DESIGN_SYSTEM_COLORS.gray300
-            : DESIGN_SYSTEM_COLORS.notebookG500
+              ? DESIGN_SYSTEM_COLORS.gray300
+              : DESIGN_SYSTEM_COLORS.notebookG500
             }`,
         }}
       >
@@ -526,8 +564,8 @@ export const Chat = ({ sx }: ChatProps) => {
           display: "grid",
           placeItems: "center",
           borderBottom: `solid 1px ${mode === "light"
-            ? DESIGN_SYSTEM_COLORS.gray300
-            : DESIGN_SYSTEM_COLORS.notebookG500
+              ? DESIGN_SYSTEM_COLORS.gray300
+              : DESIGN_SYSTEM_COLORS.notebookG500
             }`,
         }}
       >
@@ -563,7 +601,6 @@ export const Chat = ({ sx }: ChatProps) => {
           }),
         }}
       >
-
         {messagesObj.map((cur) => {
           return (
             <Fragment key={cur.date}>
@@ -572,14 +609,14 @@ export const Chat = ({ sx }: ChatProps) => {
                   sx={{
                     ":before": {
                       borderTop: `solid 1px ${mode === "light"
-                        ? DESIGN_SYSTEM_COLORS.notebookG100
-                        : DESIGN_SYSTEM_COLORS.notebookG500
+                          ? DESIGN_SYSTEM_COLORS.notebookG100
+                          : DESIGN_SYSTEM_COLORS.notebookG500
                         }`,
                     },
                     ":after": {
                       borderTop: `solid 1px ${mode === "light"
-                        ? DESIGN_SYSTEM_COLORS.notebookG100
-                        : DESIGN_SYSTEM_COLORS.notebookG500
+                          ? DESIGN_SYSTEM_COLORS.notebookG100
+                          : DESIGN_SYSTEM_COLORS.notebookG500
                         }`,
                     },
                   }}
@@ -673,7 +710,7 @@ export const Chat = ({ sx }: ChatProps) => {
                       >
                         {c.hour}
                       </Typography>
-                    </Box >
+                    </Box>
                     <Box
                       sx={{
                         p: "10px 14px",
@@ -683,7 +720,9 @@ export const Chat = ({ sx }: ChatProps) => {
                             : "0px 8px 8px 8px",
                         backgroundColor:
                           c.type === "WRITER"
-                            ? DESIGN_SYSTEM_COLORS.orange100
+                            ? mode === "light"
+                              ? DESIGN_SYSTEM_COLORS.orange100
+                              : DESIGN_SYSTEM_COLORS.primary600
                             : mode === "light"
                               ? DESIGN_SYSTEM_COLORS.gray200
                               : DESIGN_SYSTEM_COLORS.notebookG600,
@@ -702,44 +741,52 @@ export const Chat = ({ sx }: ChatProps) => {
                           ))}
                         </Stack>
                       )}
-                      <Typography
+
+                      <Box
                         sx={{
                           fontSize: "14px",
-                          color:
-                            `${mode === "dark"
-                              ? c.type === "WRITER"
-                                ? DESIGN_SYSTEM_COLORS.notebookG700
-                                : DESIGN_SYSTEM_COLORS.gray25
-                              : DESIGN_SYSTEM_COLORS.gray900} !important`
+                          color: "red",
+                          "& *": {
+                            color: `${mode === "dark"
+                                ? DESIGN_SYSTEM_COLORS.gray25
+                                : DESIGN_SYSTEM_COLORS.gray800
+                              } !important`,
+                          },
+                          lineHeight: "21px",
                         }}
                       >
-                        {c.content}
-                      </Typography>
+                        <MarkdownRender
+                          text={c.content}
+                          customClass="one-react-markdown"
+                        />
+                      </Box>
 
                       {c.actions.length > 0 && (
                         <Stack spacing={"12px"} sx={{ mt: "12px" }}>
-                          {c.actions.map((action, idx) => getAction(c.id, cur.date, action))}
+                          {c.actions.map((action, idx) =>
+                            getAction(c.id, cur.date, action)
+                          )}
                         </Stack>
                       )}
                     </Box>
-                  </Box >
-                </Stack >
+                  </Box>
+                </Stack>
               ))}
               {isLoading && <SearchMessage />}
-            </Fragment >
+            </Fragment>
           );
         })}
-      </Stack >
+      </Stack>
 
       {/* footer options */}
-      < Box
+      <Box
         sx={{
           width: "100%",
           height: "124px",
           p: "16px 24px",
           borderTop: `solid 1px ${mode === "light"
-            ? DESIGN_SYSTEM_COLORS.gray300
-            : DESIGN_SYSTEM_COLORS.notebookG500
+              ? DESIGN_SYSTEM_COLORS.gray300
+              : DESIGN_SYSTEM_COLORS.notebookG500
             }`,
         }}
       >
@@ -747,8 +794,8 @@ export const Chat = ({ sx }: ChatProps) => {
           sx={{
             height: "92px",
             border: `solid 1px ${mode === "light"
-              ? DESIGN_SYSTEM_COLORS.gray300
-              : DESIGN_SYSTEM_COLORS.notebookG500
+                ? DESIGN_SYSTEM_COLORS.gray300
+                : DESIGN_SYSTEM_COLORS.notebookG500
               }`,
             borderRadius: "4px",
             backgroundColor:
@@ -830,8 +877,8 @@ export const Chat = ({ sx }: ChatProps) => {
             </Button>
           </Box>
         </Box>
-      </Box >
-    </Stack >
+      </Box>
+    </Stack>
   );
 };
 
