@@ -20,7 +20,12 @@ import {
 import { RiveComponentMemoized } from "./RiveMemoized";
 import { getFirestore } from "firebase/firestore";
 import { useAuth } from "../../utils/AuthContext";
-import { IAssistantRequestPayload, IAssistantResponse, IAssitantRequestAction, NodeType } from "../../types";
+import {
+  IAssistantRequestPayload,
+  IAssistantResponse,
+  IAssitantRequestAction,
+  NodeType,
+} from "../../types";
 import { NodeLink } from "./NodeLink";
 import {
   CHAT_BACKGROUND_IMAGE_URL,
@@ -33,7 +38,6 @@ import { getCurrentDateYYMMDD, getCurrentHourHHMM } from "../../utils/date";
 import { Theme } from "@mui/system";
 import { generateRandomId } from "../../utils/others";
 import { generateContinueDisplayingNodeMessage, generateNodeMessage } from "../../utils/messages";
-
 
 /**
  * - NORMAL: is only content
@@ -52,7 +56,7 @@ export type NodeLinkType = {
   unit: string
 };
 
-type ActionVariant = "contained" | "outlined"
+type ActionVariant = "contained" | "outlined";
 
 type MessageAction = {
   type: IAssitantRequestAction | "LOCAL_DISPLAY_NEXT_MESSAGE_NODE";
@@ -69,7 +73,7 @@ export type MessageData = {
   nodes: NodeLinkType[];
   actions: MessageAction[];
   hour: string;
-}
+};
 type Message = {
   date: string;
   messages: MessageData[];
@@ -210,9 +214,9 @@ type Message = {
 // ];
 
 const tempMap = (variant: string): ActionVariant => {
-  if (variant === "outline") return "outlined"
-  return "contained"
-}
+  if (variant === "outline") return "outlined";
+  return "contained";
+};
 
 type ChatProps = {
   sx?: SxProps<Theme>
@@ -230,19 +234,35 @@ export const Chat = ({ sx }: ChatProps) => {
   const [nodesToBeDisplayed, setNodesToBeDisplayed] = useState<NodeLinkType[]>([])
   const { mode } = useTheme();
 
-  const [userMessage, setUserMessage] = useState('')
+  const [userMessage, setUserMessage] = useState("");
 
-  const pushMessage = useCallback((message: MessageData, currentDateYYMMDD: string) => {
-    setMessagesObj(prev => {
-      if (prev.length === 0) return [{ date: currentDateYYMMDD, messages: [message] }]
-      const res = prev.reduce((acu: { found: boolean, result: Message[] }, cur) => {
-        if (cur.date === currentDateYYMMDD) return { found: true, result: [...acu.result, { ...cur, messages: [...cur.messages, message] }] }
-        return { ...acu, result: [...acu.result, cur] }
-      }, { found: false, result: [] })
-      const newMessageObj: Message[] = res.found ? res.result : [...res.result, { date: currentDateYYMMDD, messages: [message] }]
-      return newMessageObj
-    })
-  }, [])
+  const pushMessage = useCallback(
+    (message: MessageData, currentDateYYMMDD: string) => {
+      setMessagesObj((prev) => {
+        if (prev.length === 0)
+          return [{ date: currentDateYYMMDD, messages: [message] }];
+        const res = prev.reduce(
+          (acu: { found: boolean; result: Message[] }, cur) => {
+            if (cur.date === currentDateYYMMDD)
+              return {
+                found: true,
+                result: [
+                  ...acu.result,
+                  { ...cur, messages: [...cur.messages, message] },
+                ],
+              };
+            return { ...acu, result: [...acu.result, cur] };
+          },
+          { found: false, result: [] }
+        );
+        const newMessageObj: Message[] = res.found
+          ? res.result
+          : [...res.result, { date: currentDateYYMMDD, messages: [message] }];
+        return newMessageObj;
+      });
+    },
+    []
+  );
 
   const onPushAssistantMessage = (newMessage: IAssistantResponse) => {
     const currentDateYYMMDD = getCurrentDateYYMMDD()
@@ -257,16 +277,28 @@ export const Chat = ({ sx }: ChatProps) => {
   }
 
   const onSubmitMessage = useCallback(async () => {
-    console.log({ userMessage })
-    onPushUserMessage(userMessage)
+    console.log({ userMessage });
+    setIsLoading(true);
+    onPushUserMessage(userMessage);
     const payload: IAssistantRequestPayload = {
       actionType: "DirectQuestion",
       message: userMessage,
-      conversationId
-    }
-    chrome.runtime.sendMessage(chrome.runtime.id || process.env.EXTENSION_ID, { payload, messageType: "assistant" });
-    setUserMessage('')
-  }, [userMessage, conversationId])
+      conversationId,
+    };
+    onPushAssistantMessage({
+      conversationId: "",
+      message: "",
+    });
+    // chrome.runtime.sendMessage(chrome.runtime.id || process.env.EXTENSION_ID, {
+    //   payload,
+    //   messageType: "assistant",
+    // });
+    setTimeout(() => {
+      setIsLoading(false);
+    }, 2000);
+
+    setUserMessage("");
+  }, [userMessage, conversationId]);
 
   const scrollToTheEnd = () => {
     if (!chatElementRef.current) return;
@@ -274,7 +306,7 @@ export const Chat = ({ sx }: ChatProps) => {
   };
 
   const narrateMessage = useCallback((id: string, message: string) => {
-    console.log("narrateMessage", { message })
+    console.log("narrateMessage", { message });
     if (!window.speechSynthesis.speaking) {
       const msg = new SpeechSynthesisUtterance(message);
       window.speechSynthesis.speak(msg);
@@ -346,6 +378,9 @@ export const Chat = ({ sx }: ChatProps) => {
         ...sx,
         width: "420px",
         height: "600px",
+        position: "fixed",
+        bottom: "112px",
+        right: "38px",
         borderRadius: "8px",
         backgroundColor:
           mode === "dark"
@@ -455,7 +490,8 @@ export const Chat = ({ sx }: ChatProps) => {
           overflowY: "auto",
           scrollBehavior: "smooth",
           flexGrow: 1,
-          ...(!messagesObj.length && !isLoading && {
+          ...(!messagesObj.length &&
+            !isLoading && {
             backgroundImage: `url(${CHAT_BACKGROUND_IMAGE_URL})`,
             backgroundRepeat: "no-repeat",
             backgroundPosition: "center",
@@ -472,108 +508,64 @@ export const Chat = ({ sx }: ChatProps) => {
             />
           </Box>
         )}
-        {!isLoading &&
-          messagesObj.map((cur) => {
-            return (
-              <Fragment key={cur.date}>
-                <Box>
-                  <Divider
+        {!isLoading && messagesObj.map((cur) => {
+          return (
+            <Fragment key={cur.date}>
+              <Box>
+                <Divider
+                  sx={{
+                    ":before": {
+                      borderTop: `solid 1px ${mode === "light"
+                        ? DESIGN_SYSTEM_COLORS.notebookG100
+                        : DESIGN_SYSTEM_COLORS.notebookG500
+                        }`,
+                    },
+                    ":after": {
+                      borderTop: `solid 1px ${mode === "light"
+                        ? DESIGN_SYSTEM_COLORS.notebookG100
+                        : DESIGN_SYSTEM_COLORS.notebookG500
+                        }`,
+                    },
+                  }}
+                >
+                  <Typography
                     sx={{
-                      ":before": {
-                        borderTop: `solid 1px ${mode === "light"
-                          ? DESIGN_SYSTEM_COLORS.notebookG100
-                          : DESIGN_SYSTEM_COLORS.notebookG500
-                          }`,
-                      },
-                      ":after": {
-                        borderTop: `solid 1px ${mode === "light"
-                          ? DESIGN_SYSTEM_COLORS.notebookG100
-                          : DESIGN_SYSTEM_COLORS.notebookG500
-                          }`,
-                      },
+                      color:
+                        mode === "dark"
+                          ? DESIGN_SYSTEM_COLORS.gray25
+                          : DESIGN_SYSTEM_COLORS.gray900,
                     }}
                   >
-                    <Typography
+                    {" "}
+                    {cur.date}
+                  </Typography>
+                </Divider>
+              </Box>
+              {cur.messages.map((c, idx) => (
+                <Stack
+                  key={c.id}
+                  direction={c.type === "READER" ? "row" : "row-reverse"}
+                  spacing="12px"
+                >
+                  {c.type === "READER" && (
+                    <CustomAvatar
+                      imageUrl={LOGO_URL}
+                      alt="onecademy assistant logo"
+                    />
+                  )}
+                  <Box>
+                    <Box
                       sx={{
-                        color:
-                          mode === "dark"
-                            ? DESIGN_SYSTEM_COLORS.gray25
-                            : DESIGN_SYSTEM_COLORS.gray900,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        mb: "7px",
                       }}
                     >
-                      {" "}
-                      {cur.date}
-                    </Typography>
-                  </Divider>
-                </Box>
-                {cur.messages.map((c) => (
-                  <Stack
-                    key={c.id}
-                    direction={c.type === "READER" ? "row" : "row-reverse"}
-                    spacing="12px"
-                  >
-                    {c.type === "READER" && (
-                      <CustomAvatar
-                        imageUrl={LOGO_URL}
-                        alt="onecademy assistant logo"
-                      />
-                    )}
-                    <Box>
-                      <Box
-                        sx={{
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "space-between",
-                          mb: "7px",
-                        }}
-                      >
-                        <Box sx={{ display: "flex", alignItems: "center" }}>
-                          <Typography
-                            sx={{
-                              fontWeight: 500,
-                              fontSize: "14px",
-                              color:
-                                mode === "dark"
-                                  ? DESIGN_SYSTEM_COLORS.gray25
-                                  : DESIGN_SYSTEM_COLORS.gray900,
-                            }}
-                          >
-                            {c.uname}
-                          </Typography>
-                          {c.type ===
-                            "READER" /* && <Tooltip title={speakingMessageId === c.id ? "Stop narrating" : "Narrate message"} placement='top'> */ && (
-                              <IconButton
-                                onClick={() => narrateMessage(c.id, c.content)}
-                                size="small"
-                                sx={{ p: "4px", ml: "4px" }}
-                              >
-                                {speakingMessageId === c.id ? (
-                                  <VolumeOffIcon
-                                    sx={{
-                                      fontSize: "16px",
-                                      color:
-                                        mode === "dark"
-                                          ? DESIGN_SYSTEM_COLORS.gray25
-                                          : DESIGN_SYSTEM_COLORS.gray900,
-                                    }}
-                                  />
-                                ) : (
-                                  <VolumeUpIcon
-                                    sx={{
-                                      fontSize: "16px",
-                                      color:
-                                        mode === "dark"
-                                          ? DESIGN_SYSTEM_COLORS.gray25
-                                          : DESIGN_SYSTEM_COLORS.gray900,
-                                    }}
-                                  />
-                                )}
-                              </IconButton>
-                            )}
-                        </Box>
+                      <Box sx={{ display: "flex", alignItems: "center" }}>
                         <Typography
                           sx={{
-                            fontWeight: 400,
+                            fontWeight: 500,
                             fontSize: "14px",
                             color:
                               mode === "dark"
@@ -581,9 +573,51 @@ export const Chat = ({ sx }: ChatProps) => {
                                 : DESIGN_SYSTEM_COLORS.gray900,
                           }}
                         >
-                          {c.hour}
+                          {c.uname}
                         </Typography>
+                        {c.type ===
+                          "READER" /* && <Tooltip title={speakingMessageId === c.id ? "Stop narrating" : "Narrate message"} placement='top'> */ && (
+                            <IconButton
+                              onClick={() => narrateMessage(c.id, c.content)}
+                              size="small"
+                              sx={{ p: "4px", ml: "4px" }}
+                            >
+                              {speakingMessageId === c.id ? (
+                                <VolumeOffIcon
+                                  sx={{
+                                    fontSize: "16px",
+                                    color:
+                                      mode === "dark"
+                                        ? DESIGN_SYSTEM_COLORS.gray25
+                                        : DESIGN_SYSTEM_COLORS.gray900,
+                                  }}
+                                />
+                              ) : (
+                                <VolumeUpIcon
+                                  sx={{
+                                    fontSize: "16px",
+                                    color:
+                                      mode === "dark"
+                                        ? DESIGN_SYSTEM_COLORS.gray25
+                                        : DESIGN_SYSTEM_COLORS.gray900,
+                                  }}
+                                />
+                              )}
+                            </IconButton>
+                          )}
                       </Box>
+                      <Typography
+                        sx={{
+                          fontWeight: 400,
+                          fontSize: "14px",
+                          color:
+                            mode === "dark"
+                              ? DESIGN_SYSTEM_COLORS.gray25
+                              : DESIGN_SYSTEM_COLORS.gray900,
+                        }}
+                      >
+                        {c.hour}
+                      </Typography>
                       <Box
                         sx={{
                           p: "10px 14px",
@@ -599,18 +633,20 @@ export const Chat = ({ sx }: ChatProps) => {
                                 : DESIGN_SYSTEM_COLORS.notebookG600,
                         }}
                       >
-                        {c.nodes.length > 0 && (
-                          <Stack spacing={"12px"} sx={{ mb: "10px" }}>
-                            {c.nodes.map((node) => (
-                              <NodeLink
-                                key={node.id}
-                                title={node.title}
-                                type={node.type}
-                                link={node.link}
-                              />
-                            ))}
-                          </Stack>
-                        )}
+                        {
+                          c.nodes.length > 0 && (
+                            <Stack spacing={"12px"} sx={{ mb: "10px" }}>
+                              {c.nodes.map((node) => (
+                                <NodeLink
+                                  key={node.id}
+                                  title={node.title}
+                                  type={node.type}
+                                  link={node.link}
+                                />
+                              ))}
+                            </Stack>
+                          )
+                        }
                         <Typography
                           sx={{
                             fontSize: "14px",
@@ -624,48 +660,149 @@ export const Chat = ({ sx }: ChatProps) => {
                         >
                           {c.content}
                         </Typography>
-                        {c.actions.length > 0 && (
-                          <Stack spacing={"12px"} sx={{ mt: "12px" }}>
-                            {c.actions.map((action, idx) => getAction(action))}
-                          </Stack>
+                        {
+                          c.actions.length > 0 && (
+                            <Stack spacing={"12px"} sx={{ mt: "12px" }}>
+                              {c.actions.map((action, idx) => getAction(action))}
+                            </Stack>
+                          )
+                        }
+                      </Box >
+                    </Box >
+                    <Box
+                      sx={{
+                        p: "10px 14px",
+                        borderRadius:
+                          c.type === "WRITER"
+                            ? "8px 0px 8px 8px"
+                            : "0px 8px 8px 8px",
+                        backgroundColor:
+                          c.type === "WRITER"
+                            ? DESIGN_SYSTEM_COLORS.orange100
+                            : mode === "light"
+                              ? DESIGN_SYSTEM_COLORS.gray200
+                              : DESIGN_SYSTEM_COLORS.notebookG600,
+                      }}
+                    >
+                      {c.nodes.length > 0 && (
+                        <Stack spacing={"12px"} sx={{ mb: "10px" }}>
+                          {c.nodes.map((node) => (
+                            <NodeLink
+                              key={node.id}
+                              title={node.title}
+                              type={node.type}
+                              link={node.link}
+                            // id={node.id}
+                            />
+                          ))}
+                        </Stack>
+                      )}
+                      <Typography
+                        sx={{
+                          fontSize: "14px",
+                          color:
+                            mode === "dark"
+                              ? c.type === "WRITER"
+                                ? DESIGN_SYSTEM_COLORS.notebookG700
+                                : DESIGN_SYSTEM_COLORS.gray25
+                              : DESIGN_SYSTEM_COLORS.gray900,
+                        }}
+                      >
+                        {c.content}
+                      </Typography>
+                      {idx === messagesObj.length &&
+                        c.type === "READER" &&
+                        isLoading && (
+                          <Box
+                            sx={{
+                              width: "70px",
+                              height: "70px",
+                              mx: "auto",
+                            }}
+                          >
+                            <RiveComponentMemoized
+                              src={SEARCH_ANIMATION_URL}
+                              artboard="New Artboard"
+                              animations={"Timeline 1"}
+                              autoplay={true}
+                            />
+                          </Box>
                         )}
-                      </Box>
+                      {c.actions.length > 0 && (
+                        <Stack spacing={"12px"} sx={{ mt: "12px" }}>
+                          {c.actions.map((action, idx) => (
+                            <Button
+                              key={idx}
+                              variant={action.variant}
+                              fullWidth
+                            >
+                              {action.title}
+                            </Button>
+                          ))}
+                        </Stack>
+                      )}
                     </Box>
-                  </Stack>
-                ))}
-              </Fragment>
-            );
-          })}
-      </Stack>
+                  </Box >
+                </Stack >
+              ))}
+            </Fragment >
+          );
+        })}
+      </Stack >
 
       {/* footer options */}
-      <Box
+      < Box
         sx={{
           width: "100%",
           height: "124px",
           p: "16px 24px",
-          borderTop: `solid 1px ${DESIGN_SYSTEM_COLORS.gray300}`,
+          borderTop: `solid 1px ${mode === "light"
+            ? DESIGN_SYSTEM_COLORS.gray300
+            : DESIGN_SYSTEM_COLORS.notebookG500
+            }`,
         }}
       >
         <Box
           sx={{
             height: "92px",
-            border: `solid 1px ${DESIGN_SYSTEM_COLORS.gray300}`,
+            border: `solid 1px ${mode === "light"
+              ? DESIGN_SYSTEM_COLORS.gray300
+              : DESIGN_SYSTEM_COLORS.notebookG500
+              }`,
             borderRadius: "4px",
-            backgroundColor: DESIGN_SYSTEM_COLORS.gray100,
+            backgroundColor:
+              mode === "dark"
+                ? DESIGN_SYSTEM_COLORS.notebookG700
+                : DESIGN_SYSTEM_COLORS.gray100,
           }}
         >
           <InputBase
             id="message-chat"
             value={userMessage}
             onChange={(e) => {
-              console.log('in', e.target.value)
-              setUserMessage(e.target.value)
+              console.log("in", e.target.value);
+              setUserMessage(e.target.value);
             }}
-            onKeyDown={(e) => (e.key === 'Enter' || e.keyCode === 13) && onSubmitMessage()}
+            onKeyDown={(e) =>
+              (e.key === "Enter" || e.keyCode === 13) && onSubmitMessage()
+            }
             fullWidth
             placeholder="Type your message here..."
-            sx={{ p: "10px 14px", fontSize: "14px" }}
+            sx={{
+              p: "10px 14px",
+              fontSize: "14px",
+              backgroundColor:
+                mode === "dark"
+                  ? DESIGN_SYSTEM_COLORS.notebookG700
+                  : DESIGN_SYSTEM_COLORS.gray100,
+              color:
+                mode === "dark"
+                  ? DESIGN_SYSTEM_COLORS.baseWhite
+                  : DESIGN_SYSTEM_COLORS.notebookMainBlack,
+              "::placeholder": {
+                color: DESIGN_SYSTEM_COLORS.gray500,
+              },
+            }}
           />
           <Box
             sx={{
@@ -677,7 +814,14 @@ export const Chat = ({ sx }: ChatProps) => {
             }}
           >
             <IconButton size="small" sx={{ p: "5px" }}>
-              <MicIcon />
+              <MicIcon
+                sx={{
+                  color:
+                    mode === "dark"
+                      ? DESIGN_SYSTEM_COLORS.gray50
+                      : DESIGN_SYSTEM_COLORS.gray500,
+                }}
+              />
             </IconButton>
             <Button
               onClick={onSubmitMessage}
@@ -708,25 +852,32 @@ export const Chat = ({ sx }: ChatProps) => {
             </Button>
           </Box>
         </Box>
-      </Box>
-    </Stack>
+      </Box >
+    </Stack >
   );
 };
 
-
-const mapAssistantResponseToMessage = (newMessage: IAssistantResponse): MessageData => {
+const mapAssistantResponseToMessage = (
+  newMessage: IAssistantResponse
+): MessageData => {
   const message: MessageData = {
-    actions: newMessage.actions ? newMessage.actions.map(c => ({ title: c.title, type: c.type, variant: tempMap(c.variant as string) })) : [],
+    actions: newMessage.actions
+      ? newMessage.actions.map((c) => ({
+        title: c.title,
+        type: c.type,
+        variant: tempMap(c.variant as string),
+      }))
+      : [],
     content: newMessage.message,
     hour: getCurrentHourHHMM(),
     id: generateRandomId(),
     image: "",
     nodes: newMessage.nodes ? newMessage.nodes.map(c => ({ id: c.node, title: c.title, type: c.type, content: c.content, link: c.link, unit: c.unit })) : [],
     type: "READER",
-    uname: "1Cademy Assistant"
-  }
-  return message
-}
+    uname: "1Cademy Assistant",
+  };
+  return message;
+};
 
 const mapUserMessageToMessage = (userMessage: string): MessageData => {
   const message: MessageData = {

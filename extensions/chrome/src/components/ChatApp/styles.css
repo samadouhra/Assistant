@@ -4,11 +4,3 @@
   font-family: "Inter", sans-serif;
 }
 
-.rive-canvas {
-  width: inherit;
-  height: inherit;
-}
-
-.rive-canvas-hidden {
-  opacity: 0;
-}
