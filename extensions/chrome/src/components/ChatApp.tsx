@@ -17,11 +17,27 @@ import { DESIGN_SYSTEM_COLORS } from "../utils/colors";
 import { Chat } from "./ChatApp/Chat";
 import { LOGO_URL } from "../utils/constants";
 import { useTheme } from "../hooks/useTheme";
+import { IAssistantRequestPayload } from "../types";
 
 function ChatApp() {
   const [displayAssistant, setDisplayAssistant] = useState(false);
   const [selectedText, setSelectedText] = useState("");
   const { mode } = useTheme();
+
+  const onOpenChat = () => {
+    setDisplayAssistant(true)
+    if (!selectedText) return
+
+    const payload: IAssistantRequestPayload = {
+      actionType: "TeachContent",
+      message: selectedText,
+    };
+    chrome.runtime.sendMessage(chrome.runtime.id || process.env.EXTENSION_ID, {
+      payload,
+      messageType: "assistant",
+    });
+    setSelectedText("")
+  }
 
   useEffect(() => {
     const onDetectSelectedText = () => {
@@ -30,6 +46,7 @@ function ChatApp() {
 
       const selectionText = selection.toString();
       console.log({ selectionText }, "chat app")
+      setSelectedText(selectionText)
     }
 
     document.addEventListener("mouseup", onDetectSelectedText);
@@ -82,14 +99,14 @@ function ChatApp() {
           <CustomWidthTooltip
             open={Boolean(selectedText)}
             title={
-              <Box sx={{ textAlign: "center" }}>
+              <Box sx={{ textAlign: "center", lineHeight: "18px", fontSize: "12px" }}>
                 I can clarify the selected text and respond to your queries.
               </Box>
             }
             placement="top"
           >
             <Button
-              onClick={() => setDisplayAssistant(true)}
+              onClick={onOpenChat}
               sx={{
                 minWidth: "0px",
                 width: "52px",
@@ -119,7 +136,7 @@ function ChatApp() {
       </Box>
 
       {/* chat */}
-      {displayAssistant && <Chat sx={{ position: "fixed", bottom: "112px", right: "38px" }} />}
+      {displayAssistant && <Chat selectedText={selectedText} sx={{ position: "fixed", bottom: "112px", right: "38px" }} />}
     </Box >
   )
 }
