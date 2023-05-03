@@ -317,7 +317,7 @@ const onAskAssistant = (message: any, sender: chrome.runtime.MessageSender) => {
     if (message?.messageType !== 'assistant') return
     if (!sender.tab?.id) return console.error('Cant find tab id')
 
-    console.log('call endpont')
+    console.log('call endpoint:', { payload: message.payload })
     const res = await fetch(`${ENDPOINT_BASE}/assistant`, {
       method: "POST",
       body: JSON.stringify(message.payload),
@@ -326,7 +326,7 @@ const onAskAssistant = (message: any, sender: chrome.runtime.MessageSender) => {
       }
     })
     const data = await res.json()
-    // console.log({ data })
+    console.log({ data })
     await chrome.tabs.sendMessage(sender.tab.id, { ...data, messageType: "assistant" })
 
   })()

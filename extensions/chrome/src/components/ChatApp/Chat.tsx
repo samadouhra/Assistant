@@ -65,7 +65,7 @@ type MessageAction = {
   type:
   | IAssitantRequestAction
   | "LOCAL_OPEN_NOTEBOOK"
-  | "LOCAL_CONTINUE_EXPLANATION_HERE";
+  | "LOCAL_CONTINUE_EXPLANATION_HERE"
   title: string;
   variant: ActionVariant;
 };
@@ -79,6 +79,8 @@ export type MessageData = {
   nodes: NodeLinkType[];
   actions: MessageAction[];
   hour: string;
+  is404?: boolean
+  request?: string
 };
 type Message = {
   date: string;
@@ -249,6 +251,7 @@ export const Chat = ({ sx }: ChatProps) => {
 
   const pushMessage = useCallback(
     (message: MessageData, currentDateYYMMDD: string) => {
+      console.log('pushMessage', { message })
       setMessagesObj((prev) => {
         if (prev.length === 0)
           return [{ date: currentDateYYMMDD, messages: [message] }];
@@ -266,6 +269,7 @@ export const Chat = ({ sx }: ChatProps) => {
           },
           { found: false, result: [] }
         );
+        console.log("pushMessage", { res })
         const newMessageObj: Message[] = res.found
           ? res.result
           : [...res.result, { date: currentDateYYMMDD, messages: [message] }];
@@ -382,49 +386,69 @@ export const Chat = ({ sx }: ChatProps) => {
   const getAction = (
     messageId: string,
     date: string,
-    action: MessageAction
+    action: MessageAction,
+    request?: string
   ) => {
-    if (action.type === "LOCAL_OPEN_NOTEBOOK")
-      return (
-        <Button
-          onClick={() => {
-            console.log("-> Open Notebook");
-            const messageWithSelectedAction = generateUserActionAnswer(
-              action.title
-            );
-            pushMessage(messageWithSelectedAction, getCurrentDateYYMMDD());
-            setTmpNodesToBeDisplayed([]);
-            removeActionOfAMessage(messageId, date);
-          }}
-          variant={action.variant}
-          fullWidth
-        >
-          {action.title}
-        </Button>
-      );
 
-    if (action.type === "LOCAL_CONTINUE_EXPLANATION_HERE")
-      return (
-        <Button
-          onClick={() => {
-            console.log("-> Continue explanation here", tmpNodesToBeDisplayed);
-            const messageWithSelectedAction = generateUserActionAnswer(
-              action.title
-            );
-            pushMessage(messageWithSelectedAction, getCurrentDateYYMMDD());
-            onDisplayNextNodeToBeDisplayed(tmpNodesToBeDisplayed);
-            setTmpNodesToBeDisplayed([]);
-            removeActionOfAMessage(messageId, date);
-          }}
-          variant={action.variant}
-          fullWidth
-        >
-          {action.title}
-        </Button>
-      );
+    let onClick = undefined
+    if (action.type === "LOCAL_OPEN_NOTEBOOK") {
+      onClick = () => {
+        console.log("-> Open Notebook");
+        const messageWithSelectedAction = generateUserActionAnswer(
+          action.title
+        );
+        pushMessage(messageWithSelectedAction, getCurrentDateYYMMDD());
+        setTmpNodesToBeDisplayed([]);
+        removeActionOfAMessage(messageId, date);
+      }
+    }
+
+    if (action.type === "LOCAL_CONTINUE_EXPLANATION_HERE") {
+      onClick = () => {
+        console.log("-> Continue explanation here", tmpNodesToBeDisplayed);
+        const messageWithSelectedAction = generateUserActionAnswer(
+          action.title
+        );
+        pushMessage(messageWithSelectedAction, getCurrentDateYYMMDD());
+        onDisplayNextNodeToBeDisplayed(tmpNodesToBeDisplayed);
+        setTmpNodesToBeDisplayed([]);
+        removeActionOfAMessage(messageId, date);
+      }
+    }
+
+    if (action.type === 'IllContribute') {
+      onClick = () => {
+        console.log("-> IllContribute");
+        const messageWithSelectedAction = generateUserActionAnswer(action.title);
+        pushMessage(messageWithSelectedAction, getCurrentDateYYMMDD());
+        setTmpNodesToBeDisplayed([]);
+        removeActionOfAMessage(messageId, date);
+        window.open('https://1cademy.com/notebook', '_blank')?.focus();
+      }
+    }
+
+    if (action.type === 'GeneralExplanation') {
+      onClick = () => {
+        console.log("-> GeneralExplanation");
+        const messageWithSelectedAction = generateUserActionAnswer(action.title);
+        pushMessage(messageWithSelectedAction, getCurrentDateYYMMDD());
+        setTmpNodesToBeDisplayed([]);
+        removeActionOfAMessage(messageId, date);
+        // TODO: sendMessage to service worker
+        const payload: IAssistantRequestPayload = {
+          actionType: "GeneralExplanation",
+          message: request ?? '',
+          conversationId,
+        };
+        chrome.runtime.sendMessage(chrome.runtime.id || process.env.EXTENSION_ID, {
+          payload,
+          messageType: "assistant",
+        });
+      }
+    }
 
     return (
-      <Button variant={action.variant} fullWidth>
+      <Button onClick={onClick} variant={action.variant} fullWidth>
         {action.title}
       </Button>
     );
@@ -440,16 +464,15 @@ export const Chat = ({ sx }: ChatProps) => {
         console.log('answer:message form assistant', { message })
         if (message.is404) {
           console.log(1)
-          pushMessage(generateTopicNotFound(), getCurrentDateYYMMDD())
+          pushMessage(generateTopicNotFound(message.request ?? ""), getCurrentDateYYMMDD())
         } else {
-          console.log(2)
+          console.log(22)
           onPushAssistantMessage({ ...message, nodes: [] })
           pushMessage(generateWhereContinueExplanation('[notebook name here]'), getCurrentDateYYMMDD())
           const nodesOnMessage = message.nodes ? message.nodes.map(mapNodesToNodeLink) : []
           setTmpNodesToBeDisplayed(nodesOnMessage)
-
+          setConversationId(message.conversationId)
           // if is authenticated create notebook
-
           // chrome.runtime.sendMessage(chrome.runtime.id || process.env.EXTENSION_ID, {
           //   payload,
           //   messageType: "assistant",
@@ -765,7 +788,7 @@ export const Chat = ({ sx }: ChatProps) => {
                       {c.actions.length > 0 && (
                         <Stack spacing={"12px"} sx={{ mt: "12px" }}>
                           {c.actions.map((action, idx) =>
-                            getAction(c.id, cur.date, action)
+                            getAction(c.id, cur.date, action, c.request)
                           )}
                         </Stack>
                       )}
@@ -901,6 +924,8 @@ const mapAssistantResponseToMessage = (
     nodes: newMessage.nodes ? newMessage.nodes.map(mapNodesToNodeLink) : [],
     type: "READER",
     uname: "1Cademy Assistant",
+    request: newMessage.request,
+    is404: newMessage.is404
   };
   return message;
 };

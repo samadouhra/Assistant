@@ -237,6 +237,7 @@ export type IAssistantResponse = {
     message: string;
     nodes?: NodeAssistantResponse[];
     is404?: boolean
+    request: string
     actions?: {
         type: IAssitantRequestAction;
         title: string;

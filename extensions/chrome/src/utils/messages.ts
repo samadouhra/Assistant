@@ -83,19 +83,27 @@ export const generateUserActionAnswer = (content: string): MessageData => {
     }
 }
 
-export const generateTopicNotFound = (): MessageData => {
+export const generateTopicNotFound = (request: string): MessageData => {
     return {
-        actions: [],
-        content: `
-        I'm afraid this topic is not included in the course content that I have been trained on. However, I would be happy to help you in one of the following ways:
-- I can provide you with an explanation based on my general knowledge outside of the course content.
-- Alternatively, if you would like to contribute to the knowledge graph of the course, I am open to learning from you and expanding my knowledge on the topic.
-        `,
+        actions: [
+            {
+                title: "Provide me an explanation",
+                type: "GeneralExplanation",
+                variant: "outlined"
+            },
+            {
+                title: "I’ll contribute",
+                type: "IllContribute",
+                variant: "outlined"
+            },
+        ],
+        content: "I'm afraid this topic is not included in the course content that I have been trained on. However, I would be happy to help you in one of the following ways:- I can provide you with an explanation based on my general knowledge outside of the course content.- Alternatively, if you would like to contribute to the knowledge graph of the course, I am open to learning from you and expanding my knowledge on the topic.",
         nodes: [],
         type: "READER",
         hour: getCurrentHourHHMM(),
         id: generateRandomId(),
         image: "",
-        uname: "You"
+        uname: "You",
+        request
     }
 }
