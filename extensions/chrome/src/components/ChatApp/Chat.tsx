@@ -39,9 +39,10 @@ import { generateRandomId } from "../../utils/others";
 import {
   generateContinueDisplayingNodeMessage,
   generateNodeMessage,
+  generateUserActionAnswer,
+  generateWhereContinueExplanation,
 } from "../../utils/messages";
 import SearchMessage from "./SearchMessage";
-import momment from "moment";
 import moment from "moment";
 import MarkdownRender from "./MarkdownRender";
 
@@ -65,7 +66,10 @@ export type NodeLinkType = {
 type ActionVariant = "contained" | "outlined";
 
 type MessageAction = {
-  type: IAssitantRequestAction | "LOCAL_DISPLAY_NEXT_MESSAGE_NODE";
+  type:
+    | IAssitantRequestAction
+    | "LOCAL_OPEN_NOTEBOOK"
+    | "LOCAL_CONTINUE_EXPLANATION_HERE";
   title: string;
   variant: ActionVariant;
 };
@@ -231,7 +235,7 @@ type ChatProps = {
 export const Chat = ({ sx }: ChatProps) => {
   const db = getFirestore();
   const [{ user, reputation, settings }, { dispatch }] = useAuth();
-  console.log({ user });
+  // console.log({ user });
   const [messagesObj, setMessagesObj] = useState<Message[]>([]);
   const [speakingMessageId, setSpeakingMessageId] = useState<string>("");
   const chatElementRef = useRef<HTMLDivElement | null>(null);
@@ -240,6 +244,9 @@ export const Chat = ({ sx }: ChatProps) => {
   const [nodesToBeDisplayed, setNodesToBeDisplayed] = useState<NodeLinkType[]>(
     []
   );
+  const [tmpNodesToBeDisplayed, setTmpNodesToBeDisplayed] = useState<
+    NodeLinkType[]
+  >([]);
   const { mode } = useTheme();
 
   const [userMessage, setUserMessage] = useState("");
@@ -272,6 +279,19 @@ export const Chat = ({ sx }: ChatProps) => {
     []
   );
 
+  const removeActionOfAMessage = (messageId: string, date: string) => {
+    const removeActionOFMessage = (message: MessageData): MessageData =>
+      message.id === messageId ? { ...message, actions: [] } : message;
+    setMessagesObj((prev) =>
+      prev.map((cur) =>
+        cur.date === date
+          ? { ...cur, messages: cur.messages.map(removeActionOFMessage) }
+          : cur
+      )
+    );
+    // idMessage
+  };
+
   const onPushAssistantMessage = (newMessage: IAssistantResponse) => {
     const currentDateYYMMDD = getCurrentDateYYMMDD();
     const message: MessageData = mapAssistantResponseToMessage(newMessage);
@@ -285,15 +305,16 @@ export const Chat = ({ sx }: ChatProps) => {
   };
 
   const onSubmitMessage = useCallback(async () => {
-    console.log({ userMessage });
+    const userMessageProcessed = userMessage.trim();
+    if (!userMessageProcessed) return;
+
     setIsLoading(true);
-    onPushUserMessage(userMessage);
+    onPushUserMessage(userMessageProcessed);
     const payload: IAssistantRequestPayload = {
       actionType: "DirectQuestion",
-      message: userMessage,
+      message: userMessageProcessed,
       conversationId,
     };
-
     chrome.runtime.sendMessage(chrome.runtime.id || process.env.EXTENSION_ID, {
       payload,
       messageType: "assistant",
@@ -306,6 +327,27 @@ export const Chat = ({ sx }: ChatProps) => {
     if (!chatElementRef.current) return;
     chatElementRef.current.scrollTop = chatElementRef.current.scrollHeight;
   };
+
+  const onLoadNextNodeToBeDisplayed = useCallback(() => {
+    if (!chatElementRef.current) return;
+
+    const scrollTop = chatElementRef.current.scrollTop;
+    const scrollHeight = chatElementRef.current.scrollHeight;
+    const clientHeight = chatElementRef.current.clientHeight;
+
+    const scrollDistanceFromTop = scrollTop + clientHeight;
+    const distanceToBottom = scrollHeight - scrollDistanceFromTop;
+
+    const threshold = 0.1; // 10% of the element's height
+    const thresholdValue = threshold * scrollHeight;
+
+    if (distanceToBottom < thresholdValue) {
+      // User is close to the bottom of the element
+      // console.log('Scroll is near to the end!.', nodesToBeDisplayed.length);
+      if (nodesToBeDisplayed.length < 0) return;
+      onDisplayNextNodeToBeDisplayed(nodesToBeDisplayed);
+    }
+  }, [nodesToBeDisplayed]);
 
   const narrateMessage = useCallback((id: string, message: string) => {
     console.log("narrateMessage", { message });
@@ -341,11 +383,43 @@ export const Chat = ({ sx }: ChatProps) => {
     setNodesToBeDisplayed(copyNodesToBeDisplayed);
   };
 
-  const getAction = (action: MessageAction) => {
-    if (action.type === "LOCAL_DISPLAY_NEXT_MESSAGE_NODE")
+  const getAction = (
+    messageId: string,
+    date: string,
+    action: MessageAction
+  ) => {
+    if (action.type === "LOCAL_OPEN_NOTEBOOK")
       return (
         <Button
-          onClick={() => onDisplayNextNodeToBeDisplayed(nodesToBeDisplayed)}
+          onClick={() => {
+            console.log("-> Open Notebook");
+            const messageWithSelectedAction = generateUserActionAnswer(
+              action.title
+            );
+            pushMessage(messageWithSelectedAction, getCurrentDateYYMMDD());
+            setTmpNodesToBeDisplayed([]);
+            removeActionOfAMessage(messageId, date);
+          }}
+          variant={action.variant}
+          fullWidth
+        >
+          {action.title}
+        </Button>
+      );
+
+    if (action.type === "LOCAL_CONTINUE_EXPLANATION_HERE")
+      return (
+        <Button
+          onClick={() => {
+            console.log("-> Continue explanation here", tmpNodesToBeDisplayed);
+            const messageWithSelectedAction = generateUserActionAnswer(
+              action.title
+            );
+            pushMessage(messageWithSelectedAction, getCurrentDateYYMMDD());
+            onDisplayNextNodeToBeDisplayed(tmpNodesToBeDisplayed);
+            setTmpNodesToBeDisplayed([]);
+            removeActionOfAMessage(messageId, date);
+          }}
           variant={action.variant}
           fullWidth
         >
@@ -360,9 +434,9 @@ export const Chat = ({ sx }: ChatProps) => {
     );
   };
 
-  useEffect(() => {
-    scrollToTheEnd();
-  }, [messagesObj]);
+  // useEffect(() => {
+  //   scrollToTheEnd();
+  // }, [messagesObj]);
 
   useEffect(() => {
     chrome.runtime.onMessage.addListener(
@@ -370,23 +444,10 @@ export const Chat = ({ sx }: ChatProps) => {
         if (message.messageType === "assistant") {
           console.log("answer:message form assistant", { message });
           onPushAssistantMessage({ ...message, nodes: [] });
-          onPushAssistantMessage({
-            conversationId: "sdfsdf",
-            message: `I just created a new notebook for you called "[Put the first few words of the question here]" and added the nodes explaining the answer to your question. Would you like to open the notebook or prefer to see the explanation of the nodes here in text.`,
-            nodes: [],
-            actions: [
-              {
-                title: "Open the notebook",
-                type: "Understood",
-                variant: "outline",
-              },
-              {
-                title: "Explain the nodes here",
-                type: "Understood",
-                variant: "outline",
-              },
-            ],
-          });
+          pushMessage(
+            generateWhereContinueExplanation("[notebook name here]"),
+            getCurrentDateYYMMDD()
+          );
           const nodesOnMessage = message.nodes
             ? message.nodes.map((c) => ({
                 content: c.content,
@@ -397,12 +458,8 @@ export const Chat = ({ sx }: ChatProps) => {
                 unit: c.unit,
               }))
             : [];
-          onDisplayNextNodeToBeDisplayed(nodesOnMessage);
-          // const firstElement = nodesOnMessage.shift()
-          // if (!firstElement) return
-          // pushMessage(generateNodeMessage(firstElement), getCurrentDateYYMMDD())
-          // pushMessage(generateContinueDisplayingNodeMessage(firstElement.title, firstElement.unit), getCurrentDateYYMMDD())
-          // setNodesToBeDisplayed(nodesOnMessage)
+          setTmpNodesToBeDisplayed(nodesOnMessage);
+          setIsLoading(false);
         }
       }
     );
@@ -537,6 +594,7 @@ export const Chat = ({ sx }: ChatProps) => {
       <Stack
         ref={chatElementRef}
         spacing="14px"
+        onScroll={onLoadNextNodeToBeDisplayed}
         sx={{
           // height: "358px",
           p: "12px 24px",
@@ -662,56 +720,6 @@ export const Chat = ({ sx }: ChatProps) => {
                       >
                         {c.hour}
                       </Typography>
-                      {/* <Box
-                        sx={{
-                          p: "10px 14px",
-                          borderRadius:
-                            c.type === "WRITER"
-                              ? "8px 0px 8px 8px"
-                              : "0px 8px 8px 8px",
-                          backgroundColor:
-                            c.type === "WRITER"
-                              ? DESIGN_SYSTEM_COLORS.orange100
-                              : mode === "light"
-                                ? DESIGN_SYSTEM_COLORS.gray200
-                                : DESIGN_SYSTEM_COLORS.notebookG600,
-                        }}
-                      >
-                        {
-                          c.nodes.length > 0 && (
-                            <Stack spacing={"12px"} sx={{ mb: "10px" }}>
-                              {c.nodes.map((node) => (
-                                <NodeLink
-                                  key={node.id}
-                                  title={node.title}
-                                  type={node.type}
-                                  link={node.link}
-                                />
-                              ))}
-                            </Stack>
-                          )
-                        }
-                        <Typography
-                          sx={{
-                            fontSize: "14px",
-                            color:
-                              mode === "dark"
-                                ? c.type === "WRITER"
-                                  ? DESIGN_SYSTEM_COLORS.notebookG700
-                                  : DESIGN_SYSTEM_COLORS.gray25
-                                : DESIGN_SYSTEM_COLORS.gray900,
-                          }}
-                        >
-                          {c.content}
-                        </Typography>
-                        {
-                          c.actions.length > 0 && (
-                            <Stack spacing={"12px"} sx={{ mt: "12px" }}>
-                              {c.actions.map((action, idx) => getAction(action))}
-                            </Stack>
-                          )
-                        }
-                      </Box > */}
                     </Box>
                     <Box
                       sx={{
@@ -726,8 +734,8 @@ export const Chat = ({ sx }: ChatProps) => {
                               ? DESIGN_SYSTEM_COLORS.orange100
                               : DESIGN_SYSTEM_COLORS.primary600
                             : mode === "light"
-                              ? DESIGN_SYSTEM_COLORS.gray200
-                              : DESIGN_SYSTEM_COLORS.notebookG600,
+                            ? DESIGN_SYSTEM_COLORS.gray200
+                            : DESIGN_SYSTEM_COLORS.notebookG600,
                       }}
                     >
                       {c.nodes.length > 0 && (
@@ -766,15 +774,9 @@ export const Chat = ({ sx }: ChatProps) => {
 
                       {c.actions.length > 0 && (
                         <Stack spacing={"12px"} sx={{ mt: "12px" }}>
-                          {c.actions.map((action, idx) => (
-                            <Button
-                              key={idx}
-                              variant={action.variant}
-                              fullWidth
-                            >
-                              {action.title}
-                            </Button>
-                          ))}
+                          {c.actions.map((action, idx) =>
+                            getAction(c.id, cur.date, action)
+                          )}
                         </Stack>
                       )}
                     </Box>
@@ -818,10 +820,7 @@ export const Chat = ({ sx }: ChatProps) => {
           <InputBase
             id="message-chat"
             value={userMessage}
-            onChange={(e) => {
-              console.log("in", e.target.value);
-              setUserMessage(e.target.value);
-            }}
+            onChange={(e) => setUserMessage(e.target.value)}
             onKeyDown={(e) =>
               (e.key === "Enter" || e.keyCode === 13) && onSubmitMessage()
             }

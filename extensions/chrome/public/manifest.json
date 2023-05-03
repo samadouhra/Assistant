@@ -23,9 +23,7 @@
   "omnibox": {
     "keyword": "1cademy"
   },
-  "host_permissions": [
-    "http://*/*", "https://*/*", "chrome://favicon/*"
-  ],
+  "host_permissions": ["http://*/*", "https://*/*", "chrome://favicon/*"],
   "permissions": [
     "tabs",
     "activeTab",
@@ -49,11 +47,17 @@
       "js": ["app.js"]
     },
     {
-      "matches": ["https://www.core-econ.org/the-economy/book*"],
+      "matches": [
+        "https://*.core-econ.org/the-economy/book*",
+        "https://core-econ.org/the-economy/book*"
+      ],
       "js": ["econ-chat.js"]
     },
     {
-      "matches": ["https://www.core-econ.org/the-economy/book*"],
+      "matches": [
+        "https://*.core-econ.org/the-economy/book*",
+        "https://core-econ.org/the-economy/book*"
+      ],
       "js": ["econ-events.js"]
     }
   ],
