@@ -36,21 +36,11 @@ const SearchMessage = () => {
         >
           1Cademy Assistant
         </Typography>
-        <Typography
-          sx={{
-            fontWeight: 400,
-            fontSize: "14px",
-            color:
-              mode === "dark"
-                ? DESIGN_SYSTEM_COLORS.gray25
-                : DESIGN_SYSTEM_COLORS.gray900,
-          }}
-        >
-          {`${now.getHours()}:${now.getMinutes()}`}
-        </Typography>
+        
       </Stack>
       <Box
         sx={{
+          gridRowStart:2,
           gridColumnStart: 2,
           p: "10px 14px",
           borderRadius: "0px 8px 8px 8px",

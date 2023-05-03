@@ -758,7 +758,7 @@ export const Chat = ({ sx }: ChatProps) => {
                         }}
                       >
                         <MarkdownRender text={c.content} />
-                      </Box>
+                      </Box>  
 
                       {c.actions.length > 0 && (
                         <Stack spacing={"12px"} sx={{ mt: "12px" }}>
@@ -777,7 +777,7 @@ export const Chat = ({ sx }: ChatProps) => {
                   </Box>
                 </Stack>
               ))}
-              {!isLoading && <SearchMessage />}
+              {isLoading && <SearchMessage />}
             </Fragment>
           );
         })}
