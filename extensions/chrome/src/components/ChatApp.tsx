@@ -42,6 +42,11 @@ function ChatApp() {
     chrome.runtime.sendMessage(chrome.runtime.id, {
       type: "REQUEST_ID_TOKEN"
     });
+
+    // chrome.runtime.sendMessage(chrome.runtime.id, {
+    //   type: "SELECT_NOTEBOOK",
+    //   notebookId: "--notebookId--"
+    // });
   }, []);
 
   const [selectedTextMouseUpPosition, setSelectedTextMouseUpPosition] = useState<{ mouseX: number, mouseY: number } | null>(null);

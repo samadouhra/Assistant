@@ -443,6 +443,25 @@ chrome.runtime.onMessage.addListener((message, sender) => {
         token: storageValues.idToken
       } as any);
     })()
+  } else if(message?.type === "SELECT_NOTEBOOK") {
+    (async () => {
+      const tabId = await findOrCreateNotebookTab();
+      chrome.scripting.executeScript({
+        target: {
+          tabId
+        },
+        args: [message?.notebookId],
+        func: (notebookId: string) => {
+          const event = new CustomEvent('assistant', {
+            detail: {
+              type: message?.type,
+              notebookId
+            }
+          });
+          window.dispatchEvent(event);
+        }
+      });
+    })()
   }
 });
 
