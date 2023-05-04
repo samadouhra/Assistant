@@ -20,6 +20,8 @@ import { RiveComponentMemoized } from "./RiveMemoized";
 import { getFirestore } from "firebase/firestore";
 import { useAuth } from "../../utils/AuthContext";
 import {
+  CreateNotebookWorkerResponse,
+  IAssistantCreateNotebookRequestPayload,
   IAssistantRequestPayload,
   IAssistantResponse,
   IAssitantRequestAction,
@@ -59,6 +61,8 @@ export type NodeLinkType = {
   link: string;
   content: string;
   unit: string;
+  nodeImage: string;
+  nodeVideo: string
 };
 
 type ActionVariant = "contained" | "outlined";
@@ -77,6 +81,7 @@ export type MessageData = {
   type: "WRITER" | "READER";
   uname: string;
   image: string;
+  video: string;
   content: string;
   nodes: NodeLinkType[];
   actions: MessageAction[];
@@ -230,14 +235,16 @@ const tempMap = (variant: string): ActionVariant => {
 };
 
 type ChatProps = {
+  token: string
   sx?: SxProps<Theme>;
 };
 
-export const Chat = ({ sx }: ChatProps) => {
+export const Chat = ({ token, sx }: ChatProps) => {
+  // console.log({ token })
   const db = getFirestore();
-  const [{ user, reputation, settings }, { dispatch }] = useAuth();
+  // const [{ user, reputation, settings }, { dispatch }] = useAuth();
 
-  const isAuthenticated = false
+  // const isAuthenticated = false
   // console.log({ user });
   const [notebookId, setNotebookId] = useState('')
   const [messagesObj, setMessagesObj] = useState<Message[]>([]);
@@ -369,6 +376,7 @@ export const Chat = ({ sx }: ChatProps) => {
   const onDisplayNextNodeToBeDisplayed = (
     nodesToBeDisplayed: NodeLinkType[]
   ) => {
+    console.log({ nodesToBeDisplayed })
     const copyNodesToBeDisplayed = [...nodesToBeDisplayed];
     const firstElement = copyNodesToBeDisplayed.shift();
     if (!firstElement) return;
@@ -462,21 +470,33 @@ export const Chat = ({ sx }: ChatProps) => {
   // }, [messagesObj]);
 
   useEffect(() => {
-    chrome.runtime.onMessage.addListener((message: (IAssistantResponse | ViewNodeWorkerResponse) & { messageType: string }) => {
+    chrome.runtime.onMessage.addListener((message: (IAssistantResponse | ViewNodeWorkerResponse | CreateNotebookWorkerResponse) & { messageType: string }) => {
       if (message.messageType === 'assistant') {
-        console.log('answer:message form assistant', { message })
+        console.log('>:message form assistant', { message })
         const { is404, request, nodes, conversationId } = message as IAssistantResponse
         if (is404) {
-          console.log(1)
+          // console.log(1)
           pushMessage(generateTopicNotFound(request ?? ""), getCurrentDateYYMMDD())
         } else {
-          console.log(22)
+          // console.log(22)
           onPushAssistantMessage({ ...(message as IAssistantResponse), nodes: [] })
           const nodesOnMessage = nodes ? nodes.map(mapNodesToNodeLink) : []
           if (!nodesOnMessage.length) return
-          // if there is nodes I need to create a notebook
-          pushMessage(generateWhereContinueExplanation('[notebook name here]'), getCurrentDateYYMMDD())
+
           setTmpNodesToBeDisplayed(nodesOnMessage)
+
+          // if there is nodes I need to create a notebook
+          // and notebook is note created yet
+          if (notebookId) return
+          if (!token) return
+          const payload: IAssistantCreateNotebookRequestPayload = { conversationId, message: request }
+          chrome.runtime.sendMessage(chrome.runtime.id || process.env.EXTENSION_ID, {
+            payload,
+            messageType: "notebook:create-notebook",
+            token
+          });
+          // push message tp continue explanation
+
           // if is authenticated create notebook
           // chrome.runtime.sendMessage(chrome.runtime.id || process.env.EXTENSION_ID, {
           //   payload,
@@ -491,7 +511,16 @@ export const Chat = ({ sx }: ChatProps) => {
         const { linkToOpenNode } = message as ViewNodeWorkerResponse
 
         window.open(linkToOpenNode, '_blank')?.focus();
-        console.log('answer>notebook:open-node', { message })
+        console.log('>notebook:open-node', { message })
+        setIsLoading(false);
+      }
+
+      if (message.messageType === 'notebook:create-notebook') {
+        const { notebookId, notebookTitle } = message as CreateNotebookWorkerResponse
+        console.log('>notebook:create-notebook', { message })
+        pushMessage(generateWhereContinueExplanation(notebookTitle), getCurrentDateYYMMDD())
+        setNotebookId(notebookId)
+        setIsLoading(false);
       }
     }
     );
@@ -583,7 +612,7 @@ export const Chat = ({ sx }: ChatProps) => {
                 fontWeight: 400,
               }}
             >
-              Powered by GPT-4
+              Powered by GPT-4{token ? "." : ""}
             </Typography>
           </Box>
           {messagesObj.length > 0 && (
@@ -774,6 +803,7 @@ export const Chat = ({ sx }: ChatProps) => {
                               type={node.type}
                               link={node.link}
                               notebookId={notebookId}
+                              token={token}
                             // id={node.id}
                             />
                           ))}
@@ -797,6 +827,21 @@ export const Chat = ({ sx }: ChatProps) => {
                           text={c.content}
                           customClass="one-react-markdown"
                         />
+                        {c.image && <img src={c.image} alt={`node image`} style={{ margin: "auto", maxWidth: "100%" }} />}
+                        {/* {c.video && <video src={c.video} style={{ margin: "auto", maxWidth: "100%" }} />} */}
+                        {c.video && <Box
+                          sx={{
+                            display: "flex",
+                            width: "100%",
+                            height: "310px",
+                          }}
+                        >
+                          <iframe
+                            src={c.video}
+                            width={"100%"}
+                            style={{ border: "0px" }}
+                          ></iframe>
+                        </Box>}
                       </Box>
 
                       {c.actions.length > 0 && (
@@ -852,6 +897,7 @@ export const Chat = ({ sx }: ChatProps) => {
             }
             fullWidth
             placeholder="Type your message here..."
+            autoComplete={"off"}
             sx={{
               p: "10px 14px",
               fontSize: "14px",
@@ -890,12 +936,16 @@ export const Chat = ({ sx }: ChatProps) => {
             <Button
               onClick={onSubmitMessage}
               variant="contained"
+              disabled={isLoading}
               sx={{
                 minWidth: "0px",
                 width: "36px",
                 height: "36px",
                 p: "10px",
                 borderRadius: "8px",
+                "& .Mui-disabled": {
+                  backgroundColor: DESIGN_SYSTEM_COLORS.primary500
+                }
               }}
             >
               <svg
@@ -907,7 +957,7 @@ export const Chat = ({ sx }: ChatProps) => {
               >
                 <path
                   d="M7.74976 10.2501L16.4998 1.50014M7.85608 10.5235L10.0462 16.1552C10.2391 16.6513 10.3356 16.8994 10.4746 16.9718C10.5951 17.0346 10.7386 17.0347 10.8592 16.972C10.9983 16.8998 11.095 16.6518 11.2886 16.1559L16.7805 2.08281C16.9552 1.63516 17.0426 1.41133 16.9948 1.26831C16.9533 1.1441 16.8558 1.04663 16.7316 1.00514C16.5886 0.957356 16.3647 1.0447 15.9171 1.21939L1.84398 6.71134C1.34808 6.90486 1.10013 7.00163 1.02788 7.14071C0.965237 7.26129 0.965322 7.40483 1.0281 7.52533C1.10052 7.66433 1.34859 7.7608 1.84471 7.95373L7.47638 10.1438C7.57708 10.183 7.62744 10.2026 7.66984 10.2328C7.70742 10.2596 7.74028 10.2925 7.76709 10.3301C7.79734 10.3725 7.81692 10.4228 7.85608 10.5235Z"
-                  stroke="white"
+                  stroke={isLoading ? "#d3d3d3te" : "white"}
                   strokeWidth="1.66667"
                   strokeLinecap="round"
                   strokeLinejoin="round"
@@ -936,6 +986,7 @@ const mapAssistantResponseToMessage = (
     hour: getCurrentHourHHMM(),
     id: generateRandomId(),
     image: "",
+    video: "",
     nodes: newMessage.nodes ? newMessage.nodes.map(mapNodesToNodeLink) : [],
     type: "READER",
     uname: "1Cademy Assistant",
@@ -952,6 +1003,7 @@ const mapUserMessageToMessage = (userMessage: string): MessageData => {
     hour: getCurrentHourHHMM(),
     id: generateRandomId(),
     image: "",
+    video: "",
     nodes: [],
     type: "WRITER",
     uname: "You"

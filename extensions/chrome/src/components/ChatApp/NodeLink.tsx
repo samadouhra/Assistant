@@ -5,24 +5,29 @@ import { NodeLinkType } from "./Chat";
 import NodeTypeIcon from "./NodeTypeIcon";
 import { useTheme } from "../../hooks/useTheme";
 import { IViewNodePayload, NodeType } from "../../types";
+import MarkdownRender from "./MarkdownRender";
 
 type NodeLinkProps = {
+  token: string
   notebookId: string
   type: NodeType;
   title: string;
   link: string;
 }
-export const NodeLink = ({ notebookId, title, type, link }: NodeLinkProps) => {
+export const NodeLink = ({ notebookId, title, type, link, token }: NodeLinkProps) => {
   const { mode } = useTheme();
   const onOpenNode = useCallback(() => {
     if (!window) return
     if (!notebookId) return
+    if (!token) return
 
     // after open link on notebook will open notebook in new tab
     const payload: IViewNodePayload = { notebookId, visible: true }
     chrome.runtime.sendMessage(chrome.runtime.id || process.env.EXTENSION_ID, {
       payload,
       messageType: "notebook:open-node",
+      token,
+      linkToOpenNode: link
     });
     // window.open(link, '_blank')?.focus();
   }, []);
@@ -62,7 +67,7 @@ export const NodeLink = ({ notebookId, title, type, link }: NodeLinkProps) => {
               : DESIGN_SYSTEM_COLORS.gray900,
         }}
       >
-        {title}
+        <MarkdownRender text={title} />
       </Typography>
     </Stack>
   );

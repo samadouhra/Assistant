@@ -34,6 +34,7 @@ export const generateContinueDisplayingNodeMessage = (title: string, unit: strin
         hour: getCurrentHourHHMM(),
         id: generateRandomId(),
         image: "",
+        video: "",
         uname: "You"
     }
 }
@@ -46,7 +47,8 @@ export const generateNodeMessage = (node: NodeLinkType): MessageData => {
         type: "READER",
         hour: getCurrentHourHHMM(),
         id: generateRandomId(),
-        image: "",
+        image: node.nodeImage,
+        video: node.nodeVideo,
         uname: "You"
     }
 }
@@ -71,6 +73,7 @@ export const generateWhereContinueExplanation = (notebookName: string): MessageD
         hour: getCurrentHourHHMM(),
         id: generateRandomId(),
         image: "",
+        video: "",
         uname: "You"
     }
 }
@@ -84,6 +87,7 @@ export const generateUserActionAnswer = (content: string): MessageData => {
         hour: getCurrentHourHHMM(),
         id: generateRandomId(),
         image: "",
+        video: "",
         uname: "You"
     }
 }
@@ -108,6 +112,7 @@ export const generateTopicNotFound = (request: string): MessageData => {
         hour: getCurrentHourHHMM(),
         id: generateRandomId(),
         image: "",
+        video: "",
         uname: "You",
         request
     }
