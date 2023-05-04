@@ -437,7 +437,7 @@ export const Chat = ({ isLoading, setIsLoading, appMessages, clearAppMessages, t
         );
         pushMessage(messageWithSelectedAction, getCurrentDateYYMMDD());
         removeActionOfAMessage(messageId, date);
-        window.open(`${NOTEBOOKS_LINK}/${notebookId}`, '_blank')?.focus();
+        // window.open(`${NOTEBOOKS_LINK}/${notebookId}`, '_blank')?.focus();
 
         // open all nodes
         const payload: IViewNodeOpenNodesPayload = {
@@ -451,6 +451,13 @@ export const Chat = ({ isLoading, setIsLoading, appMessages, clearAppMessages, t
         });
 
         setTmpNodesToBeDisplayed([]);
+        chrome.runtime.sendMessage(chrome.runtime.id, {
+          type: "SELECT_NOTEBOOK",
+          notebookId
+        });
+        chrome.runtime.sendMessage(chrome.runtime.id, {
+          type: "FOCUS_NOTEBOOK"
+        });
       }
     }
 
