@@ -474,11 +474,11 @@ chrome.runtime.onMessage.addListener((message, sender) => {
         target: {
           tabId
         },
-        args: [message?.notebookId],
-        func: (notebookId: string) => {
+        args: [message?.type, message?.notebookId],
+        func: (messageType: string, notebookId: string) => {
           const event = new CustomEvent('assistant', {
             detail: {
-              type: message?.type,
+              type: messageType,
               notebookId
             }
           });
