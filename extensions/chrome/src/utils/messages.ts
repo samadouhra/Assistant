@@ -1,3 +1,4 @@
+import { PieChart } from "../components/Charts/PieComponent";
 import { MessageData, NodeLinkType } from "../components/ChatApp/Chat";
 import { getCurrentHourHHMM } from "./date";
 import { generateRandomId } from "./others";
@@ -27,6 +28,7 @@ export const generateContinueDisplayingNodeMessage = (title: string, unit: strin
             }
         ] */,
         content: `You learned about "${title}" in Unit ${unit}. ${practice ? `You've correctly answered ${practice.answered} out of ${practice.totalQuestions} related practice questions.` : ""}`,
+        componentContent: practice ? PieChart({ answers: practice.answered, questions: practice.totalQuestions }) : null,// INFO: on my editor I was having an error to use in this way: <PieChart/>
         nodes: [],
         type: "READER",
         hour: getCurrentHourHHMM(),

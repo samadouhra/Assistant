@@ -1,4 +1,4 @@
-import React from "react";
+import React, { ReactNode } from "react";
 import VolumeOffIcon from "@mui/icons-material/VolumeOff";
 import VolumeUpIcon from "@mui/icons-material/VolumeUp";
 import MicIcon from "@mui/icons-material/Mic";
@@ -83,6 +83,7 @@ export type MessageData = {
   hour: string;
   is404?: boolean
   request?: string
+  componentContent?: ReactNode
 };
 type Message = {
   date: string;
@@ -810,7 +811,7 @@ export const Chat = ({ sx }: ChatProps) => {
                 </Stack>
               ))}
               {isLoading && <SearchMessage />}
-               
+
             </Fragment>
           );
         })}

@@ -1,5 +1,5 @@
 import * as d3 from "d3";
-import React, { useCallback, useMemo } from "react";
+import React, { FC, useCallback, useMemo } from "react";
 import { DESIGN_SYSTEM_COLORS } from "../../utils/colors";
 import { Theme, useTheme } from "../../hooks/useTheme";
 
@@ -77,7 +77,7 @@ type PieChartProps = {
   answers: number;
   width?: number;
 };
-export const PieChart = ({ width, questions, answers }: PieChartProps) => {
+export const PieChart: FC<PieChartProps> = ({ width, questions, answers }) => {
   const { mode } = useTheme();
 
   const _width = width ?? 145;
