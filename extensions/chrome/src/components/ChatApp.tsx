@@ -64,25 +64,31 @@ function ChatApp() {
 
       const selectionText = selection.toString();
       const selectionProcess = selectionText.trim()
-      if (selectionProcess) {
-        const range = selection.getRangeAt(0);
-        const rect = range.getBoundingClientRect();
-        const posX = rect.left + window.pageXOffset;
-        const posY = rect.top + window.pageYOffset;
 
-        const elementWidth = 48;
-        const elementHeight = 48;
-        const shiftX = 20;
-        const shiftY = 0;
-        const windowHeight = window.innerHeight;
-        const positionBelow = posY + shiftX + elementHeight > windowHeight;
-        const positionY = positionBelow ? posY - shiftY - elementHeight : posY + shiftY;
-        const positionX = posX - shiftX - elementWidth;
-        // console.log('Mouse position relative to page:', positionX, positionY);
-
-        setSelectedText(selectionProcess)
-        setSelectedTextMouseUpPosition({ mouseX: positionX, mouseY: positionY })
+      if (!selectionProcess) {
+        setSelectedTextMouseUpPosition(null)
+        setSelectedText("")
+        return
       }
+
+      const range = selection.getRangeAt(0);
+      const rect = range.getBoundingClientRect();
+      const posX = rect.left + window.pageXOffset;
+      const posY = rect.top + window.pageYOffset;
+
+      const elementWidth = 48;
+      const elementHeight = 48;
+      const shiftX = 20;
+      const shiftY = 0;
+      const windowHeight = window.innerHeight;
+      const positionBelow = posY + shiftX + elementHeight > windowHeight;
+      const positionY = positionBelow ? posY - shiftY - elementHeight : posY + shiftY;
+      const positionX = posX - shiftX - elementWidth;
+      // console.log('Mouse position relative to page:', positionX, positionY);
+
+      setSelectedText(selectionProcess)
+      setSelectedTextMouseUpPosition({ mouseX: positionX, mouseY: positionY })
+
     }
 
     document.addEventListener("mouseup", onDetectSelectedText);

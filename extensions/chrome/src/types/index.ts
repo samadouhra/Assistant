@@ -244,3 +244,19 @@ export type IAssistantResponse = {
         variant: "contained" | "outline";
     }[];
 };
+
+export type IViewNodePayload = {
+    notebookId: string;
+    visible: boolean;
+};
+
+export type ViewNodeWorkerPayload = {
+    nodeId: string,
+    linkToOpenNode: string
+    apiPayload: IViewNodePayload
+};
+
+export type ViewNodeWorkerResponse = {
+    linkToOpenNode: string,
+    messageType: string
+}

@@ -25,12 +25,14 @@ import {
   IAssitantRequestAction,
   NodeAssistantResponse,
   NodeType,
+  ViewNodeWorkerResponse,
 } from "../../types";
 import { NodeLink } from "./NodeLink";
 import {
   CHAT_BACKGROUND_IMAGE_URL,
   ENDPOINT_BASE,
   LOGO_URL,
+  NOTEBOOKS_LINK,
   SEARCH_ANIMATION_URL,
 } from "../../utils/constants";
 import { useTheme } from "../../hooks/useTheme";
@@ -233,18 +235,17 @@ type ChatProps = {
 export const Chat = ({ sx }: ChatProps) => {
   const db = getFirestore();
   const [{ user, reputation, settings }, { dispatch }] = useAuth();
+
+  const isAuthenticated = false
   // console.log({ user });
+  const [notebookId, setNotebookId] = useState('')
   const [messagesObj, setMessagesObj] = useState<Message[]>([]);
   const [speakingMessageId, setSpeakingMessageId] = useState<string>("");
   const chatElementRef = useRef<HTMLDivElement | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [conversationId, setConversationId] = useState("");
-  const [nodesToBeDisplayed, setNodesToBeDisplayed] = useState<NodeLinkType[]>(
-    []
-  );
-  const [tmpNodesToBeDisplayed, setTmpNodesToBeDisplayed] = useState<
-    NodeLinkType[]
-  >([]);
+  const [nodesToBeDisplayed, setNodesToBeDisplayed] = useState<NodeLinkType[]>([]);
+  const [tmpNodesToBeDisplayed, setTmpNodesToBeDisplayed] = useState<NodeLinkType[]>([]);
   const { mode } = useTheme();
 
   const [userMessage, setUserMessage] = useState("");
@@ -400,6 +401,7 @@ export const Chat = ({ sx }: ChatProps) => {
         pushMessage(messageWithSelectedAction, getCurrentDateYYMMDD());
         setTmpNodesToBeDisplayed([]);
         removeActionOfAMessage(messageId, date);
+        window.open(`${NOTEBOOKS_LINK}/${notebookId}`, '_blank')?.focus();
       }
     }
 
@@ -423,7 +425,7 @@ export const Chat = ({ sx }: ChatProps) => {
         pushMessage(messageWithSelectedAction, getCurrentDateYYMMDD());
         setTmpNodesToBeDisplayed([]);
         removeActionOfAMessage(messageId, date);
-        window.open('https://1cademy.com/notebook', '_blank')?.focus();
+        window.open(`${NOTEBOOKS_LINK}/${notebookId}`, '_blank')?.focus();
       }
     }
 
@@ -459,16 +461,17 @@ export const Chat = ({ sx }: ChatProps) => {
   // }, [messagesObj]);
 
   useEffect(() => {
-    chrome.runtime.onMessage.addListener((message: IAssistantResponse & { messageType: string }) => {
+    chrome.runtime.onMessage.addListener((message: (IAssistantResponse | ViewNodeWorkerResponse) & { messageType: string }) => {
       if (message.messageType === 'assistant') {
         console.log('answer:message form assistant', { message })
-        if (message.is404) {
+        const { is404, request, nodes, conversationId } = message as IAssistantResponse
+        if (is404) {
           console.log(1)
-          pushMessage(generateTopicNotFound(message.request ?? ""), getCurrentDateYYMMDD())
+          pushMessage(generateTopicNotFound(request ?? ""), getCurrentDateYYMMDD())
         } else {
           console.log(22)
-          onPushAssistantMessage({ ...message, nodes: [] })
-          const nodesOnMessage = message.nodes ? message.nodes.map(mapNodesToNodeLink) : []
+          onPushAssistantMessage({ ...(message as IAssistantResponse), nodes: [] })
+          const nodesOnMessage = nodes ? nodes.map(mapNodesToNodeLink) : []
           if (!nodesOnMessage.length) return
           // if there is nodes I need to create a notebook
           pushMessage(generateWhereContinueExplanation('[notebook name here]'), getCurrentDateYYMMDD())
@@ -479,8 +482,15 @@ export const Chat = ({ sx }: ChatProps) => {
           //   messageType: "assistant",
           // });
         }
-        setConversationId(message.conversationId)
+        setConversationId(conversationId)
         setIsLoading(false);
+      }
+
+      if (message.messageType === 'notebook:open-node') {
+        const { linkToOpenNode } = message as ViewNodeWorkerResponse
+
+        window.open(linkToOpenNode, '_blank')?.focus();
+        console.log('answer>notebook:open-node', { message })
       }
     }
     );
@@ -762,6 +772,7 @@ export const Chat = ({ sx }: ChatProps) => {
                               title={node.title}
                               type={node.type}
                               link={node.link}
+                              notebookId={notebookId}
                             // id={node.id}
                             />
                           ))}

@@ -2,6 +2,7 @@ import { db } from "./lib/firebase";
 import { doc, writeBatch, collection, getDocs, query, where, Timestamp } from "firebase/firestore";
 import { doesReloadRequired, fetchClientInfo, sendPromptAndReceiveResponse } from "./helpers/chatgpt";
 import { ENDPOINT_BASE } from "./utils/constants";
+import { ViewNodeWorkerPayload, ViewNodeWorkerResponse } from "./types";
 declare const createToaster: (toasterType: string, message: string) => void;
 
 const MAIN_MENUITEM_ID: string = "1cademy-assitant-ctx-mt";
@@ -332,6 +333,29 @@ const onAskAssistant = (message: any, sender: chrome.runtime.MessageSender) => {
   })()
 }
 
+const onOpenNode = (message: any, sender: chrome.runtime.MessageSender) => {
+  (async () => {
+    console.log({ message })
+    if (message?.messageType !== 'notebook:open-node') return
+    if (!sender.tab?.id) return console.error('Cant find tab id')
+
+    const { apiPayload, nodeId, linkToOpenNode } = message.payload as ViewNodeWorkerPayload
+    console.log('call endpoint:', { payload: message.payload })
+    const res = await fetch(`${ENDPOINT_BASE}/viewNode/${nodeId}`, {
+      method: "POST",
+      body: JSON.stringify(apiPayload),
+      headers: {
+        "Content-Type": "application/json"
+      }
+    })
+    await res.json()
+    // console.log({ data })
+    const response: ViewNodeWorkerResponse = { linkToOpenNode, messageType: "notebook:open-node" }
+    await chrome.tabs.sendMessage(sender.tab.id, response)
+
+  })()
+}
+
 chrome.runtime.onInstalled.addListener(() => {
   chrome.contextMenus.create({
     id: MAIN_MENUITEM_ID,
@@ -363,6 +387,8 @@ chrome.runtime.onMessage.addListener(onVoteDetection)
 // ------------------------------------1cademy asistant listener
 // detect to call assistant endpoint
 chrome.runtime.onMessage.addListener(onAskAssistant)
+
+chrome.runtime.onMessage.addListener(onOpenNode)
 
 const shortcutCommands: {
   [commandName: string]: ICommandType
