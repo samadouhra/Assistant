@@ -2,6 +2,7 @@ import { db } from "./lib/firebase";
 import { doc, writeBatch, collection, getDocs, query, where, Timestamp } from "firebase/firestore";
 import { doesReloadRequired, fetchClientInfo, sendPromptAndReceiveResponse } from "./helpers/chatgpt";
 import { ENDPOINT_BASE } from "./utils/constants";
+import { findOrCreateNotebookTab } from "./helpers/common";
 declare const createToaster: (toasterType: string, message: string) => void;
 
 const MAIN_MENUITEM_ID: string = "1cademy-assitant-ctx-mt";
@@ -359,6 +360,44 @@ chrome.runtime.onMessage.addListener(onUnameDetection)
 
 // to detect like or dislike on response
 chrome.runtime.onMessage.addListener(onVoteDetection)
+
+// to detect request messages from assistant chat to pass 1Cademy.com
+chrome.runtime.onMessageExternal.addListener((message) => {
+  if(typeof message !== "object" || message === null) return;
+  if(message?.type === "NOTEBOOK_ID_TOKEN") {
+    (async () => {
+      await chrome.storage.local.set({
+        "idToken": message.token
+      });
+
+      const tabs = await chrome.tabs.query({
+        url: ["https://*.core-econ.org/*", "https://core-econ.org/*"]
+      });
+      for(const tab of tabs) {
+        await chrome.tabs.sendMessage(tab.id!, {
+          type: "RECEIVE_ID_TOKEN",
+          token: message.token
+        } as any);
+      }
+    })()
+  }
+});
+
+chrome.runtime.onMessage.addListener((message, sender) => {
+  if(typeof message !== "object" || message === null) return;
+  if(message?.type === "REQUEST_ID_TOKEN") {
+    (async () => {
+      const storageValues: {
+        idToken?: string
+      } = await chrome.storage.local.get("idToken") as any;
+
+      chrome.tabs.sendMessage(sender.tab?.id!, {
+        type: "RECEIVE_ID_TOKEN",
+        token: storageValues.idToken
+      } as any);
+    })()
+  }
+});
 
 // ------------------------------------1cademy asistant listener
 // detect to call assistant endpoint

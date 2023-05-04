@@ -1,3 +1,5 @@
+export const ONECADEMY_NOTEBOOK_URL = "http://localhost:3000/notebook";//"https://1cademy.com/notebook";
+
 export const delay = async (time: number) => {
   return new Promise(resolve => {
     setTimeout(() => {
@@ -62,4 +64,27 @@ const annotate = (num: number, maxPlaces: any, forcePlaces: any, abbr: string) =
     rounded = Number(rounded).toFixed(forcePlaces)
   }
   return rounded + abbr
+}
+
+const getCurrentTab = async (): Promise<chrome.tabs.Tab> => {
+  const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+  return tab;
+}
+
+export const findOrCreateNotebookTab = async (): Promise<number> => {
+  const currentTab = await getCurrentTab();
+  const currentWindowId: number = currentTab.windowId;
+  const tabs = await chrome.tabs.query({
+    url: `${ONECADEMY_NOTEBOOK_URL}*`,
+    windowId: currentWindowId
+  });
+  if(tabs.length) {
+    return tabs[0].id!;
+  }
+
+  const newTab = await chrome.tabs.create({
+    url: ONECADEMY_NOTEBOOK_URL,
+    windowId: currentWindowId
+  });
+  return newTab.id!;
 }

@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { brandingLightTheme } from "../utils/brandingTheme";
 import "./ChatApp/styles.css";
 
@@ -17,11 +17,26 @@ import { DESIGN_SYSTEM_COLORS } from "../utils/colors";
 import { Chat } from "./ChatApp/Chat";
 import { LOGO_URL } from "../utils/constants";
 import { useTheme } from "../hooks/useTheme";
+import { db } from "../lib/firebase";
 
 function ChatApp() {
   const [displayAssistant, setDisplayAssistant] = useState(false);
   const [selectedText, setSelectedText] = useState("");
+  const [idToken, setIdToken] = useState("");
   const { mode } = useTheme();
+  useEffect(() => {
+    chrome.runtime.onMessage.addListener((message, sender) => {
+      if(typeof message !== "object" || message === null) return;
+      if(message.type === "RECEIVE_ID_TOKEN") {
+        console.log("message.token", message.token);
+        setIdToken(message.token);
+      }
+    });
+    chrome.runtime.sendMessage(chrome.runtime.id, {
+      type: "REQUEST_ID_TOKEN"
+    });
+  }, []);
+
   return (
     <Box
      className="oassitant-bot"  
