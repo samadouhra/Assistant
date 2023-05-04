@@ -77,6 +77,11 @@ function ChatApp() {
     setSelectedTextMouseUpPosition(null)
   }
 
+  const onCloseChat = () => {
+    setDisplayAssistant(false)
+    setIsLoading(false)
+  }
+
   const onAskSelectedText = () => {
     askSelectedTextToAssistant(selectedText)
     setSelectedTextMouseUpPosition(null)
@@ -163,7 +168,7 @@ function ChatApp() {
       <Box sx={{ position: "fixed", bottom: "38px", right: "38px" }}>
         {displayAssistant && (
           <Button
-            onClick={() => setDisplayAssistant(false)}
+            onClick={onCloseChat}
             sx={{
               minWidth: "0px",
               width: "52px",

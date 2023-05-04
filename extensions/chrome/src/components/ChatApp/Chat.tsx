@@ -459,6 +459,11 @@ export const Chat = ({ isLoading, setIsLoading, appMessages, clearAppMessages, t
     return formatedDate;
   };
 
+  const onClearChat = () => {
+    setMessagesObj([])
+    setIsLoading(false)
+  }
+
   return (
     <Stack
       sx={{
@@ -480,7 +485,7 @@ export const Chat = ({ isLoading, setIsLoading, appMessages, clearAppMessages, t
       }}
     >
       {/* header */}
-      <HeaderMessage displayClearButton={Boolean(messagesObj.length)} onClearChat={() => setMessagesObj([])} />
+      <HeaderMessage displayClearButton={Boolean(messagesObj.length)} onClearChat={onClearChat} />
 
       {/* sticky message */}
       <ChatStickyMessage />
