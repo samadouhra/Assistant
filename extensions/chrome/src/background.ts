@@ -3,7 +3,7 @@ import { doc, writeBatch, collection, getDocs, query, where, Timestamp } from "f
 import { doesReloadRequired, fetchClientInfo, sendPromptAndReceiveResponse } from "./helpers/chatgpt";
 import { ENDPOINT_BASE } from "./utils/constants";
 import { findOrCreateNotebookTab } from "./helpers/common";
-import { ViewNodeWorkerPayload, ViewNodeWorkerResponse } from "./types";
+import { IAssistantCreateNotebookRequestPayload, ViewNodeWorkerPayload, ViewNodeWorkerResponse } from "./types";
 declare const createToaster: (toasterType: string, message: string) => void;
 
 const MAIN_MENUITEM_ID: string = "1cademy-assitant-ctx-mt";
@@ -315,11 +315,11 @@ const onVoteDetection = (message: any, sender: chrome.runtime.MessageSender) => 
 const onAskAssistant = (message: any, sender: chrome.runtime.MessageSender) => {
 
   (async () => {
-    console.log({ message })
+    // console.log({ message })
     if (message?.messageType !== 'assistant') return
     if (!sender.tab?.id) return console.error('Cant find tab id')
 
-    console.log('call endpoint:', { payload: message.payload })
+    console.log('call onAskAssistant:', message)
     const res = await fetch(`${ENDPOINT_BASE}/assistant`, {
       method: "POST",
       body: JSON.stringify(message.payload),
@@ -336,23 +336,46 @@ const onAskAssistant = (message: any, sender: chrome.runtime.MessageSender) => {
 
 const onOpenNode = (message: any, sender: chrome.runtime.MessageSender) => {
   (async () => {
-    console.log({ message })
+    // console.log({ message })
     if (message?.messageType !== 'notebook:open-node') return
     if (!sender.tab?.id) return console.error('Cant find tab id')
 
-    const { apiPayload, nodeId, linkToOpenNode } = message.payload as ViewNodeWorkerPayload
-    console.log('call endpoint:', { payload: message.payload })
+    const { apiPayload, nodeId } = message.payload as ViewNodeWorkerPayload
+    console.log('call onOpenNode:', message)
     const res = await fetch(`${ENDPOINT_BASE}/viewNode/${nodeId}`, {
       method: "POST",
       body: JSON.stringify(apiPayload),
       headers: {
-        "Content-Type": "application/json"
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${message.token}`,
       }
     })
     await res.json()
     // console.log({ data })
-    const response: ViewNodeWorkerResponse = { linkToOpenNode, messageType: "notebook:open-node" }
+    const response: ViewNodeWorkerResponse = { linkToOpenNode: message.linkToOpenNode, messageType: "notebook:open-node" }
     await chrome.tabs.sendMessage(sender.tab.id, response)
+
+  })()
+}
+
+const onOpenNotebook = (message: any, sender: chrome.runtime.MessageSender) => {
+  (async () => {
+    // console.log({ message })
+    if (message?.messageType !== 'notebook:create-notebook') return
+    if (!sender.tab?.id) return console.error('Cant find tab id')
+
+    const apiPayload = message.payload as IAssistantCreateNotebookRequestPayload
+    console.log('call onOpenNotebook:', message)
+    const res = await fetch(`${ENDPOINT_BASE}/assistant/createNotebook`, {
+      method: "POST",
+      body: JSON.stringify(apiPayload),
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${message.token}`,
+      }
+    })
+    const data = await res.json()
+    await chrome.tabs.sendMessage(sender.tab.id, { ...data, messageType: "notebook:create-notebook" })
 
   })()
 }
@@ -387,8 +410,8 @@ chrome.runtime.onMessage.addListener(onVoteDetection)
 
 // to detect request messages from assistant chat to pass 1Cademy.com
 chrome.runtime.onMessageExternal.addListener((message) => {
-  if(typeof message !== "object" || message === null) return;
-  if(message?.type === "NOTEBOOK_ID_TOKEN") {
+  if (typeof message !== "object" || message === null) return;
+  if (message?.type === "NOTEBOOK_ID_TOKEN") {
     (async () => {
       await chrome.storage.local.set({
         "idToken": message.token
@@ -397,7 +420,7 @@ chrome.runtime.onMessageExternal.addListener((message) => {
       const tabs = await chrome.tabs.query({
         url: ["https://*.core-econ.org/*", "https://core-econ.org/*"]
       });
-      for(const tab of tabs) {
+      for (const tab of tabs) {
         await chrome.tabs.sendMessage(tab.id!, {
           type: "RECEIVE_ID_TOKEN",
           token: message.token
@@ -408,8 +431,8 @@ chrome.runtime.onMessageExternal.addListener((message) => {
 });
 
 chrome.runtime.onMessage.addListener((message, sender) => {
-  if(typeof message !== "object" || message === null) return;
-  if(message?.type === "REQUEST_ID_TOKEN") {
+  if (typeof message !== "object" || message === null) return;
+  if (message?.type === "REQUEST_ID_TOKEN") {
     (async () => {
       const storageValues: {
         idToken?: string
@@ -447,6 +470,8 @@ chrome.runtime.onMessage.addListener((message, sender) => {
 chrome.runtime.onMessage.addListener(onAskAssistant)
 
 chrome.runtime.onMessage.addListener(onOpenNode)
+
+chrome.runtime.onMessage.addListener(onOpenNotebook)
 
 const shortcutCommands: {
   [commandName: string]: ICommandType

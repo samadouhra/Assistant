@@ -260,3 +260,20 @@ export type ViewNodeWorkerResponse = {
     linkToOpenNode: string,
     messageType: string
 }
+
+export type IAssistantCreateNotebookRequestPayload = {
+    message: string;
+    conversationId: string;
+};
+
+export type CreateNotebookWorkerResponse = {
+    notebookId: string,
+    notebookTitle: string
+    messageType: string
+}
+
+// export type CreateNotebookWorkerPayload = {
+//     nodeId: string,
+//     linkToOpenNode: string
+//     apiPayload: IAssistantCreateNotebookRequestPayload
+// }

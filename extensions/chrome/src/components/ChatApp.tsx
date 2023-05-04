@@ -28,8 +28,8 @@ function ChatApp() {
   const { mode } = useTheme();
   useEffect(() => {
     chrome.runtime.onMessage.addListener((message, sender) => {
-      if(typeof message !== "object" || message === null) return;
-      if(message.type === "RECEIVE_ID_TOKEN") {
+      if (typeof message !== "object" || message === null) return;
+      if (message.type === "RECEIVE_ID_TOKEN") {
         console.log("message.token", message.token);
         setIdToken(message.token);
       }
@@ -220,7 +220,7 @@ function ChatApp() {
       </Box>
 
       {/* chat */}
-      {displayAssistant && <Chat sx={{ position: "fixed", bottom: "112px", right: "38px" }} />}
+      {displayAssistant && <Chat token={idToken} sx={{ position: "fixed", bottom: "112px", right: "38px" }} />}
     </Box >
   )
 }
