@@ -485,9 +485,19 @@ export const Chat = ({ isLoading, setIsLoading, appMessages, clearAppMessages, t
         setTmpNodesToBeDisplayed([]);
         removeActionOfAMessage(messageId, date);
         if (notebookId) {
-          window.open(`${NOTEBOOKS_LINK}/${notebookId}`, '_blank')?.focus();
+          chrome.runtime.sendMessage(chrome.runtime.id, {
+            type: "SELECT_NOTEBOOK",
+            notebookId
+          });
+          chrome.runtime.sendMessage(chrome.runtime.id, {
+            type: "FOCUS_NOTEBOOK"
+          });
+          // window.open(`${NOTEBOOKS_LINK}/${notebookId}`, '_blank')?.focus();
         } else {
-          window.open(NOTEBOOK_LINK, '_blank')?.focus();
+          // window.open(NOTEBOOK_LINK, '_blank')?.focus();
+          chrome.runtime.sendMessage(chrome.runtime.id, {
+            type: "FOCUS_NOTEBOOK"
+          });
         }
       }
     }
@@ -565,7 +575,7 @@ export const Chat = ({ isLoading, setIsLoading, appMessages, clearAppMessages, t
       if (message.messageType === 'notebook:open-node') {
         const { linkToOpenNode } = message as ViewNodeWorkerResponse
 
-        window.open(linkToOpenNode, '_blank')?.focus();
+        // window.open(linkToOpenNode, '_blank')?.focus();
         console.log('>notebook:open-node', { message })
         setIsLoading(false);
       }
