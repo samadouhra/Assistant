@@ -468,8 +468,10 @@ export const Chat = ({ sx }: ChatProps) => {
         } else {
           console.log(22)
           onPushAssistantMessage({ ...message, nodes: [] })
-          pushMessage(generateWhereContinueExplanation('[notebook name here]'), getCurrentDateYYMMDD())
           const nodesOnMessage = message.nodes ? message.nodes.map(mapNodesToNodeLink) : []
+          if (!nodesOnMessage.length) return
+          // if there is nodes I need to create a notebook
+          pushMessage(generateWhereContinueExplanation('[notebook name here]'), getCurrentDateYYMMDD())
           setTmpNodesToBeDisplayed(nodesOnMessage)
           // if is authenticated create notebook
           // chrome.runtime.sendMessage(chrome.runtime.id || process.env.EXTENSION_ID, {
