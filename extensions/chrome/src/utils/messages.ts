@@ -3,7 +3,10 @@ import { getCurrentHourHHMM } from "./date";
 import { generateRandomId } from "./others";
 
 
-export const generateContinueDisplayingNodeMessage = (title: string, unit: string, thereIsNextNode: boolean): MessageData => {
+export const generateContinueDisplayingNodeMessage = (title: string, unit: string, thereIsNextNode: boolean, practice?: {
+    totalQuestions: number;
+    answered: number;
+}): MessageData => {
     return {
         actions: []/* thereIsNextNode ? [
             {
@@ -23,7 +26,7 @@ export const generateContinueDisplayingNodeMessage = (title: string, unit: strin
                 variant: "outlined"
             }
         ] */,
-        content: `You learned about "${title}" in Unit ${unit}. Because you correctly answered all the related practice questions, it's a while I've not asked you about this concept.`,
+        content: `You learned about "${title}" in Unit ${unit}. ${practice ? `You've correctly answered ${practice.answered} out of ${practice.totalQuestions} related practice questions.` : ""}`,
         nodes: [],
         type: "READER",
         hour: getCurrentHourHHMM(),
