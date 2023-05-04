@@ -136,7 +136,7 @@ function ChatApp() {
         },
       }}
     >
-      {displayAssistant && selectedText && selectedTextMouseUpPosition && <IconButton
+      {selectedText && selectedTextMouseUpPosition && <IconButton
         onClick={onAskSelectedText}
         sx={{
           position: "absolute",
