@@ -3,7 +3,7 @@ import { doc, writeBatch, collection, getDocs, query, where, Timestamp } from "f
 import { doesReloadRequired, fetchClientInfo, sendPromptAndReceiveResponse } from "./helpers/chatgpt";
 import { ENDPOINT_BASE } from "./utils/constants";
 import { findOrCreateNotebookTab } from "./helpers/common";
-import { IAssistantCreateNotebookRequestPayload, ViewNodeWorkerPayload, ViewNodeWorkerResponse } from "./types";
+import { IAssistantCreateNotebookRequestPayload, IViewNodeOpenNodesPayload, ViewNodeWorkerPayload, ViewNodeWorkerResponse } from "./types";
 declare const createToaster: (toasterType: string, message: string) => void;
 
 const MAIN_MENUITEM_ID: string = "1cademy-assitant-ctx-mt";
@@ -358,6 +358,30 @@ const onOpenNode = (message: any, sender: chrome.runtime.MessageSender) => {
   })()
 }
 
+const onOpenNodes = (message: any, sender: chrome.runtime.MessageSender) => {
+  (async () => {
+    // console.log({ message })
+    if (message?.messageType !== 'notebook:open-nodes') return
+    if (!sender.tab?.id) return console.error('Cant find tab id')
+
+    const payload = message.payload as IViewNodeOpenNodesPayload
+    console.log('call onOpenNodess:', message)
+    const res = await fetch(`${ENDPOINT_BASE}/viewNode/openNodes`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${message.token}`,
+      }
+    })
+    await res.json()
+    // console.log({ data })
+    // const response: ViewNodeWorkerResponse = { linkToOpenNode: message.linkToOpenNode, messageType: "notebook:open-nodes" }
+    await chrome.tabs.sendMessage(sender.tab.id, { messageType: "notebook:open-nodes" })
+
+  })()
+}
+
 const onOpenNotebook = (message: any, sender: chrome.runtime.MessageSender) => {
   (async () => {
     // console.log({ message })
@@ -443,7 +467,7 @@ chrome.runtime.onMessage.addListener((message, sender) => {
         token: storageValues.idToken
       } as any);
     })()
-  } else if(message?.type === "SELECT_NOTEBOOK") {
+  } else if (message?.type === "SELECT_NOTEBOOK") {
     (async () => {
       const tabId = await findOrCreateNotebookTab();
       chrome.scripting.executeScript({
@@ -472,6 +496,8 @@ chrome.runtime.onMessage.addListener(onAskAssistant)
 chrome.runtime.onMessage.addListener(onOpenNode)
 
 chrome.runtime.onMessage.addListener(onOpenNotebook)
+
+chrome.runtime.onMessage.addListener(onOpenNodes)
 
 const shortcutCommands: {
   [commandName: string]: ICommandType

@@ -277,3 +277,9 @@ export type CreateNotebookWorkerResponse = {
 //     linkToOpenNode: string
 //     apiPayload: IAssistantCreateNotebookRequestPayload
 // }
+
+export type IViewNodeOpenNodesPayload = {
+    notebookId: string;
+    visible: boolean;
+    nodeIds: string[];
+};

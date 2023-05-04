@@ -25,6 +25,7 @@ import {
   IAssistantRequestPayload,
   IAssistantResponse,
   IAssitantRequestAction,
+  IViewNodeOpenNodesPayload,
   NodeAssistantResponse,
   NodeType,
   ViewNodeWorkerResponse,
@@ -430,14 +431,26 @@ export const Chat = ({ isLoading, setIsLoading, appMessages, clearAppMessages, t
     let onClick = undefined
     if (action.type === "LOCAL_OPEN_NOTEBOOK") {
       onClick = () => {
-        console.log("-> Open Notebook");
+        console.log("-> Open Notebook", notebookId);
         const messageWithSelectedAction = generateUserActionAnswer(
           action.title
         );
         pushMessage(messageWithSelectedAction, getCurrentDateYYMMDD());
-        setTmpNodesToBeDisplayed([]);
         removeActionOfAMessage(messageId, date);
         window.open(`${NOTEBOOKS_LINK}/${notebookId}`, '_blank')?.focus();
+
+        // open all nodes
+        const payload: IViewNodeOpenNodesPayload = {
+          nodeIds: tmpNodesToBeDisplayed.map(c => c.id),
+          notebookId,
+          visible: true
+        };
+        chrome.runtime.sendMessage(chrome.runtime.id || process.env.EXTENSION_ID, {
+          payload,
+          messageType: "notebook:open-nodes",
+        });
+
+        setTmpNodesToBeDisplayed([]);
       }
     }
 
