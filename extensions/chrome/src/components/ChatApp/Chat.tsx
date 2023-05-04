@@ -797,6 +797,7 @@ export const Chat = ({ sx }: ChatProps) => {
                 </Stack>
               ))}
               {isLoading && <SearchMessage />}
+               
             </Fragment>
           );
         })}
