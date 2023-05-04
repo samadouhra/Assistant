@@ -486,6 +486,13 @@ chrome.runtime.onMessage.addListener((message, sender) => {
         }
       });
     })()
+  } else if (message?.type === "FOCUS_NOTEBOOK") {
+    (async () => {
+      const tabId = await findOrCreateNotebookTab();
+      await chrome.tabs.update(tabId, {
+        active: true
+      });
+    })()
   }
 });
 
