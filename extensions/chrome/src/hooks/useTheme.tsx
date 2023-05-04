@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 
-type Theme = {
+export  type Theme = {
   mode: "dark" | "light";
 };
 

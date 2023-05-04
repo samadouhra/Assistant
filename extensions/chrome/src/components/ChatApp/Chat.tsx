@@ -1,4 +1,4 @@
-import React from "react";
+import React, { ReactNode } from "react";
 import VolumeOffIcon from "@mui/icons-material/VolumeOff";
 import VolumeUpIcon from "@mui/icons-material/VolumeUp";
 import MicIcon from "@mui/icons-material/Mic";
@@ -25,12 +25,14 @@ import {
   IAssitantRequestAction,
   NodeAssistantResponse,
   NodeType,
+  ViewNodeWorkerResponse,
 } from "../../types";
 import { NodeLink } from "./NodeLink";
 import {
   CHAT_BACKGROUND_IMAGE_URL,
   ENDPOINT_BASE,
   LOGO_URL,
+  NOTEBOOKS_LINK,
   SEARCH_ANIMATION_URL,
 } from "../../utils/constants";
 import { useTheme } from "../../hooks/useTheme";
@@ -65,7 +67,7 @@ type MessageAction = {
   type:
   | IAssitantRequestAction
   | "LOCAL_OPEN_NOTEBOOK"
-  | "LOCAL_CONTINUE_EXPLANATION_HERE";
+  | "LOCAL_CONTINUE_EXPLANATION_HERE"
   title: string;
   variant: ActionVariant;
 };
@@ -79,6 +81,9 @@ export type MessageData = {
   nodes: NodeLinkType[];
   actions: MessageAction[];
   hour: string;
+  is404?: boolean
+  request?: string
+  componentContent?: ReactNode
 };
 type Message = {
   date: string;
@@ -231,24 +236,24 @@ type ChatProps = {
 export const Chat = ({ sx }: ChatProps) => {
   const db = getFirestore();
   const [{ user, reputation, settings }, { dispatch }] = useAuth();
+
+  const isAuthenticated = false
   // console.log({ user });
+  const [notebookId, setNotebookId] = useState('')
   const [messagesObj, setMessagesObj] = useState<Message[]>([]);
   const [speakingMessageId, setSpeakingMessageId] = useState<string>("");
   const chatElementRef = useRef<HTMLDivElement | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [conversationId, setConversationId] = useState("");
-  const [nodesToBeDisplayed, setNodesToBeDisplayed] = useState<NodeLinkType[]>(
-    []
-  );
-  const [tmpNodesToBeDisplayed, setTmpNodesToBeDisplayed] = useState<
-    NodeLinkType[]
-  >([]);
+  const [nodesToBeDisplayed, setNodesToBeDisplayed] = useState<NodeLinkType[]>([]);
+  const [tmpNodesToBeDisplayed, setTmpNodesToBeDisplayed] = useState<NodeLinkType[]>([]);
   const { mode } = useTheme();
 
   const [userMessage, setUserMessage] = useState("");
 
   const pushMessage = useCallback(
     (message: MessageData, currentDateYYMMDD: string) => {
+      console.log('pushMessage', { message })
       setMessagesObj((prev) => {
         if (prev.length === 0)
           return [{ date: currentDateYYMMDD, messages: [message] }];
@@ -266,6 +271,7 @@ export const Chat = ({ sx }: ChatProps) => {
           },
           { found: false, result: [] }
         );
+        console.log("pushMessage", { res })
         const newMessageObj: Message[] = res.found
           ? res.result
           : [...res.result, { date: currentDateYYMMDD, messages: [message] }];
@@ -382,49 +388,70 @@ export const Chat = ({ sx }: ChatProps) => {
   const getAction = (
     messageId: string,
     date: string,
-    action: MessageAction
+    action: MessageAction,
+    request?: string
   ) => {
-    if (action.type === "LOCAL_OPEN_NOTEBOOK")
-      return (
-        <Button
-          onClick={() => {
-            console.log("-> Open Notebook");
-            const messageWithSelectedAction = generateUserActionAnswer(
-              action.title
-            );
-            pushMessage(messageWithSelectedAction, getCurrentDateYYMMDD());
-            setTmpNodesToBeDisplayed([]);
-            removeActionOfAMessage(messageId, date);
-          }}
-          variant={action.variant}
-          fullWidth
-        >
-          {action.title}
-        </Button>
-      );
 
-    if (action.type === "LOCAL_CONTINUE_EXPLANATION_HERE")
-      return (
-        <Button
-          onClick={() => {
-            console.log("-> Continue explanation here", tmpNodesToBeDisplayed);
-            const messageWithSelectedAction = generateUserActionAnswer(
-              action.title
-            );
-            pushMessage(messageWithSelectedAction, getCurrentDateYYMMDD());
-            onDisplayNextNodeToBeDisplayed(tmpNodesToBeDisplayed);
-            setTmpNodesToBeDisplayed([]);
-            removeActionOfAMessage(messageId, date);
-          }}
-          variant={action.variant}
-          fullWidth
-        >
-          {action.title}
-        </Button>
-      );
+    let onClick = undefined
+    if (action.type === "LOCAL_OPEN_NOTEBOOK") {
+      onClick = () => {
+        console.log("-> Open Notebook");
+        const messageWithSelectedAction = generateUserActionAnswer(
+          action.title
+        );
+        pushMessage(messageWithSelectedAction, getCurrentDateYYMMDD());
+        setTmpNodesToBeDisplayed([]);
+        removeActionOfAMessage(messageId, date);
+        window.open(`${NOTEBOOKS_LINK}/${notebookId}`, '_blank')?.focus();
+      }
+    }
+
+    if (action.type === "LOCAL_CONTINUE_EXPLANATION_HERE") {
+      onClick = () => {
+        console.log("-> Continue explanation here", tmpNodesToBeDisplayed);
+        const messageWithSelectedAction = generateUserActionAnswer(
+          action.title
+        );
+        pushMessage(messageWithSelectedAction, getCurrentDateYYMMDD());
+        onDisplayNextNodeToBeDisplayed(tmpNodesToBeDisplayed);
+        setTmpNodesToBeDisplayed([]);
+        removeActionOfAMessage(messageId, date);
+      }
+    }
+
+    if (action.type === 'IllContribute') {
+      onClick = () => {
+        console.log("-> IllContribute");
+        const messageWithSelectedAction = generateUserActionAnswer(action.title);
+        pushMessage(messageWithSelectedAction, getCurrentDateYYMMDD());
+        setTmpNodesToBeDisplayed([]);
+        removeActionOfAMessage(messageId, date);
+        window.open(`${NOTEBOOKS_LINK}/${notebookId}`, '_blank')?.focus();
+      }
+    }
+
+    if (action.type === 'GeneralExplanation') {
+      onClick = () => {
+        console.log("-> GeneralExplanation");
+        const messageWithSelectedAction = generateUserActionAnswer(action.title);
+        pushMessage(messageWithSelectedAction, getCurrentDateYYMMDD());
+        setTmpNodesToBeDisplayed([]);
+        removeActionOfAMessage(messageId, date);
+        // TODO: sendMessage to service worker
+        const payload: IAssistantRequestPayload = {
+          actionType: "GeneralExplanation",
+          message: request ?? '',
+          conversationId,
+        };
+        chrome.runtime.sendMessage(chrome.runtime.id || process.env.EXTENSION_ID, {
+          payload,
+          messageType: "assistant",
+        });
+      }
+    }
 
     return (
-      <Button variant={action.variant} fullWidth>
+      <Button onClick={onClick} variant={action.variant} fullWidth>
         {action.title}
       </Button>
     );
@@ -435,27 +462,36 @@ export const Chat = ({ sx }: ChatProps) => {
   // }, [messagesObj]);
 
   useEffect(() => {
-    chrome.runtime.onMessage.addListener((message: IAssistantResponse & { messageType: string }) => {
+    chrome.runtime.onMessage.addListener((message: (IAssistantResponse | ViewNodeWorkerResponse) & { messageType: string }) => {
       if (message.messageType === 'assistant') {
         console.log('answer:message form assistant', { message })
-        if (message.is404) {
+        const { is404, request, nodes, conversationId } = message as IAssistantResponse
+        if (is404) {
           console.log(1)
-          pushMessage(generateTopicNotFound(), getCurrentDateYYMMDD())
+          pushMessage(generateTopicNotFound(request ?? ""), getCurrentDateYYMMDD())
         } else {
-          console.log(2)
-          onPushAssistantMessage({ ...message, nodes: [] })
+          console.log(22)
+          onPushAssistantMessage({ ...(message as IAssistantResponse), nodes: [] })
+          const nodesOnMessage = nodes ? nodes.map(mapNodesToNodeLink) : []
+          if (!nodesOnMessage.length) return
+          // if there is nodes I need to create a notebook
           pushMessage(generateWhereContinueExplanation('[notebook name here]'), getCurrentDateYYMMDD())
-          const nodesOnMessage = message.nodes ? message.nodes.map(mapNodesToNodeLink) : []
           setTmpNodesToBeDisplayed(nodesOnMessage)
-
           // if is authenticated create notebook
-
           // chrome.runtime.sendMessage(chrome.runtime.id || process.env.EXTENSION_ID, {
           //   payload,
           //   messageType: "assistant",
           // });
         }
+        setConversationId(conversationId)
         setIsLoading(false);
+      }
+
+      if (message.messageType === 'notebook:open-node') {
+        const { linkToOpenNode } = message as ViewNodeWorkerResponse
+
+        window.open(linkToOpenNode, '_blank')?.focus();
+        console.log('answer>notebook:open-node', { message })
       }
     }
     );
@@ -737,6 +773,7 @@ export const Chat = ({ sx }: ChatProps) => {
                               title={node.title}
                               type={node.type}
                               link={node.link}
+                              notebookId={notebookId}
                             // id={node.id}
                             />
                           ))}
@@ -765,7 +802,7 @@ export const Chat = ({ sx }: ChatProps) => {
                       {c.actions.length > 0 && (
                         <Stack spacing={"12px"} sx={{ mt: "12px" }}>
                           {c.actions.map((action, idx) =>
-                            getAction(c.id, cur.date, action)
+                            getAction(c.id, cur.date, action, c.request)
                           )}
                         </Stack>
                       )}
@@ -774,6 +811,7 @@ export const Chat = ({ sx }: ChatProps) => {
                 </Stack>
               ))}
               {isLoading && <SearchMessage />}
+
             </Fragment>
           );
         })}
@@ -901,6 +939,8 @@ const mapAssistantResponseToMessage = (
     nodes: newMessage.nodes ? newMessage.nodes.map(mapNodesToNodeLink) : [],
     type: "READER",
     uname: "1Cademy Assistant",
+    request: newMessage.request,
+    is404: newMessage.is404
   };
   return message;
 };

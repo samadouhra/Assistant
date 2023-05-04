@@ -4,18 +4,27 @@ import { DESIGN_SYSTEM_COLORS } from "../../utils/colors";
 import { NodeLinkType } from "./Chat";
 import NodeTypeIcon from "./NodeTypeIcon";
 import { useTheme } from "../../hooks/useTheme";
-import { NodeType } from "../../types";
+import { IViewNodePayload, NodeType } from "../../types";
 
 type NodeLinkProps = {
+  notebookId: string
   type: NodeType;
   title: string;
   link: string;
 }
-export const NodeLink = ({ title, type, link }: NodeLinkProps) => {
+export const NodeLink = ({ notebookId, title, type, link }: NodeLinkProps) => {
   const { mode } = useTheme();
   const onOpenNode = useCallback(() => {
     if (!window) return
-    window.open(link, '_blank')?.focus();
+    if (!notebookId) return
+
+    // after open link on notebook will open notebook in new tab
+    const payload: IViewNodePayload = { notebookId, visible: true }
+    chrome.runtime.sendMessage(chrome.runtime.id || process.env.EXTENSION_ID, {
+      payload,
+      messageType: "notebook:open-node",
+    });
+    // window.open(link, '_blank')?.focus();
   }, []);
 
 

@@ -3,6 +3,7 @@ import { doc, writeBatch, collection, getDocs, query, where, Timestamp } from "f
 import { doesReloadRequired, fetchClientInfo, sendPromptAndReceiveResponse } from "./helpers/chatgpt";
 import { ENDPOINT_BASE } from "./utils/constants";
 import { findOrCreateNotebookTab } from "./helpers/common";
+import { ViewNodeWorkerPayload, ViewNodeWorkerResponse } from "./types";
 declare const createToaster: (toasterType: string, message: string) => void;
 
 const MAIN_MENUITEM_ID: string = "1cademy-assitant-ctx-mt";
@@ -318,7 +319,7 @@ const onAskAssistant = (message: any, sender: chrome.runtime.MessageSender) => {
     if (message?.messageType !== 'assistant') return
     if (!sender.tab?.id) return console.error('Cant find tab id')
 
-    console.log('call endpont')
+    console.log('call endpoint:', { payload: message.payload })
     const res = await fetch(`${ENDPOINT_BASE}/assistant`, {
       method: "POST",
       body: JSON.stringify(message.payload),
@@ -327,8 +328,31 @@ const onAskAssistant = (message: any, sender: chrome.runtime.MessageSender) => {
       }
     })
     const data = await res.json()
-    // console.log({ data })
+    console.log({ data })
     await chrome.tabs.sendMessage(sender.tab.id, { ...data, messageType: "assistant" })
+
+  })()
+}
+
+const onOpenNode = (message: any, sender: chrome.runtime.MessageSender) => {
+  (async () => {
+    console.log({ message })
+    if (message?.messageType !== 'notebook:open-node') return
+    if (!sender.tab?.id) return console.error('Cant find tab id')
+
+    const { apiPayload, nodeId, linkToOpenNode } = message.payload as ViewNodeWorkerPayload
+    console.log('call endpoint:', { payload: message.payload })
+    const res = await fetch(`${ENDPOINT_BASE}/viewNode/${nodeId}`, {
+      method: "POST",
+      body: JSON.stringify(apiPayload),
+      headers: {
+        "Content-Type": "application/json"
+      }
+    })
+    await res.json()
+    // console.log({ data })
+    const response: ViewNodeWorkerResponse = { linkToOpenNode, messageType: "notebook:open-node" }
+    await chrome.tabs.sendMessage(sender.tab.id, response)
 
   })()
 }
@@ -402,6 +426,8 @@ chrome.runtime.onMessage.addListener((message, sender) => {
 // ------------------------------------1cademy asistant listener
 // detect to call assistant endpoint
 chrome.runtime.onMessage.addListener(onAskAssistant)
+
+chrome.runtime.onMessage.addListener(onOpenNode)
 
 const shortcutCommands: {
   [commandName: string]: ICommandType

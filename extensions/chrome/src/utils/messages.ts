@@ -1,9 +1,13 @@
+import { PieChart } from "../components/Charts/PieComponent";
 import { MessageData, NodeLinkType } from "../components/ChatApp/Chat";
 import { getCurrentHourHHMM } from "./date";
 import { generateRandomId } from "./others";
 
 
-export const generateContinueDisplayingNodeMessage = (title: string, unit: string, thereIsNextNode: boolean): MessageData => {
+export const generateContinueDisplayingNodeMessage = (title: string, unit: string, thereIsNextNode: boolean, practice?: {
+    totalQuestions: number;
+    answered: number;
+}): MessageData => {
     return {
         actions: []/* thereIsNextNode ? [
             {
@@ -23,7 +27,8 @@ export const generateContinueDisplayingNodeMessage = (title: string, unit: strin
                 variant: "outlined"
             }
         ] */,
-        content: `You learned about "${title}" in Unit ${unit}. Because you correctly answered all the related practice questions, it's a while I've not asked you about this concept.`,
+        content: `You learned about "${title}" in Unit ${unit}. ${practice ? `You've correctly answered ${practice.answered} out of ${practice.totalQuestions} related practice questions.` : ""}`,
+        componentContent: practice ? PieChart({ answers: practice.answered, questions: practice.totalQuestions }) : null,// INFO: on my editor I was having an error to use in this way: <PieChart/>
         nodes: [],
         type: "READER",
         hour: getCurrentHourHHMM(),
@@ -83,19 +88,27 @@ export const generateUserActionAnswer = (content: string): MessageData => {
     }
 }
 
-export const generateTopicNotFound = (): MessageData => {
+export const generateTopicNotFound = (request: string): MessageData => {
     return {
-        actions: [],
-        content: `
-        I'm afraid this topic is not included in the course content that I have been trained on. However, I would be happy to help you in one of the following ways:
-- I can provide you with an explanation based on my general knowledge outside of the course content.
-- Alternatively, if you would like to contribute to the knowledge graph of the course, I am open to learning from you and expanding my knowledge on the topic.
-        `,
+        actions: [
+            {
+                title: "Provide me an explanation",
+                type: "GeneralExplanation",
+                variant: "outlined"
+            },
+            {
+                title: "I’ll contribute",
+                type: "IllContribute",
+                variant: "outlined"
+            },
+        ],
+        content: "I'm afraid this topic is not included in the course content that I have been trained on. However, I would be happy to help you in one of the following ways:- I can provide you with an explanation based on my general knowledge outside of the course content.- Alternatively, if you would like to contribute to the knowledge graph of the course, I am open to learning from you and expanding my knowledge on the topic.",
         nodes: [],
         type: "READER",
         hour: getCurrentHourHHMM(),
         id: generateRandomId(),
         image: "",
-        uname: "You"
+        uname: "You",
+        request
     }
 }

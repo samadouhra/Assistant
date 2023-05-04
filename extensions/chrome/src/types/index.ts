@@ -237,9 +237,26 @@ export type IAssistantResponse = {
     message: string;
     nodes?: NodeAssistantResponse[];
     is404?: boolean
+    request: string
     actions?: {
         type: IAssitantRequestAction;
         title: string;
         variant: "contained" | "outline";
     }[];
 };
+
+export type IViewNodePayload = {
+    notebookId: string;
+    visible: boolean;
+};
+
+export type ViewNodeWorkerPayload = {
+    nodeId: string,
+    linkToOpenNode: string
+    apiPayload: IViewNodePayload
+};
+
+export type ViewNodeWorkerResponse = {
+    linkToOpenNode: string,
+    messageType: string
+}
