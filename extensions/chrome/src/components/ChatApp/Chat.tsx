@@ -282,6 +282,9 @@ export const Chat = ({ isLoading, setIsLoading, appMessages, clearAppMessages, t
     (message: MessageData, currentDateYYMMDD: string) => {
       console.log('pushMessage', { message })
 
+      // dont add empty message
+      if (!message.content) return
+
       setMessagesObj((prev) => {
         if (prev.length === 0)
           return [{ date: currentDateYYMMDD, messages: [message] }];
@@ -437,7 +440,7 @@ export const Chat = ({ isLoading, setIsLoading, appMessages, clearAppMessages, t
         );
         pushMessage(messageWithSelectedAction, getCurrentDateYYMMDD());
         removeActionOfAMessage(messageId, date);
-        window.open(`${NOTEBOOKS_LINK}/${notebookId}`, '_blank')?.focus();
+        // window.open(`${NOTEBOOKS_LINK}/${notebookId}`, '_blank')?.focus();
 
         // open all nodes
         const payload: IViewNodeOpenNodesPayload = {
@@ -451,6 +454,13 @@ export const Chat = ({ isLoading, setIsLoading, appMessages, clearAppMessages, t
         });
 
         setTmpNodesToBeDisplayed([]);
+        chrome.runtime.sendMessage(chrome.runtime.id, {
+          type: "SELECT_NOTEBOOK",
+          notebookId
+        });
+        chrome.runtime.sendMessage(chrome.runtime.id, {
+          type: "FOCUS_NOTEBOOK"
+        });
       }
     }
 
@@ -659,7 +669,8 @@ export const Chat = ({ isLoading, setIsLoading, appMessages, clearAppMessages, t
                 fontWeight: 400,
               }}
             >
-              Powered by GPT-4 {token ? "T" : ""} {notebookId ? "N" : ""}
+              Powered by GPT-4
+              {/* {token ? "T" : ""} {notebookId ? "N" : ""} */}
             </Typography>
           </Box>
           {messagesObj.length > 0 && (

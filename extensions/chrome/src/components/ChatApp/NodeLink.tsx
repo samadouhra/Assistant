@@ -29,6 +29,14 @@ export const NodeLink = ({ notebookId, title, type, link, token }: NodeLinkProps
       token,
       linkToOpenNode: link
     });
+
+    chrome.runtime.sendMessage(chrome.runtime.id, {
+      type: "SELECT_NOTEBOOK",
+      notebookId
+    });
+    chrome.runtime.sendMessage(chrome.runtime.id, {
+      type: "FOCUS_NOTEBOOK"
+    });
     // window.open(link, '_blank')?.focus();
   }, []);
 
