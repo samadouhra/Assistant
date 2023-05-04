@@ -35,7 +35,6 @@ export const generateContinueDisplayingNodeMessage = (title: string, unit: strin
         id: generateRandomId(),
         image: "",
         video: "",
-        uname: "You"
     }
 }
 
@@ -49,7 +48,6 @@ export const generateNodeMessage = (node: NodeLinkType): MessageData => {
         id: generateRandomId(),
         image: node.nodeImage,
         video: node.nodeVideo,
-        uname: "You"
     }
 }
 
@@ -76,7 +74,6 @@ export const generateWhereContinueExplanation = (notebookName: string, isAuthent
             id: generateRandomId(),
             image: "",
             video: "",
-            uname: "You"
         })
 
         : ({
@@ -88,7 +85,6 @@ export const generateWhereContinueExplanation = (notebookName: string, isAuthent
             id: generateRandomId(),
             image: "",
             video: "",
-            uname: "You"
         })
 }
 
@@ -102,7 +98,6 @@ export const generateUserActionAnswer = (content: string): MessageData => {
         id: generateRandomId(),
         image: "",
         video: "",
-        uname: "You"
     }
 }
 
@@ -133,7 +128,6 @@ export const generateTopicNotFound = (request: string, isAuthenticated: boolean)
         id: generateRandomId(),
         image: "",
         video: "",
-        uname: "You",
         request
     }
 }
@@ -148,6 +142,5 @@ export const generateExplainSelectedText = (selectedText: string): MessageData =
         id: generateRandomId(),
         image: "",
         video: "",
-        uname: "You",
     }
 }

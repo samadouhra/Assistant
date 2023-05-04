@@ -32,12 +32,14 @@ import {
 } from "../../types";
 import { NodeLink } from "./NodeLink";
 import {
+  ASSISTANT_NAME,
   CHAT_BACKGROUND_IMAGE_URL,
   ENDPOINT_BASE,
   LOGO_URL,
   NOTEBOOKS_LINK,
   NOTEBOOK_LINK,
   SEARCH_ANIMATION_URL,
+  USER_NAME,
 } from "../../utils/constants";
 import { useTheme } from "../../hooks/useTheme";
 import { getCurrentDateYYMMDD, getCurrentHourHHMM } from "../../utils/date";
@@ -81,7 +83,7 @@ type MessageAction = {
 export type MessageData = {
   id: string;
   type: "WRITER" | "READER";
-  uname: string;
+  // uname: string;
   image: string;
   video: string;
   content: string;
@@ -96,140 +98,6 @@ type Message = {
   date: string;
   messages: MessageData[];
 };
-// const MESSAGES: Message[] = [
-//   {
-//     date: "12/12/12",
-//     messages: [
-//       {
-//         id: "01",
-//         type: "READER",
-//         hour: "20:00",
-//         image: "",
-//         content: "Message with actions",
-//         nodes: [],
-//         uname: "1Cademy Assistant",
-//         actions: [
-//           {
-//             title: "Teach me the content of this page",
-//             type: "TeachContent",
-//             variant: "outlined",
-//           },
-//           // {
-//           //   title: "Remind me later",
-//           //   type: "RemindLater",
-//           //   variant: "outlined",
-//           // },
-//           // { title: "Yes", type: "Yes", variant: "outlined" },
-//           // { title: "ExplainMore", type: "ExplainMore", variant: "outlined" },
-//           // {
-//           //   title: "Provide me an explanation",
-//           //   type: "GiveMoreExplanation",
-//           //   variant: "outlined",
-//           // },
-//           // {
-//           //   title: "I’ll contribute",
-//           //   type: "IllContribute",
-//           //   variant: "outlined",
-//           // },
-//           // { title: "Question", type: "Question", variant: "outlined" },
-//           // { title: "Text", type: "Text", variant: "outlined" },
-//           // { title: "Let’s practice", type: "Practice", variant: "outlined" },
-//         ],
-//       },
-//       {
-//         id: "03",
-//         type: "READER",
-//         hour: "20:00",
-//         image: "",
-//         content: "Message with Nodes",
-//         nodes: [
-//           {
-//             id: "01",
-//             title: "Advertisement Node title",
-//             type: "Advertisement",
-//           },
-//           { id: "02", title: "Code Node title", type: "Code" },
-//           { id: "03", title: "Concept Node title", type: "Concept" },
-//           { id: "04", title: "Idea Node title", type: "Idea" },
-//           { id: "05", title: "News Node title", type: "News" },
-//           { id: "06", title: "Private Node title", type: "Private" },
-//           { id: "07", title: "Profile Node title", type: "Profile" },
-//           { id: "08", title: "Question Node title", type: "Question" },
-//           { id: "09", title: "Reference Node title", type: "Reference" },
-//           { id: "10", title: "Relation Node title", type: "Relation" },
-//           { id: "11", title: "Sequel Node title", type: "Sequel" },
-//         ],
-//         uname: "1Cademy Assistant",
-//         actions: [],
-//       },
-//       {
-//         id: "07",
-//         type: "READER",
-//         hour: "20:00",
-//         image: "",
-//         content: "klkljg",
-//         nodes: [],
-//         uname: "1Cademy Assistant",
-//         actions: [],
-//       },
-//       {
-//         id: "05",
-//         type: "READER",
-//         hour: "20:00",
-//         image: "",
-//         content: "klkljg",
-//         nodes: [],
-//         uname: "1Cademy Assistant",
-//         actions: [],
-//       },
-//       {
-//         id: "06",
-//         type: "WRITER",
-//         hour: "20:00",
-//         image: "",
-//         content: "klkljg",
-//         nodes: [],
-//         uname: "You",
-//         actions: [],
-//       },
-//       {
-//         id: "04",
-//         type: "WRITER",
-//         hour: "20:00",
-//         image: "",
-//         content: "klkljg",
-//         nodes: [],
-//         uname: "You",
-//         actions: [],
-//       },
-//       {
-//         id: "02",
-//         type: "WRITER",
-//         hour: "20:00",
-//         image: "",
-//         content: "What can you tell me about Visual Communications?",
-//         nodes: [],
-//         uname: "You",
-//         actions: [],
-//       },
-//     ],
-//   },
-//   {
-//     date: "11/11/11",
-//     messages: [
-//       {
-//         id: "08",
-//         type: "READER",
-//         hour: "20:00",
-//         image: "",
-//         content: "klkljg",
-//         nodes: [{ type: "Idea", id: "dfdgfsdf", title: "adasd" }],
-//         uname: "1Cademy Assistant",
-//         actions: [],
-//       },
-//     ],
-//   },
-// ];
 
 const tempMap = (variant: string): ActionVariant => {
   if (variant === "outline") return "outlined";
@@ -247,12 +115,7 @@ type ChatProps = {
 };
 
 export const Chat = ({ isLoading, setIsLoading, appMessages, clearAppMessages, token, sx }: ChatProps) => {
-  // console.log({ env: process.env.NODE_ENV })
-  const db = getFirestore();
-  // const [{ user, reputation, settings }, { dispatch }] = useAuth();
 
-  // const isAuthenticated = false
-  // console.log({ user });
   const [notebookId, setNotebookId] = useState('')
   const [messagesObj, setMessagesObj] = useState<Message[]>([]);
   const [speakingMessageId, setSpeakingMessageId] = useState<string>("");
@@ -260,17 +123,8 @@ export const Chat = ({ isLoading, setIsLoading, appMessages, clearAppMessages, t
   const [conversationId, setConversationId] = useState("");
   const [nodesToBeDisplayed, setNodesToBeDisplayed] = useState<NodeLinkType[]>([]);
   const [tmpNodesToBeDisplayed, setTmpNodesToBeDisplayed] = useState<NodeLinkType[]>([]);
-  // const [isLoading, setIsLoading] = useState(false)
   const { mode } = useTheme();
-
   const [userMessage, setUserMessage] = useState("");
-
-  // useImperativeHandle(ref, () => ({
-  //   onSetIsLoading: (newValue: boolean) => {
-  //     console.log('onSetIsLoading', newValue)
-  //     setIsLoading(newValue)
-  //   }
-  // }));
 
   useEffect(() => {
     if (!appMessages.length) return
@@ -529,10 +383,6 @@ export const Chat = ({ isLoading, setIsLoading, appMessages, clearAppMessages, t
       </Button>
     );
   };
-
-  // useEffect(() => {
-  //   scrollToTheEnd();
-  // }, [messagesObj]);
 
   useEffect(() => {
     const listenWorker = (message: (IAssistantResponse | ViewNodeWorkerResponse | CreateNotebookWorkerResponse) & { messageType: string }) => {
@@ -799,7 +649,8 @@ export const Chat = ({ isLoading, setIsLoading, appMessages, clearAppMessages, t
                                 : DESIGN_SYSTEM_COLORS.gray900,
                           }}
                         >
-                          {c.uname}
+                          {c.type === "READER" ? ASSISTANT_NAME : USER_NAME}
+                          {/* {c.uname} */}
                         </Typography>
                         {c.type ===
                           "READER" /* && <Tooltip title={speakingMessageId === c.id ? "Stop narrating" : "Narrate message"} placement='top'> */ && (
@@ -1037,7 +888,6 @@ export const Chat = ({ isLoading, setIsLoading, appMessages, clearAppMessages, t
   );
 }
 
-// Chat.displayName = "Chat";
 
 const mapAssistantResponseToMessage = (
   newMessage: IAssistantResponse
@@ -1057,7 +907,6 @@ const mapAssistantResponseToMessage = (
     video: "",
     nodes: newMessage.nodes ? newMessage.nodes.map(mapNodesToNodeLink) : [],
     type: "READER",
-    uname: "1Cademy Assistant",
     request: newMessage.request,
     is404: newMessage.is404
   };
@@ -1074,7 +923,6 @@ const mapUserMessageToMessage = (userMessage: string): MessageData => {
     video: "",
     nodes: [],
     type: "WRITER",
-    uname: "You"
   }
   return message
 }
