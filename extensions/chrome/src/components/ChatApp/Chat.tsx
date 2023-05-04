@@ -1,4 +1,4 @@
-import React, { ReactNode } from "react";
+import React, { forwardRef, ReactNode, useImperativeHandle } from "react";
 import VolumeOffIcon from "@mui/icons-material/VolumeOff";
 import VolumeUpIcon from "@mui/icons-material/VolumeUp";
 import MicIcon from "@mui/icons-material/Mic";
@@ -35,6 +35,7 @@ import {
   ENDPOINT_BASE,
   LOGO_URL,
   NOTEBOOKS_LINK,
+  NOTEBOOK_LINK,
   SEARCH_ANIMATION_URL,
 } from "../../utils/constants";
 import { useTheme } from "../../hooks/useTheme";
@@ -235,12 +236,17 @@ const tempMap = (variant: string): ActionVariant => {
 };
 
 type ChatProps = {
-  token: string
-  sx?: SxProps<Theme>;
+  // setIsLoading: React.Dispatch<React.SetStateAction<boolean>>,
+  isLoading: boolean,
+  setIsLoading: React.Dispatch<React.SetStateAction<boolean>>,
+  appMessages: MessageData[]
+  clearAppMessages: () => void
+  token: string,
+  sx?: SxProps<Theme>,
 };
 
-export const Chat = ({ token, sx }: ChatProps) => {
-  // console.log({ token })
+export const Chat = ({ isLoading, setIsLoading, appMessages, clearAppMessages, token, sx }: ChatProps) => {
+  // console.log({ env: process.env.NODE_ENV })
   const db = getFirestore();
   // const [{ user, reputation, settings }, { dispatch }] = useAuth();
 
@@ -250,17 +256,31 @@ export const Chat = ({ token, sx }: ChatProps) => {
   const [messagesObj, setMessagesObj] = useState<Message[]>([]);
   const [speakingMessageId, setSpeakingMessageId] = useState<string>("");
   const chatElementRef = useRef<HTMLDivElement | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
   const [conversationId, setConversationId] = useState("");
   const [nodesToBeDisplayed, setNodesToBeDisplayed] = useState<NodeLinkType[]>([]);
   const [tmpNodesToBeDisplayed, setTmpNodesToBeDisplayed] = useState<NodeLinkType[]>([]);
+  // const [isLoading, setIsLoading] = useState(false)
   const { mode } = useTheme();
 
   const [userMessage, setUserMessage] = useState("");
 
+  // useImperativeHandle(ref, () => ({
+  //   onSetIsLoading: (newValue: boolean) => {
+  //     console.log('onSetIsLoading', newValue)
+  //     setIsLoading(newValue)
+  //   }
+  // }));
+
+  useEffect(() => {
+    if (!appMessages.length) return
+    appMessages.forEach(cur => pushMessage(cur, getCurrentDateYYMMDD()))
+    clearAppMessages()
+  }, [appMessages])
+
   const pushMessage = useCallback(
     (message: MessageData, currentDateYYMMDD: string) => {
       console.log('pushMessage', { message })
+
       setMessagesObj((prev) => {
         if (prev.length === 0)
           return [{ date: currentDateYYMMDD, messages: [message] }];
@@ -278,12 +298,18 @@ export const Chat = ({ token, sx }: ChatProps) => {
           },
           { found: false, result: [] }
         );
-        console.log("pushMessage", { res })
+        // console.log("pushMessage", { res })
         const newMessageObj: Message[] = res.found
           ? res.result
           : [...res.result, { date: currentDateYYMMDD, messages: [message] }];
         return newMessageObj;
       });
+
+      if (message.type === 'WRITER') {
+        setTimeout(() => {
+          scrollToTheEnd();
+        }, 500)
+      }
     },
     []
   );
@@ -314,6 +340,7 @@ export const Chat = ({ token, sx }: ChatProps) => {
   };
 
   const onSubmitMessage = useCallback(async () => {
+    if (isLoading) return
     const userMessageProcessed = userMessage.trim();
     if (!userMessageProcessed) return;
 
@@ -330,7 +357,7 @@ export const Chat = ({ token, sx }: ChatProps) => {
     });
 
     setUserMessage("");
-  }, [userMessage, conversationId]);
+  }, [isLoading, userMessage, conversationId]);
 
   const scrollToTheEnd = () => {
     if (!chatElementRef.current) return;
@@ -376,7 +403,7 @@ export const Chat = ({ token, sx }: ChatProps) => {
   const onDisplayNextNodeToBeDisplayed = (
     nodesToBeDisplayed: NodeLinkType[]
   ) => {
-    console.log({ nodesToBeDisplayed })
+    // console.log({ nodesToBeDisplayed })
     const copyNodesToBeDisplayed = [...nodesToBeDisplayed];
     const firstElement = copyNodesToBeDisplayed.shift();
     if (!firstElement) return;
@@ -434,7 +461,11 @@ export const Chat = ({ token, sx }: ChatProps) => {
         pushMessage(messageWithSelectedAction, getCurrentDateYYMMDD());
         setTmpNodesToBeDisplayed([]);
         removeActionOfAMessage(messageId, date);
-        window.open(`${NOTEBOOKS_LINK}/${notebookId}`, '_blank')?.focus();
+        if (notebookId) {
+          window.open(`${NOTEBOOKS_LINK}/${notebookId}`, '_blank')?.focus();
+        } else {
+          window.open(NOTEBOOK_LINK, '_blank')?.focus();
+        }
       }
     }
 
@@ -455,6 +486,7 @@ export const Chat = ({ token, sx }: ChatProps) => {
           payload,
           messageType: "assistant",
         });
+        setIsLoading(true);
       }
     }
 
@@ -470,25 +502,25 @@ export const Chat = ({ token, sx }: ChatProps) => {
   // }, [messagesObj]);
 
   useEffect(() => {
-    chrome.runtime.onMessage.addListener((message: (IAssistantResponse | ViewNodeWorkerResponse | CreateNotebookWorkerResponse) & { messageType: string }) => {
+    const listenWorker = (message: (IAssistantResponse | ViewNodeWorkerResponse | CreateNotebookWorkerResponse) & { messageType: string }) => {
       if (message.messageType === 'assistant') {
         console.log('>:message form assistant', { message })
         const { is404, request, nodes, conversationId } = message as IAssistantResponse
         if (is404) {
           // console.log(1)
-          pushMessage(generateTopicNotFound(request ?? ""), getCurrentDateYYMMDD())
+          pushMessage(generateTopicNotFound(request ?? "", Boolean(token)), getCurrentDateYYMMDD())
         } else {
           // console.log(22)
           onPushAssistantMessage({ ...(message as IAssistantResponse), nodes: [] })
           const nodesOnMessage = nodes ? nodes.map(mapNodesToNodeLink) : []
-          if (!nodesOnMessage.length) return
+          if (!nodesOnMessage.length) return setIsLoading(false);
 
           setTmpNodesToBeDisplayed(nodesOnMessage)
 
           // if there is nodes I need to create a notebook
           // and notebook is note created yet
-          if (notebookId) return
-          if (!token) return
+          if (notebookId) return setIsLoading(false);
+          if (!token) return setIsLoading(false);
           const payload: IAssistantCreateNotebookRequestPayload = { conversationId, message: request }
           chrome.runtime.sendMessage(chrome.runtime.id || process.env.EXTENSION_ID, {
             payload,
@@ -518,12 +550,14 @@ export const Chat = ({ token, sx }: ChatProps) => {
       if (message.messageType === 'notebook:create-notebook') {
         const { notebookId, notebookTitle } = message as CreateNotebookWorkerResponse
         console.log('>notebook:create-notebook', { message })
-        pushMessage(generateWhereContinueExplanation(notebookTitle), getCurrentDateYYMMDD())
+        pushMessage(generateWhereContinueExplanation(notebookTitle, Boolean(token)), getCurrentDateYYMMDD())
         setNotebookId(notebookId)
         setIsLoading(false);
       }
     }
-    );
+
+    chrome.runtime.onMessage.addListener(listenWorker);
+    return () => chrome.runtime.onMessage.removeListener(listenWorker);
   }, []);
 
   const formatDate = (date: string) => {
@@ -612,7 +646,7 @@ export const Chat = ({ token, sx }: ChatProps) => {
                 fontWeight: 400,
               }}
             >
-              Powered by GPT-4{token ? "." : ""}
+              Powered by GPT-4 {token ? "T" : ""} {notebookId ? "N" : ""}
             </Typography>
           </Box>
           {messagesObj.length > 0 && (
@@ -788,7 +822,7 @@ export const Chat = ({ token, sx }: ChatProps) => {
                           c.type === "WRITER"
                             ? mode === "light"
                               ? DESIGN_SYSTEM_COLORS.orange100
-                              : DESIGN_SYSTEM_COLORS.primary600
+                              : DESIGN_SYSTEM_COLORS.notebookO900
                             : mode === "light"
                               ? DESIGN_SYSTEM_COLORS.gray200
                               : DESIGN_SYSTEM_COLORS.notebookG600,
@@ -936,16 +970,13 @@ export const Chat = ({ token, sx }: ChatProps) => {
             <Button
               onClick={onSubmitMessage}
               variant="contained"
-              disabled={isLoading}
+              disabled={isLoading || !userMessage}
               sx={{
                 minWidth: "0px",
                 width: "36px",
                 height: "36px",
                 p: "10px",
                 borderRadius: "8px",
-                "& .Mui-disabled": {
-                  backgroundColor: DESIGN_SYSTEM_COLORS.primary500
-                }
               }}
             >
               <svg
@@ -954,10 +985,11 @@ export const Chat = ({ token, sx }: ChatProps) => {
                 viewBox="0 0 18 18"
                 fill="none"
                 xmlns="http://www.w3.org/2000/svg"
+                stroke={isLoading || !userMessage ? DESIGN_SYSTEM_COLORS.notebookG200 : "white"}
               >
                 <path
                   d="M7.74976 10.2501L16.4998 1.50014M7.85608 10.5235L10.0462 16.1552C10.2391 16.6513 10.3356 16.8994 10.4746 16.9718C10.5951 17.0346 10.7386 17.0347 10.8592 16.972C10.9983 16.8998 11.095 16.6518 11.2886 16.1559L16.7805 2.08281C16.9552 1.63516 17.0426 1.41133 16.9948 1.26831C16.9533 1.1441 16.8558 1.04663 16.7316 1.00514C16.5886 0.957356 16.3647 1.0447 15.9171 1.21939L1.84398 6.71134C1.34808 6.90486 1.10013 7.00163 1.02788 7.14071C0.965237 7.26129 0.965322 7.40483 1.0281 7.52533C1.10052 7.66433 1.34859 7.7608 1.84471 7.95373L7.47638 10.1438C7.57708 10.183 7.62744 10.2026 7.66984 10.2328C7.70742 10.2596 7.74028 10.2925 7.76709 10.3301C7.79734 10.3725 7.81692 10.4228 7.85608 10.5235Z"
-                  stroke={isLoading ? "#d3d3d3te" : "white"}
+                  stroke="inherit"
                   strokeWidth="1.66667"
                   strokeLinecap="round"
                   strokeLinejoin="round"
@@ -969,7 +1001,9 @@ export const Chat = ({ token, sx }: ChatProps) => {
       </Box>
     </Stack>
   );
-};
+}
+
+// Chat.displayName = "Chat";
 
 const mapAssistantResponseToMessage = (
   newMessage: IAssistantResponse

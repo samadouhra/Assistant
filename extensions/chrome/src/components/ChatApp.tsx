@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useRef } from "react";
 import { brandingLightTheme } from "../utils/brandingTheme";
 import "./ChatApp/styles.css";
 
@@ -15,17 +15,22 @@ import {
 } from "@mui/material";
 import { useState } from "react";
 import { DESIGN_SYSTEM_COLORS } from "../utils/colors";
-import { Chat } from "./ChatApp/Chat";
+import { Chat, MessageData } from "./ChatApp/Chat";
 import { LOGO_URL } from "../utils/constants";
 import { useTheme } from "../hooks/useTheme";
 import { db } from "../lib/firebase";
 import { IAssistantRequestPayload } from "../types";
+import { generateExplainSelectedText } from "../utils/messages";
 
 function ChatApp() {
   const [displayAssistant, setDisplayAssistant] = useState(false);
   const [selectedText, setSelectedText] = useState("");
   const [idToken, setIdToken] = useState("");
+  const [appMessages, setAppMessages] = useState<MessageData[]>([])
+  const [isLoading, setIsLoading] = useState(false)
+  // const chatRef = useRef<any>(null)
   const { mode } = useTheme();
+
   useEffect(() => {
     chrome.runtime.onMessage.addListener((message, sender) => {
       if (typeof message !== "object" || message === null) return;
@@ -38,6 +43,7 @@ function ChatApp() {
       type: "REQUEST_ID_TOKEN"
     });
   }, []);
+
   const [selectedTextMouseUpPosition, setSelectedTextMouseUpPosition] = useState<{ mouseX: number, mouseY: number } | null>(null);
 
   const askSelectedTextToAssistant = (selectedText: string) => {
@@ -49,6 +55,12 @@ function ChatApp() {
       payload,
       messageType: "assistant",
     });
+    setAppMessages([generateExplainSelectedText(selectedText)])
+    setIsLoading(true)
+    // console.log('ask:', chatRef.current)
+    // if (!chatRef.current) return
+    // console.log('ask:doing')
+    // chatRef.current.onSetIsLoading(true)
   }
 
   const onOpenChat = () => {
@@ -215,7 +227,7 @@ function ChatApp() {
       </Box>
 
       {/* chat */}
-      {displayAssistant && <Chat token={idToken} sx={{ position: "fixed", bottom: "112px", right: "38px" }} />}
+      {displayAssistant && <Chat isLoading={isLoading} setIsLoading={setIsLoading} appMessages={appMessages} clearAppMessages={() => setAppMessages([])} token={idToken} sx={{ position: "fixed", bottom: "112px", right: "38px" }} />}
     </Box >
   )
 }

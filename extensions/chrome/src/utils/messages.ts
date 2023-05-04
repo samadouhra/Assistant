@@ -53,29 +53,43 @@ export const generateNodeMessage = (node: NodeLinkType): MessageData => {
     }
 }
 
-export const generateWhereContinueExplanation = (notebookName: string): MessageData => {
-    return {
-        actions: [
-            {
-                title: "Open the notebook",
-                type: "LOCAL_OPEN_NOTEBOOK",
-                variant: "outlined"
-            },
-            {
-                title: "Explain the nodes here",
-                type: "LOCAL_CONTINUE_EXPLANATION_HERE",
-                variant: "outlined"
-            },
-        ],
-        content: `I just created a new notebook for you called "${notebookName}" and added the nodes explaining the answer to your question. Would you like to open the notebook or prefer to see the explanation of the nodes here in text.`,
-        nodes: [],
-        type: "READER",
-        hour: getCurrentHourHHMM(),
-        id: generateRandomId(),
-        image: "",
-        video: "",
-        uname: "You"
-    }
+export const generateWhereContinueExplanation = (notebookName: string, isAuthenticated: boolean): MessageData => {
+
+    return isAuthenticated
+        ? ({
+            actions: [
+                {
+                    title: "Open the notebook",
+                    type: "LOCAL_OPEN_NOTEBOOK",
+                    variant: "outlined"
+                },
+                {
+                    title: "Explain the nodes here",
+                    type: "LOCAL_CONTINUE_EXPLANATION_HERE",
+                    variant: "outlined"
+                },
+            ],
+            content: `I just created a new notebook for you called "${notebookName}" and added the nodes explaining the answer to your question. Would you like to open the notebook or prefer to see the explanation of the nodes here in text.`,
+            nodes: [],
+            type: "READER",
+            hour: getCurrentHourHHMM(),
+            id: generateRandomId(),
+            image: "",
+            video: "",
+            uname: "You"
+        })
+
+        : ({
+            actions: [],
+            content: `Log in to 1Cademy to personalize my responses to your questions.`,
+            nodes: [],
+            type: "READER",
+            hour: getCurrentHourHHMM(),
+            id: generateRandomId(),
+            image: "",
+            video: "",
+            uname: "You"
+        })
 }
 
 export const generateUserActionAnswer = (content: string): MessageData => {
@@ -92,9 +106,9 @@ export const generateUserActionAnswer = (content: string): MessageData => {
     }
 }
 
-export const generateTopicNotFound = (request: string): MessageData => {
+export const generateTopicNotFound = (request: string, isAuthenticated: boolean): MessageData => {
     return {
-        actions: [
+        actions: isAuthenticated ? [
             {
                 title: "Provide me an explanation",
                 type: "GeneralExplanation",
@@ -103,6 +117,12 @@ export const generateTopicNotFound = (request: string): MessageData => {
             {
                 title: "I’ll contribute",
                 type: "IllContribute",
+                variant: "outlined"
+            },
+        ] : [
+            {
+                title: "Provide me an explanation",
+                type: "GeneralExplanation",
                 variant: "outlined"
             },
         ],
@@ -115,5 +135,19 @@ export const generateTopicNotFound = (request: string): MessageData => {
         video: "",
         uname: "You",
         request
+    }
+}
+
+export const generateExplainSelectedText = (selectedText: string): MessageData => {
+    return {
+        actions: [],
+        content: "Explain the following text that I selected from the textbook: *" + selectedText + "*",
+        nodes: [],
+        type: "WRITER",
+        hour: getCurrentHourHHMM(),
+        id: generateRandomId(),
+        image: "",
+        video: "",
+        uname: "You",
     }
 }
