@@ -8,25 +8,24 @@ import { IViewNodePayload, NodeType } from "../../types";
 import MarkdownRender from "./MarkdownRender";
 
 type NodeLinkProps = {
-  token: string
+  isAuthenticated: boolean
   notebookId: string
   type: NodeType;
   title: string;
   link: string;
 }
-export const NodeLink = ({ notebookId, title, type, link, token }: NodeLinkProps) => {
+export const NodeLink = ({ notebookId, title, type, link, isAuthenticated }: NodeLinkProps) => {
   const { mode } = useTheme();
   const onOpenNode = useCallback(() => {
     if (!window) return
     if (!notebookId) return
-    if (!token) return
+    if (!isAuthenticated) return
 
     // after open link on notebook will open notebook in new tab
     const payload: IViewNodePayload = { notebookId, visible: true }
     chrome.runtime.sendMessage(chrome.runtime.id || process.env.EXTENSION_ID, {
       payload,
       messageType: "notebook:open-node",
-      token,
       linkToOpenNode: link
     });
 

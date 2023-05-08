@@ -335,8 +335,12 @@ const onAskAssistant = (message: any, sender: chrome.runtime.MessageSender) => {
 }
 
 const onOpenNode = (message: any, sender: chrome.runtime.MessageSender) => {
+
   (async () => {
     // console.log({ message })
+    const { idToken } = await chrome.storage.local.get("idToken") as { idToken?: string };
+
+    if (!idToken) return console.error('Cant find token')
     if (message?.messageType !== 'notebook:open-node') return
     if (!sender.tab?.id) return console.error('Cant find tab id')
 
@@ -347,7 +351,7 @@ const onOpenNode = (message: any, sender: chrome.runtime.MessageSender) => {
       body: JSON.stringify(apiPayload),
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${message.token}`,
+        "Authorization": `Bearer ${idToken}`,
       }
     })
     await res.json()
@@ -361,6 +365,9 @@ const onOpenNode = (message: any, sender: chrome.runtime.MessageSender) => {
 const onOpenNodes = (message: any, sender: chrome.runtime.MessageSender) => {
   (async () => {
     // console.log({ message })
+    const { idToken } = await chrome.storage.local.get("idToken") as { idToken?: string };
+
+    if (!idToken) return console.error('Cant find token')
     if (message?.messageType !== 'notebook:open-nodes') return
     if (!sender.tab?.id) return console.error('Cant find tab id')
 
@@ -371,7 +378,7 @@ const onOpenNodes = (message: any, sender: chrome.runtime.MessageSender) => {
       body: JSON.stringify(payload),
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${message.token}`,
+        "Authorization": `Bearer ${idToken}`,
       }
     })
     await res.json()
@@ -385,6 +392,9 @@ const onOpenNodes = (message: any, sender: chrome.runtime.MessageSender) => {
 const onOpenNotebook = (message: any, sender: chrome.runtime.MessageSender) => {
   (async () => {
     // console.log({ message })
+    const { idToken } = await chrome.storage.local.get("idToken") as { idToken?: string };
+
+    if (!idToken) return console.error('Cant find token')
     if (message?.messageType !== 'notebook:create-notebook') return
     if (!sender.tab?.id) return console.error('Cant find tab id')
 
@@ -395,7 +405,7 @@ const onOpenNotebook = (message: any, sender: chrome.runtime.MessageSender) => {
       body: JSON.stringify(apiPayload),
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${message.token}`,
+        "Authorization": `Bearer ${idToken}`,
       }
     })
     const data = await res.json()
@@ -446,8 +456,8 @@ chrome.runtime.onMessageExternal.addListener((message) => {
       });
       for (const tab of tabs) {
         await chrome.tabs.sendMessage(tab.id!, {
-          type: "RECEIVE_ID_TOKEN",
-          token: message.token
+          type: "REQUEST_AUTHENTICATED",
+          isAuthenticated: Boolean(message.token)
         } as any);
       }
     })()
@@ -463,8 +473,8 @@ chrome.runtime.onMessage.addListener((message, sender) => {
       } = await chrome.storage.local.get("idToken") as any;
 
       chrome.tabs.sendMessage(sender.tab?.id!, {
-        type: "RECEIVE_ID_TOKEN",
-        token: storageValues.idToken
+        type: "REQUEST_AUTHENTICATED",
+        isAuthenticated: Boolean(storageValues.idToken)
       } as any);
     })()
   } else if (message?.type === "SELECT_NOTEBOOK") {

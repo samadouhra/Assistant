@@ -25,7 +25,7 @@ import { generateExplainSelectedText } from "../utils/messages";
 function ChatApp() {
   const [displayAssistant, setDisplayAssistant] = useState(false);
   const [selectedText, setSelectedText] = useState("");
-  const [idToken, setIdToken] = useState("");
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [appMessages, setAppMessages] = useState<MessageData[]>([])
   const [isLoading, setIsLoading] = useState(false)
   // const chatRef = useRef<any>(null)
@@ -34,9 +34,9 @@ function ChatApp() {
   useEffect(() => {
     chrome.runtime.onMessage.addListener((message, sender) => {
       if (typeof message !== "object" || message === null) return;
-      if (message.type === "RECEIVE_ID_TOKEN") {
-        console.log("message.token", message.token);
-        setIdToken(message.token);
+      if (message.type === "REQUEST_AUTHENTICATED") {
+        console.log("message.isAuthenticated", message.isAuthenticated);
+        setIsAuthenticated(message.isAuthenticated);
       }
     });
     chrome.runtime.sendMessage(chrome.runtime.id, {
@@ -237,7 +237,7 @@ function ChatApp() {
       </Box>
 
       {/* chat */}
-      {displayAssistant && <Chat isLoading={isLoading} setIsLoading={setIsLoading} appMessages={appMessages} clearAppMessages={() => setAppMessages([])} token={idToken} sx={{ position: "fixed", bottom: "112px", right: "38px" }} />}
+      {displayAssistant && <Chat isLoading={isLoading} setIsLoading={setIsLoading} appMessages={appMessages} clearAppMessages={() => setAppMessages([])} isAuthenticated={isAuthenticated} sx={{ position: "fixed", bottom: "112px", right: "38px" }} />}
     </Box >
   )
 }

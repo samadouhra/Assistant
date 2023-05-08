@@ -112,11 +112,11 @@ type ChatProps = {
   setIsLoading: React.Dispatch<React.SetStateAction<boolean>>,
   appMessages: MessageData[]
   clearAppMessages: () => void
-  token: string,
+  isAuthenticated: boolean,
   sx?: SxProps<Theme>,
 };
 
-export const Chat = ({ isLoading, setIsLoading, appMessages, clearAppMessages, token, sx }: ChatProps) => {
+export const Chat = ({ isLoading, setIsLoading, appMessages, clearAppMessages, isAuthenticated, sx }: ChatProps) => {
 
   const [notebookId, setNotebookId] = useState('')
   const [messagesObj, setMessagesObj] = useState<Message[]>([]);
@@ -393,7 +393,7 @@ export const Chat = ({ isLoading, setIsLoading, appMessages, clearAppMessages, t
         const { is404, request, nodes, conversationId } = message as IAssistantResponse
         if (is404) {
           // console.log(1)
-          pushMessage(generateTopicNotFound(request ?? "", Boolean(token)), getCurrentDateYYMMDD())
+          pushMessage(generateTopicNotFound(request ?? "", isAuthenticated), getCurrentDateYYMMDD())
         } else {
           // console.log(22)
           onPushAssistantMessage({ ...(message as IAssistantResponse), nodes: [] })
@@ -404,13 +404,16 @@ export const Chat = ({ isLoading, setIsLoading, appMessages, clearAppMessages, t
 
           // if there is nodes I need to create a notebook
           // and notebook is note created yet
-          if (notebookId) return setIsLoading(false);
-          if (!token) return setIsLoading(false);
+          if (notebookId) {
+            // TODO: manage response when notebookId exist
+            setIsLoading(false);
+            return
+          }
+          if (!isAuthenticated) return setIsLoading(false);
           const payload: IAssistantCreateNotebookRequestPayload = { conversationId, message: request }
           chrome.runtime.sendMessage(chrome.runtime.id || process.env.EXTENSION_ID, {
             payload,
             messageType: "notebook:create-notebook",
-            token
           });
           // push message tp continue explanation
 
@@ -435,7 +438,7 @@ export const Chat = ({ isLoading, setIsLoading, appMessages, clearAppMessages, t
       if (message.messageType === 'notebook:create-notebook') {
         const { notebookId, notebookTitle } = message as CreateNotebookWorkerResponse
         console.log('>notebook:create-notebook', { message })
-        pushMessage(generateWhereContinueExplanation(notebookTitle, Boolean(token)), getCurrentDateYYMMDD())
+        pushMessage(generateWhereContinueExplanation(notebookTitle, isAuthenticated), getCurrentDateYYMMDD())
         setNotebookId(notebookId)
         setIsLoading(false);
       }
@@ -443,7 +446,7 @@ export const Chat = ({ isLoading, setIsLoading, appMessages, clearAppMessages, t
 
     chrome.runtime.onMessage.addListener(listenWorker);
     return () => chrome.runtime.onMessage.removeListener(listenWorker);
-  }, []);
+  }, [notebookId]);
 
   const formatDate = (date: string) => {
     const _date = new Date();
@@ -646,7 +649,7 @@ export const Chat = ({ isLoading, setIsLoading, appMessages, clearAppMessages, t
                               type={node.type}
                               link={node.link}
                               notebookId={notebookId}
-                              token={token}
+                              isAuthenticated={isAuthenticated}
                             // id={node.id}
                             />
                           ))}

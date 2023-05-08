@@ -10,6 +10,8 @@ if (!container) {
   console.log('will mount')
   container = document.createElement('div');
   container.setAttribute("id", "oa-econ-chat");
+  container.style.position = "absolute"
+  container.style.zIndex = "2"
   document.body.appendChild(container);
 }
 
