@@ -464,6 +464,7 @@ export const Chat = ({ isLoading, setIsLoading, appMessages, clearAppMessages, i
 
   const onClearChat = () => {
     setMessagesObj([])
+    setNotebookId('')
     setIsLoading(false)
   }
 

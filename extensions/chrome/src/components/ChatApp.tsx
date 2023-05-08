@@ -122,6 +122,7 @@ function ChatApp() {
       const positionX = posX - shiftX - elementWidth;
       // console.log('Mouse position relative to page:', positionX, positionY);
 
+      console.log('onDetectSelectedText:', { positionX, positionY })
       setSelectedText(selectionProcess)
       setSelectedTextMouseUpPosition({ mouseX: positionX, mouseY: positionY })
 
@@ -132,15 +133,7 @@ function ChatApp() {
   }, [])
 
   return (
-    <Box
-      className="oassitant-bot"
-      sx={{
-        "*": {
-          boxSizing: "border-box",
-          fontFamily: `"Inter", sans-serif`,
-        },
-      }}
-    >
+    <>
       {selectedText && selectedTextMouseUpPosition && <IconButton
         onClick={onAskSelectedText}
         sx={{
@@ -164,48 +157,60 @@ function ChatApp() {
         />
       </IconButton>}
 
-      {/* floating buttons */}
-      <Box sx={{ position: "fixed", bottom: "38px", right: "38px" }}>
-        {displayAssistant && (
-          <Button
-            onClick={onCloseChat}
-            sx={{
-              minWidth: "0px",
-              width: "52px",
-              height: "52px",
-              backgroundColor:
-                mode === "light"
-                  ? DESIGN_SYSTEM_COLORS.gray50
-                  : DESIGN_SYSTEM_COLORS.notebookG800,
-              borderRadius: "50%",
-              boxShadow:
-                "0px 1px 2px rgba(0, 0, 0, 0.06), 0px 1px 3px rgba(0, 0, 0, 0.1)",
-              color:
-                mode === "dark"
-                  ? DESIGN_SYSTEM_COLORS.gray50
-                  : DESIGN_SYSTEM_COLORS.gray800,
-              ":hover": {
+      <Box
+        className="oassitant-bot"
+        sx={{
+          position: "absolute",
+          zIndex: 2,
+          "*": {
+            boxSizing: "border-box",
+            fontFamily: `"Inter", sans-serif`,
+          },
+        }}
+      >
+
+        {/* floating buttons */}
+        <Box sx={{ position: "fixed", bottom: "38px", right: "38px" }}>
+          {displayAssistant && (
+            <Button
+              onClick={onCloseChat}
+              sx={{
+                minWidth: "0px",
+                width: "52px",
+                height: "52px",
                 backgroundColor:
                   mode === "light"
-                    ? DESIGN_SYSTEM_COLORS.gray250
-                    : DESIGN_SYSTEM_COLORS.notebookG500,
-              },
-            }}
-          >
-            <CloseIcon />
-          </Button>
-        )}
+                    ? DESIGN_SYSTEM_COLORS.gray50
+                    : DESIGN_SYSTEM_COLORS.notebookG800,
+                borderRadius: "50%",
+                boxShadow:
+                  "0px 1px 2px rgba(0, 0, 0, 0.06), 0px 1px 3px rgba(0, 0, 0, 0.1)",
+                color:
+                  mode === "dark"
+                    ? DESIGN_SYSTEM_COLORS.gray50
+                    : DESIGN_SYSTEM_COLORS.gray800,
+                ":hover": {
+                  backgroundColor:
+                    mode === "light"
+                      ? DESIGN_SYSTEM_COLORS.gray250
+                      : DESIGN_SYSTEM_COLORS.notebookG500,
+                },
+              }}
+            >
+              <CloseIcon />
+            </Button>
+          )}
 
-        {!displayAssistant && (
-          <CustomWidthTooltip
-            open={Boolean(selectedText)}
-            title={
-              <Box sx={{ textAlign: "center", lineHeight: "18px", fontSize: "12px" }}>
-                I can clarify the selected text and respond to your queries.
-              </Box>
-            }
-            placement="top"
-          >
+          {!displayAssistant && (
+            // <CustomWidthTooltip
+            //   open={Boolean(selectedText)}
+            //   title={
+            //     <Box sx={{ textAlign: "center", lineHeight: "18px", fontSize: "12px" }}>
+            //       I can clarify the selected text and respond to your queries.
+            //     </Box>
+            //   }
+            //   placement="top"
+            // >
             <Button
               onClick={onOpenChat}
               sx={{
@@ -232,13 +237,14 @@ function ChatApp() {
                 style={{ width: "32px", height: "32px" }}
               />
             </Button>
-          </CustomWidthTooltip>
-        )}
-      </Box>
+            // </CustomWidthTooltip>
+          )}
+        </Box>
 
-      {/* chat */}
-      {displayAssistant && <Chat isLoading={isLoading} setIsLoading={setIsLoading} appMessages={appMessages} clearAppMessages={() => setAppMessages([])} isAuthenticated={isAuthenticated} sx={{ position: "fixed", bottom: "112px", right: "38px" }} />}
-    </Box >
+        {/* chat */}
+        {displayAssistant && <Chat isLoading={isLoading} setIsLoading={setIsLoading} appMessages={appMessages} clearAppMessages={() => setAppMessages([])} isAuthenticated={isAuthenticated} sx={{ position: "fixed", bottom: "112px", right: "38px" }} />}
+      </Box >
+    </>
   )
 }
 
@@ -250,10 +256,10 @@ const ChatAppWrapper = () => (
 
 export default ChatAppWrapper;
 
-const CustomWidthTooltip = styled(({ className, ...props }: TooltipProps) => (
-  <Tooltip {...props} classes={{ popper: className }} />
-))({
-  [`& .${tooltipClasses.tooltip}`]: {
-    maxWidth: 250,
-  },
-});
+// const CustomWidthTooltip = styled(({ className, ...props }: TooltipProps) => (
+//   <Tooltip {...props} classes={{ popper: className }} />
+// ))({
+//   [`& .${tooltipClasses.tooltip}`]: {
+//     maxWidth: 250,
+//   },
+// });
