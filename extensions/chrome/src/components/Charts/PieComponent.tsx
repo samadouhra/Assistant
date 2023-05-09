@@ -51,7 +51,7 @@ function drawChart(
         `translate(${arc.centroid(d).map((e, i) => (i === 0 ? e - 12 : e))}  )`
     )
     .text((d: any) => d.data.label)
-    .attr("fill", "#fff")
+    .attr("fill", mode === "dark" ? DESIGN_SYSTEM_COLORS.baseBlack : DESIGN_SYSTEM_COLORS.baseWhite)
     .style("font-size", "14px")
     .style("font-weight", "500")
     .style("text-align", "left")
@@ -67,7 +67,7 @@ function drawChart(
     .attr(
       "stroke",
       mode === "dark"
-        ? DESIGN_SYSTEM_COLORS.primary500
+        ? DESIGN_SYSTEM_COLORS.gray100
         : DESIGN_SYSTEM_COLORS.gray600
     )
     .attr("stroke-width", 1.5);
@@ -95,10 +95,10 @@ export const PieChart: FC<PieChartProps> = ({ width, questions, answers }) => {
         label: "",
         questions: questions - answers,
         percentage: 100 - done,
-        color: DESIGN_SYSTEM_COLORS.gray300,
+        color: mode === 'dark' ? DESIGN_SYSTEM_COLORS.notebookG500 : DESIGN_SYSTEM_COLORS.gray300,
       },
     ];
-  }, [answers, done, questions]);
+  }, [mode, answers, done, questions]);
 
   const svg = useCallback(
     (svgRef: any) => {

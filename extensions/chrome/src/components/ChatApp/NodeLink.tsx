@@ -9,7 +9,7 @@ import MarkdownRender from "./MarkdownRender";
 
 type NodeLinkProps = {
   isAuthenticated: boolean
-  notebookId: string
+  notebookId?: string
   type: NodeType;
   title: string;
   link: string;

@@ -1,13 +1,11 @@
+import { ReactNode } from "react";
 import { PieChart } from "../components/Charts/PieComponent";
 import { MessageData, NodeLinkType } from "../components/ChatApp/Chat";
 import { getCurrentHourHHMM } from "./date";
 import { generateRandomId } from "./others";
 
 
-export const generateContinueDisplayingNodeMessage = (title: string, unit: string, thereIsNextNode: boolean, practice?: {
-    totalQuestions: number;
-    answered: number;
-}): MessageData => {
+export const generateContinueDisplayingNodeMessage = (title: string, unit: string, thereIsNextNode: boolean, practice?: { answered: number, totalQuestions: number }, componentContent?: ReactNode): MessageData => {
     return {
         actions: []/* thereIsNextNode ? [
             {
@@ -28,7 +26,8 @@ export const generateContinueDisplayingNodeMessage = (title: string, unit: strin
             }
         ] */,
         content: `You learned about "${title}" in Unit ${unit}. ${practice ? `You've correctly answered ${practice.answered} out of ${practice.totalQuestions} related practice questions.` : ""}`,
-        componentContent: practice ? PieChart({ answers: practice.answered, questions: practice.totalQuestions }) : null,// INFO: on my editor I was having an error to use in this way: <PieChart/>
+        // componentContent: practice ? PieChart({ answers: practice.answered, questions: practice.totalQuestions }) : null,// INFO: on my editor I was having an error to use in this way: <PieChart/>
+        componentContent,
         nodes: [],
         type: "READER",
         hour: getCurrentHourHHMM(),
@@ -51,7 +50,7 @@ export const generateNodeMessage = (node: NodeLinkType): MessageData => {
     }
 }
 
-export const generateWhereContinueExplanation = (notebookName: string, isAuthenticated: boolean): MessageData => {
+export const generateWhereContinueExplanation = (notebookName: string, isAuthenticated: boolean, notebookCreatedRecently: boolean): MessageData => {
 
     return isAuthenticated
         ? ({
@@ -67,7 +66,9 @@ export const generateWhereContinueExplanation = (notebookName: string, isAuthent
                     variant: "outlined"
                 },
             ],
-            content: `I just created a new notebook for you called "${notebookName}" and added the nodes explaining the answer to your question. Would you like to open the notebook or prefer to see the explanation of the nodes here in text.`,
+            content: notebookCreatedRecently
+                ? `I just created a new notebook for you called "${notebookName}" and added the nodes explaining the answer to your question. Would you like to open the notebook or prefer to see the explanation of the nodes here in text.`
+                : `I added more nodes to your notebook ${notebookName} to help answering your question. Would you like to open the notebook or prefer to see the explanation of the nodes here in text?`,
             nodes: [],
             type: "READER",
             hour: getCurrentHourHHMM(),

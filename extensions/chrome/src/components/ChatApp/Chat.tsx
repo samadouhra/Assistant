@@ -51,6 +51,7 @@ import MarkdownRender from "./MarkdownRender";
 import { HeaderMessage } from "../ChatHeader";
 import { ChatFooter } from "../ChatFooter";
 import { ChatStickyMessage } from "../ChatStickyMessage";
+import { PieChart } from "../Charts/PieComponent";
 
 /**
  * - NORMAL: is only content
@@ -101,6 +102,8 @@ type Message = {
   messages: MessageData[];
 };
 
+type Notebook = { id: string, name: string }
+
 const tempMap = (variant: string): ActionVariant => {
   if (variant === "outline") return "outlined";
   return "contained";
@@ -118,7 +121,7 @@ type ChatProps = {
 
 export const Chat = ({ isLoading, setIsLoading, appMessages, clearAppMessages, isAuthenticated, sx }: ChatProps) => {
 
-  const [notebookId, setNotebookId] = useState('')
+  const [notebook, setNotebook] = useState<Notebook | null>({ id: "123", name: "fake notebook, remove it" })
   const [messagesObj, setMessagesObj] = useState<Message[]>([]);
   const [speakingMessageId, setSpeakingMessageId] = useState<string>("");
   const chatElementRef = useRef<HTMLDivElement | null>(null);
@@ -273,7 +276,10 @@ export const Chat = ({ isLoading, setIsLoading, appMessages, clearAppMessages, i
       generateContinueDisplayingNodeMessage(
         firstElement.title,
         firstElement.unit,
-        thereIsNextNode
+        thereIsNextNode,
+        // TODO: after map practice into a node, send practice property and add PieChart
+        // { answered: firstElement, totalQuestions: 10 },
+        // <PieChart answers={2} questions={10} />
       ),
       getCurrentDateYYMMDD()
     );
@@ -287,10 +293,12 @@ export const Chat = ({ isLoading, setIsLoading, appMessages, clearAppMessages, i
     request?: string
   ) => {
 
+    if (!notebook) return null
+
     let onClick = undefined
     if (action.type === "LOCAL_OPEN_NOTEBOOK") {
       onClick = () => {
-        console.log("-> Open Notebook", notebookId);
+        console.log("-> Open Notebook", notebook);
         const messageWithSelectedAction = generateUserActionAnswer(
           action.title
         );
@@ -301,7 +309,7 @@ export const Chat = ({ isLoading, setIsLoading, appMessages, clearAppMessages, i
         // open all nodes
         const payload: IViewNodeOpenNodesPayload = {
           nodeIds: tmpNodesToBeDisplayed.map(c => c.id),
-          notebookId,
+          notebookId: notebook.id,
           visible: true
         };
         chrome.runtime.sendMessage(chrome.runtime.id || process.env.EXTENSION_ID, {
@@ -312,11 +320,9 @@ export const Chat = ({ isLoading, setIsLoading, appMessages, clearAppMessages, i
         setTmpNodesToBeDisplayed([]);
         chrome.runtime.sendMessage(chrome.runtime.id, {
           type: "SELECT_NOTEBOOK",
-          notebookId
+          notebookId: notebook.id
         });
-        chrome.runtime.sendMessage(chrome.runtime.id, {
-          type: "FOCUS_NOTEBOOK"
-        });
+        chrome.runtime.sendMessage(chrome.runtime.id, { type: "FOCUS_NOTEBOOK" });
       }
     }
 
@@ -340,20 +346,14 @@ export const Chat = ({ isLoading, setIsLoading, appMessages, clearAppMessages, i
         pushMessage(messageWithSelectedAction, getCurrentDateYYMMDD());
         setTmpNodesToBeDisplayed([]);
         removeActionOfAMessage(messageId, date);
-        if (notebookId) {
+        if (notebook) {
           chrome.runtime.sendMessage(chrome.runtime.id, {
             type: "SELECT_NOTEBOOK",
-            notebookId
+            notebookId: notebook.id
           });
-          chrome.runtime.sendMessage(chrome.runtime.id, {
-            type: "FOCUS_NOTEBOOK"
-          });
-          // window.open(`${NOTEBOOKS_LINK}/${notebookId}`, '_blank')?.focus();
+          chrome.runtime.sendMessage(chrome.runtime.id, { type: "FOCUS_NOTEBOOK" });
         } else {
-          // window.open(NOTEBOOK_LINK, '_blank')?.focus();
-          chrome.runtime.sendMessage(chrome.runtime.id, {
-            type: "FOCUS_NOTEBOOK"
-          });
+          chrome.runtime.sendMessage(chrome.runtime.id, { type: "FOCUS_NOTEBOOK" });
         }
       }
     }
@@ -402,10 +402,9 @@ export const Chat = ({ isLoading, setIsLoading, appMessages, clearAppMessages, i
 
           setTmpNodesToBeDisplayed(nodesOnMessage)
 
-          // if there is nodes I need to create a notebook
-          // and notebook is note created yet
-          if (notebookId) {
+          if (notebook) {
             // TODO: manage response when notebookId exist
+            pushMessage(generateWhereContinueExplanation(notebook.name, isAuthenticated, false), getCurrentDateYYMMDD())
             setIsLoading(false);
             return
           }
@@ -415,22 +414,14 @@ export const Chat = ({ isLoading, setIsLoading, appMessages, clearAppMessages, i
             payload,
             messageType: "notebook:create-notebook",
           });
-          // push message tp continue explanation
-
-          // if is authenticated create notebook
-          // chrome.runtime.sendMessage(chrome.runtime.id || process.env.EXTENSION_ID, {
-          //   payload,
-          //   messageType: "assistant",
-          // });
         }
         setConversationId(conversationId)
         setIsLoading(false);
       }
 
       if (message.messageType === 'notebook:open-node') {
-        const { linkToOpenNode } = message as ViewNodeWorkerResponse
+        // const { linkToOpenNode } = message as ViewNodeWorkerResponse
 
-        // window.open(linkToOpenNode, '_blank')?.focus();
         console.log('>notebook:open-node', { message })
         setIsLoading(false);
       }
@@ -438,15 +429,15 @@ export const Chat = ({ isLoading, setIsLoading, appMessages, clearAppMessages, i
       if (message.messageType === 'notebook:create-notebook') {
         const { notebookId, notebookTitle } = message as CreateNotebookWorkerResponse
         console.log('>notebook:create-notebook', { message })
-        pushMessage(generateWhereContinueExplanation(notebookTitle, isAuthenticated), getCurrentDateYYMMDD())
-        setNotebookId(notebookId)
+        pushMessage(generateWhereContinueExplanation(notebookTitle, isAuthenticated, true), getCurrentDateYYMMDD())
+        setNotebook({ id: notebookId, name: notebookTitle })
         setIsLoading(false);
       }
     }
 
     chrome.runtime.onMessage.addListener(listenWorker);
     return () => chrome.runtime.onMessage.removeListener(listenWorker);
-  }, [notebookId]);
+  }, [notebook]);
 
   const formatDate = (date: string) => {
     const _date = new Date();
@@ -464,7 +455,7 @@ export const Chat = ({ isLoading, setIsLoading, appMessages, clearAppMessages, i
 
   const onClearChat = () => {
     setMessagesObj([])
-    setNotebookId('')
+    setNotebook(null)
     setIsLoading(false)
   }
 
@@ -649,9 +640,8 @@ export const Chat = ({ isLoading, setIsLoading, appMessages, clearAppMessages, i
                               title={node.title}
                               type={node.type}
                               link={node.link}
-                              notebookId={notebookId}
+                              notebookId={notebook?.id}
                               isAuthenticated={isAuthenticated}
-                            // id={node.id}
                             />
                           ))}
                         </Stack>
@@ -680,7 +670,7 @@ export const Chat = ({ isLoading, setIsLoading, appMessages, clearAppMessages, i
                           sx={{
                             display: "flex",
                             width: "100%",
-                            height: "310px",
+                            height: "150px",
                           }}
                         >
                           <iframe
@@ -689,6 +679,7 @@ export const Chat = ({ isLoading, setIsLoading, appMessages, clearAppMessages, i
                             style={{ border: "0px" }}
                           ></iframe>
                         </Box>}
+                        {c.componentContent && <Box sx={{ mt: "12px" }}>{c.componentContent}</Box>}
                       </Box>
 
                       {c.actions.length > 0 && (
