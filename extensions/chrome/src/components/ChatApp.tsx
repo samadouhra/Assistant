@@ -21,6 +21,7 @@ import { useTheme } from "../hooks/useTheme";
 import { db } from "../lib/firebase";
 import { IAssistantRequestPayload } from "../types";
 import { generateExplainSelectedText } from "../utils/messages";
+import { ONECADEMY_IFRAME_URL } from "../helpers/common";
 
 function ChatApp() {
   const [displayAssistant, setDisplayAssistant] = useState(false);
@@ -28,6 +29,7 @@ function ChatApp() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [appMessages, setAppMessages] = useState<MessageData[]>([])
   const [isLoading, setIsLoading] = useState(false)
+  const iframeRef = useRef<null | HTMLIFrameElement>(null);
   // const chatRef = useRef<any>(null)
   const { mode } = useTheme();
 
@@ -132,8 +134,23 @@ function ChatApp() {
     return () => document.removeEventListener('mouseup', onDetectSelectedText)
   }, [])
 
+  useEffect(() => {
+    if(iframeRef.current) {
+      const src = iframeRef.current.src;
+      iframeRef.current.src = ""
+      iframeRef.current.src = src;
+    }
+  }, [iframeRef]);
+
   return (
     <>
+      <Box sx={{
+        position: "fixed",
+        top: "0px",
+        left: "0px"
+      }}>
+        <iframe ref={iframeRef} src={ONECADEMY_IFRAME_URL} width={"0px"} height={"0px"}/>
+      </Box>
       {selectedText && selectedTextMouseUpPosition && <IconButton
         onClick={onAskSelectedText}
         sx={{

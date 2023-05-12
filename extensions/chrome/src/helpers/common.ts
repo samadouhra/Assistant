@@ -1,4 +1,8 @@
-export const ONECADEMY_NOTEBOOK_URL = "http://localhost:3000/notebook";//"https://1cademy.com/notebook";
+import { IAssistantResponseMessage } from "../types";
+
+export const ONECADEMY_URL = 'http://localhost:3000';//"https://1cademy.com";
+export const ONECADEMY_NOTEBOOK_URL = `${ONECADEMY_URL}/notebook`;
+export const ONECADEMY_IFRAME_URL = `${ONECADEMY_URL}/iframe`;
 
 export const delay = async (time: number) => {
   return new Promise(resolve => {
@@ -87,4 +91,34 @@ export const findOrCreateNotebookTab = async (): Promise<number> => {
     windowId: currentWindowId
   });
   return newTab.id!;
+}
+
+export const getIdToken = async (tabId: number): Promise<string | null> => {
+  await chrome.scripting.executeScript({
+    target: {
+      tabId,
+      allFrames: true
+    },
+    func: () => {
+      const event = new CustomEvent('assistant', {
+        detail: {
+          type: "REQUEST_ID_TOKEN"
+        }
+      });
+      window.dispatchEvent(event);
+    }
+  });  
+  return new Promise((resolve) => {
+    const t = setTimeout(() => {
+      resolve(null);
+      chrome.runtime.onMessageExternal.removeListener(listener);
+    }, 1000);
+    const listener = (m: IAssistantResponseMessage) => {
+      if(m.type !== "NOTEBOOK_ID_TOKEN") return;
+      clearTimeout(t);
+      resolve(m.token);
+      chrome.runtime.onMessageExternal.removeListener(listener);
+    };
+    chrome.runtime.onMessageExternal.addListener(listener)
+  });
 }

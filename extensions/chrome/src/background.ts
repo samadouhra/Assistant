@@ -2,7 +2,7 @@ import { db } from "./lib/firebase";
 import { doc, writeBatch, collection, getDocs, query, where, Timestamp } from "firebase/firestore";
 import { doesReloadRequired, fetchClientInfo, sendPromptAndReceiveResponse } from "./helpers/chatgpt";
 import { ENDPOINT_BASE } from "./utils/constants";
-import { findOrCreateNotebookTab } from "./helpers/common";
+import { findOrCreateNotebookTab, getIdToken } from "./helpers/common";
 import { IAssistantCreateNotebookRequestPayload, IViewNodeOpenNodesPayload, ViewNodeWorkerPayload, ViewNodeWorkerResponse } from "./types";
 declare const createToaster: (toasterType: string, message: string) => void;
 
@@ -320,12 +320,17 @@ const onAskAssistant = (message: any, sender: chrome.runtime.MessageSender) => {
     if (!sender.tab?.id) return console.error('Cant find tab id')
 
     console.log('call onAskAssistant:', message)
+    const headers: any = {
+      "Content-Type": "application/json"
+    };
+    const token = await getIdToken(sender.tab?.id);
+    if(token) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
     const res = await fetch(`${ENDPOINT_BASE}/assistant`, {
       method: "POST",
       body: JSON.stringify(message.payload),
-      headers: {
-        "Content-Type": "application/json"
-      }
+      headers
     })
     const data = await res.json()
     console.log({ data })
