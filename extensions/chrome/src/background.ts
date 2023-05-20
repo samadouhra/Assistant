@@ -324,9 +324,10 @@ const onAskAssistant = (message: any, sender: chrome.runtime.MessageSender) => {
       "Content-Type": "application/json"
     };
     const token = await getIdToken(sender.tab?.id);
-    if(token) {
+    if (token) {
       headers["Authorization"] = `Bearer ${token}`;
     }
+    console.log('token', token)
     const res = await fetch(`${ENDPOINT_BASE}/assistant`, {
       method: "POST",
       body: JSON.stringify(message.payload),
@@ -342,21 +343,18 @@ const onAskAssistant = (message: any, sender: chrome.runtime.MessageSender) => {
 const onOpenNode = (message: any, sender: chrome.runtime.MessageSender) => {
 
   (async () => {
-    // console.log({ message })
-    const { idToken } = await chrome.storage.local.get("idToken") as { idToken?: string };
-
-    if (!idToken) return console.error('Cant find token')
     if (message?.messageType !== 'notebook:open-node') return
     if (!sender.tab?.id) return console.error('Cant find tab id')
 
     const { apiPayload, nodeId } = message.payload as ViewNodeWorkerPayload
     console.log('call onOpenNode:', message)
+    const token = await getIdToken(sender.tab?.id);
     const res = await fetch(`${ENDPOINT_BASE}/viewNode/${nodeId}`, {
       method: "POST",
       body: JSON.stringify(apiPayload),
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${idToken}`,
+        "Authorization": `Bearer ${token}`,
       }
     })
     await res.json()
@@ -369,21 +367,18 @@ const onOpenNode = (message: any, sender: chrome.runtime.MessageSender) => {
 
 const onOpenNodes = (message: any, sender: chrome.runtime.MessageSender) => {
   (async () => {
-    // console.log({ message })
-    const { idToken } = await chrome.storage.local.get("idToken") as { idToken?: string };
-
-    if (!idToken) return console.error('Cant find token')
     if (message?.messageType !== 'notebook:open-nodes') return
     if (!sender.tab?.id) return console.error('Cant find tab id')
 
     const payload = message.payload as IViewNodeOpenNodesPayload
     console.log('call onOpenNodess:', message)
+    const token = await getIdToken(sender.tab?.id);
     const res = await fetch(`${ENDPOINT_BASE}/viewNode/openNodes`, {
       method: "POST",
       body: JSON.stringify(payload),
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${idToken}`,
+        "Authorization": `Bearer ${token}`,
       }
     })
     await res.json()
@@ -405,12 +400,13 @@ const onOpenNotebook = (message: any, sender: chrome.runtime.MessageSender) => {
 
     const apiPayload = message.payload as IAssistantCreateNotebookRequestPayload
     console.log('call onOpenNotebook:', message)
+    const token = await getIdToken(sender.tab?.id);
     const res = await fetch(`${ENDPOINT_BASE}/assistant/createNotebook`, {
       method: "POST",
       body: JSON.stringify(apiPayload),
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${idToken}`,
+        "Authorization": `Bearer ${token}`,
       }
     })
     const data = await res.json()
