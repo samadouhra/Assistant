@@ -94,6 +94,7 @@ export const findOrCreateNotebookTab = async (): Promise<number> => {
 }
 
 export const getIdToken = async (tabId: number): Promise<string | null> => {
+  await sendExtensionId(tabId);
   await chrome.scripting.executeScript({
     target: {
       tabId,
@@ -120,5 +121,23 @@ export const getIdToken = async (tabId: number): Promise<string | null> => {
       chrome.runtime.onMessageExternal.removeListener(listener);
     };
     chrome.runtime.onMessageExternal.addListener(listener)
+  });
+}
+
+export const sendExtensionId = async (tabId: number) => {
+  await chrome.scripting.executeScript({
+    target: {
+      tabId,
+      allFrames: true
+    },
+    func: () => {
+      const event = new CustomEvent('assistant', {
+        detail: {
+          type: "EXTENSION_ID",
+          extension: chrome.runtime.id
+        }
+      });
+      window.dispatchEvent(event);
+    }
   });
 }
