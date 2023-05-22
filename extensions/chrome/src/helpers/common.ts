@@ -134,7 +134,7 @@ export const sendExtensionId = async (tabId: number) => {
       const event = new CustomEvent('assistant', {
         detail: {
           type: "EXTENSION_ID",
-          extension: chrome.runtime.id
+          extensionId: chrome.runtime.id
         }
       });
       window.dispatchEvent(event);
