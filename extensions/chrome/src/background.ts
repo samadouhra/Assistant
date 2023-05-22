@@ -4,6 +4,7 @@ import { doesReloadRequired, fetchClientInfo, sendPromptAndReceiveResponse } fro
 import { ENDPOINT_BASE } from "./utils/constants";
 import { findOrCreateNotebookTab, getIdToken } from "./helpers/common";
 import { IAssistantCreateNotebookRequestPayload, IViewNodeOpenNodesPayload, ViewNodeWorkerPayload, ViewNodeWorkerResponse } from "./types";
+import { ASSISTANT_BARD_ACTIONS, ASSISTANT_BARD_MESSAGE, ASSISTANT_BARD_RESPONSE, ASSISTANT_ONE_ACTIONS, BARD_RESULT_NODE, getBardPromptResponse, getBardTabId } from "./helpers/assistant";
 declare const createToaster: (toasterType: string, message: string) => void;
 
 const MAIN_MENUITEM_ID: string = "1cademy-assitant-ctx-mt";
@@ -648,3 +649,44 @@ chrome.runtime.onMessage.addListener((command: string) => {
     })();
   })();
 })
+
+// listener for bard assistant events
+chrome.runtime.onMessage.addListener((message: any, sender) => {
+  if(!message || !message?.type) return;
+  if(message.type === ASSISTANT_BARD_ACTIONS.REQUEST) {
+    (async () => {
+      const tabId = await getBardTabId();
+      const response = await getBardPromptResponse(tabId, message.message as string);
+      chrome.tabs.sendMessage(sender.tab?.id!, {
+        type: ASSISTANT_BARD_ACTIONS.RESPONSE,
+        message: response
+      });
+    })();
+  } else if(message.type === ASSISTANT_ONE_ACTIONS.COMMAND_REQUEST) {
+    (async () => {
+      const token = await getIdToken(sender.tab?.id!);
+      const headers: any = {
+        "Content-Type": "application/json"
+      };
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+      }
+      const response = await fetch(`${ENDPOINT_BASE}/bardQuery`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          commands: message.message
+        })
+      });
+      const _response = await response.json() as {
+        nodes: BARD_RESULT_NODE[]
+      };
+
+      chrome.tabs.sendMessage(sender.tab?.id!, {
+        type: ASSISTANT_ONE_ACTIONS.COMMAND_RESPONSE,
+        message: _response
+      });
+    })();
+  }
+})
+

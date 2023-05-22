@@ -11,7 +11,7 @@ module.exports = {
     "paste-detector": path.resolve(__dirname, "..", "src", "paste-detector.ts"),
     "app": path.resolve(__dirname, "..", "src", "app.tsx"),
     "econ-events": path.resolve(__dirname, "..", "src", "econ-events.ts"),
-    "econ-chat": path.resolve(__dirname, "..", "src", "econ-chat.tsx")
+    "econ-chat": path.resolve(__dirname, "..", "src", "econ-chat.tsx"),
   },
   output: {
     path: path.join(__dirname, "../dist")

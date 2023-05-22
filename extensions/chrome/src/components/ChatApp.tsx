@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from "react";
+import React, { useCallback, useEffect, useRef } from "react";
 import { brandingLightTheme } from "../utils/brandingTheme";
 import "./ChatApp/styles.css";
 
@@ -22,6 +22,7 @@ import { db } from "../lib/firebase";
 import { IAssistantRequestPayload } from "../types";
 import { generateExplainSelectedText } from "../utils/messages";
 import { ONECADEMY_IFRAME_URL } from "../helpers/common";
+import { ASSISTANT_BARD_ACTIONS, ASSISTANT_BARD_MESSAGE, ASSISTANT_BARD_RESPONSE, ASSISTANT_ONE_ACTIONS, extractSearchCommands, getBardAnswerPrompt, getBardQueryPrompt } from "../helpers/assistant";
 
 function ChatApp() {
   const [displayAssistant, setDisplayAssistant] = useState(false);
@@ -142,6 +143,43 @@ function ChatApp() {
     }
   }, [iframeRef]);
 
+  useEffect(() => {
+    chrome.runtime.onMessage.addListener((message) => {
+      if(!message || !message?.type) return;
+      const selection = `An important part of our answer will be what we call the capitalist revolution: the emergence in the eighteenth century and eventual global spread of a way of organizing the economy that we now call capitalism. The term 'capitalism'—which we will define shortly—was barely heard of a century ago, but as you can see from Figure 1.7, its use has skyrocketed since then. The figure shows the fraction of all articles in the New York Times (excluding the sports section) that include the term 'capitalism.'\n`;
+      if(message.type === ASSISTANT_BARD_ACTIONS.RESPONSE) {
+        const commands = extractSearchCommands(message.message);
+        if(commands.length) {
+          chrome.runtime.sendMessage({
+            type: ASSISTANT_ONE_ACTIONS.COMMAND_REQUEST,
+            message: commands
+          });
+          console.log({message, commands}, ASSISTANT_BARD_ACTIONS.RESPONSE);
+        } else {
+          console.log(message.message, "Bard response")
+        }
+      } else if(message.type === ASSISTANT_ONE_ACTIONS.COMMAND_RESPONSE) {
+        const prompt = getBardAnswerPrompt(selection, message?.message?.nodes || []);
+        console.log({message, prompt}, ASSISTANT_ONE_ACTIONS.COMMAND_RESPONSE);
+        chrome.runtime.sendMessage({
+          type: ASSISTANT_BARD_ACTIONS.REQUEST,
+          message: prompt,
+          selection
+        });
+      }
+    });
+  }, []);
+
+  const bardTest = useCallback(() => {
+    const selection = `An important part of our answer will be what we call the capitalist revolution: the emergence in the eighteenth century and eventual global spread of a way of organizing the economy that we now call capitalism. The term 'capitalism'—which we will define shortly—was barely heard of a century ago, but as you can see from Figure 1.7, its use has skyrocketed since then. The figure shows the fraction of all articles in the New York Times (excluding the sports section) that include the term 'capitalism.'\n`;
+    console.log(ASSISTANT_BARD_ACTIONS.REQUEST, "ASSISTANT_BARD_MESSAGE");
+    chrome.runtime.sendMessage({
+      type: ASSISTANT_BARD_ACTIONS.REQUEST,
+      message: getBardQueryPrompt(selection),
+      selection
+    });
+  }, []);
+
   return (
     <>
       <Box sx={{
@@ -188,6 +226,9 @@ function ChatApp() {
 
         {/* floating buttons */}
         <Box sx={{ position: "fixed", bottom: "38px", right: "38px" }}>
+          <Button onClick={bardTest}>
+            Bard Test
+          </Button>
           {displayAssistant && (
             <Button
               onClick={onCloseChat}
