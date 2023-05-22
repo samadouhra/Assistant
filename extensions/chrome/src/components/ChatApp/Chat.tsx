@@ -395,7 +395,7 @@ export const Chat = ({ isLoading, setIsLoading, appMessages, clearAppMessages, i
           // console.log(1)
           pushMessage(generateTopicNotFound(request ?? "", isAuthenticated), getCurrentDateYYMMDD())
         } else {
-          console.log(22, notebook)
+          // console.log(22)
           onPushAssistantMessage({ ...(message as IAssistantResponse), nodes: [] })
           const nodesOnMessage = nodes ? nodes.map(mapNodesToNodeLink) : []
           if (!nodesOnMessage.length) return setIsLoading(false);
@@ -408,7 +408,6 @@ export const Chat = ({ isLoading, setIsLoading, appMessages, clearAppMessages, i
             setIsLoading(false);
             return
           }
-          console.log(222, { isAuthenticated })
           if (!isAuthenticated) return setIsLoading(false);
           const payload: IAssistantCreateNotebookRequestPayload = { conversationId, message: request }
           chrome.runtime.sendMessage(chrome.runtime.id || process.env.EXTENSION_ID, {
