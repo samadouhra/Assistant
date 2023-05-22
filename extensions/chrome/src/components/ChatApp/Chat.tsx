@@ -637,6 +637,7 @@ export const Chat = ({ isLoading, setIsLoading, appMessages, clearAppMessages, i
                           {c.nodes.map((node) => (
                             <NodeLink
                               key={node.id}
+                              id={node.id}
                               title={node.title}
                               type={node.type}
                               link={node.link}
