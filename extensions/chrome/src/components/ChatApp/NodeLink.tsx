@@ -14,13 +14,16 @@ type NodeLinkProps = {
   type: NodeType;
   title: string;
   link: string;
+  isAuthenticatedRef: {
+    current: boolean
+  }
 }
-export const NodeLink = ({ id, notebookId, title, type, link, isAuthenticated }: NodeLinkProps) => {
+export const NodeLink = ({ id, notebookId, title, type, link, isAuthenticated, isAuthenticatedRef }: NodeLinkProps) => {
   const { mode } = useTheme();
   const onOpenNode = useCallback(() => {
     if (!window) return
     if (!notebookId) return
-    if (!isAuthenticated) return
+    if (!isAuthenticatedRef.current) return
 
     // after open link on notebook will open notebook in new tab
     const payload: IViewNodePayload = { notebookId, visible: true };

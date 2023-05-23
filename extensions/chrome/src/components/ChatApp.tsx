@@ -27,6 +27,7 @@ function ChatApp() {
   const [displayAssistant, setDisplayAssistant] = useState(false);
   const [selectedText, setSelectedText] = useState("");
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const isAuthenticatedRef = useRef<boolean>(false);
   const [appMessages, setAppMessages] = useState<MessageData[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const iframeRef = useRef<null | HTMLIFrameElement>(null);
@@ -39,6 +40,7 @@ function ChatApp() {
       if (message.type === "REQUEST_AUTHENTICATED") {
         console.log("message.isAuthenticated", message.isAuthenticated);
         setIsAuthenticated(message.isAuthenticated);
+        isAuthenticatedRef.current = message.isAuthenticated;
         if(!message.isAuthenticated) {
           setTimeout(() => {
             chrome.runtime.sendMessage(chrome.runtime.id, {
@@ -266,7 +268,7 @@ function ChatApp() {
         </Box>
 
         {/* chat */}
-        {displayAssistant && <Chat isLoading={isLoading} setIsLoading={setIsLoading} appMessages={appMessages} clearAppMessages={() => setAppMessages([])} isAuthenticated={isAuthenticated} sx={{ position: "fixed", bottom: "112px", right: "38px" }} />}
+        {displayAssistant && <Chat isLoading={isLoading} setIsLoading={setIsLoading} appMessages={appMessages} clearAppMessages={() => setAppMessages([])} isAuthenticated={isAuthenticated} isAuthenticatedRef={isAuthenticatedRef} sx={{ position: "fixed", bottom: "112px", right: "38px" }} />}
       </Box >
     </>
   )

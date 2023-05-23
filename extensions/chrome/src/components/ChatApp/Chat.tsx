@@ -117,9 +117,12 @@ type ChatProps = {
   clearAppMessages: () => void
   isAuthenticated: boolean,
   sx?: SxProps<Theme>,
+  isAuthenticatedRef: {
+    current: boolean;
+  }
 };
 
-export const Chat = ({ isLoading, setIsLoading, appMessages, clearAppMessages, isAuthenticated, sx }: ChatProps) => {
+export const Chat = ({ isLoading, setIsLoading, appMessages, clearAppMessages, isAuthenticated, isAuthenticatedRef, sx }: ChatProps) => {
 
   const [notebook, setNotebook] = useState<Notebook | null>(null)
   const [messagesObj, setMessagesObj] = useState<Message[]>([]);
@@ -393,7 +396,7 @@ export const Chat = ({ isLoading, setIsLoading, appMessages, clearAppMessages, i
         const { is404, request, nodes, conversationId } = message as IAssistantResponse
         if (is404) {
           // console.log(1)
-          pushMessage(generateTopicNotFound(request ?? "", isAuthenticated), getCurrentDateYYMMDD())
+          pushMessage(generateTopicNotFound(request ?? "", isAuthenticatedRef.current), getCurrentDateYYMMDD())
         } else {
           // console.log(22)
           onPushAssistantMessage({ ...(message as IAssistantResponse), nodes: [] })
@@ -404,11 +407,11 @@ export const Chat = ({ isLoading, setIsLoading, appMessages, clearAppMessages, i
 
           if (notebook) {
             // TODO: manage response when notebookId exist
-            pushMessage(generateWhereContinueExplanation(notebook.name, isAuthenticated, false), getCurrentDateYYMMDD())
+            pushMessage(generateWhereContinueExplanation(notebook.name, isAuthenticatedRef.current, false), getCurrentDateYYMMDD())
             setIsLoading(false);
             return
           }
-          if (!isAuthenticated) return setIsLoading(false);
+          if (!isAuthenticatedRef.current) return setIsLoading(false);
           const payload: IAssistantCreateNotebookRequestPayload = { conversationId, message: request }
           chrome.runtime.sendMessage(chrome.runtime.id || process.env.EXTENSION_ID, {
             payload,
@@ -429,7 +432,7 @@ export const Chat = ({ isLoading, setIsLoading, appMessages, clearAppMessages, i
       if (message.messageType === 'notebook:create-notebook') {
         const { notebookId, notebookTitle } = message as CreateNotebookWorkerResponse
         console.log('>notebook:create-notebook', { message })
-        pushMessage(generateWhereContinueExplanation(notebookTitle, isAuthenticated, true), getCurrentDateYYMMDD())
+        pushMessage(generateWhereContinueExplanation(notebookTitle, isAuthenticatedRef.current, true), getCurrentDateYYMMDD())
         setNotebook({ id: notebookId, name: notebookTitle })
         setIsLoading(false);
       }
@@ -644,6 +647,7 @@ export const Chat = ({ isLoading, setIsLoading, appMessages, clearAppMessages, i
                               link={node.link}
                               notebookId={notebook?.id}
                               isAuthenticated={isAuthenticated}
+                              isAuthenticatedRef={isAuthenticatedRef}
                             />
                           ))}
                         </Stack>

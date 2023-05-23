@@ -1,6 +1,6 @@
 import { IAssistantResponseMessage } from "../types";
 
-export const ONECADEMY_URL = "https://1cademy.com";
+export const ONECADEMY_URL = "http://localhost:3000";
 export const ONECADEMY_NOTEBOOK_URL = `${ONECADEMY_URL}/notebook`;
 export const ONECADEMY_IFRAME_URL = `${ONECADEMY_URL}/iframe`;
 
