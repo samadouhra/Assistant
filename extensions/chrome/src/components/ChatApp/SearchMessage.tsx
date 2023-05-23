@@ -14,13 +14,13 @@ const SearchMessage = () => {
   useEffect(() => {
     setInterval(() => {
       setLoaderIdx((prev) => {
-        return (prev+1) % (SEARCH_ANIMATION_LOADER.length - 1);
+        return (prev + 1) % (SEARCH_ANIMATION_LOADER.length - 1);
       });
     }, 10000);
   }, []);
-  
-  const now=new Date()
-  
+
+  const now = new Date()
+
   return (
     <Box
       display={"grid"}
@@ -28,7 +28,7 @@ const SearchMessage = () => {
         maxWidth: "250px",
         gridTemplateColumns: "40px 1fr",
         columnGap: "12px",
-        alignItems:"center"
+        alignItems: "center"
       }}
     >
       <CustomAvatar imageUrl={LOGO_URL} alt="onecademy assistant logo" />
@@ -45,11 +45,11 @@ const SearchMessage = () => {
         >
           1Cademy Assistant
         </Typography>
-        
+
       </Stack>
       <Box
         sx={{
-          gridRowStart:2,
+          gridRowStart: 2,
           gridColumnStart: 2,
           p: "10px 14px",
           borderRadius: "0px 8px 8px 8px",
@@ -59,6 +59,7 @@ const SearchMessage = () => {
               : DESIGN_SYSTEM_COLORS.notebookG600,
         }}
       >
+        <Typography sx={{ color: mode === 'dark' ? `${DESIGN_SYSTEM_COLORS.gray300} !important` : `${DESIGN_SYSTEM_COLORS.gray500} !important`, fontWeight: 400, fontSize: "14px" }}>{SEARCH_ANIMATION_LOADER[loaderIdx].text}</Typography>
         <Box
           sx={{
             width: "70px",
@@ -68,80 +69,80 @@ const SearchMessage = () => {
         >
           {loaderIdx === 0 && (
             <RiveComponentMemoized
-              src={SEARCH_ANIMATION_LOADER[loaderIdx]}
+              src={SEARCH_ANIMATION_LOADER[loaderIdx].url}
               artboard="New Artboard"
-              animations={["Timeline 1",mode]}
+              animations={["Timeline 1", mode]}
               autoplay={true}
             />
           )}
           {loaderIdx === 1 && (
             <RiveComponentMemoized
-              src={SEARCH_ANIMATION_LOADER[loaderIdx]}
+              src={SEARCH_ANIMATION_LOADER[loaderIdx].url}
               artboard="New Artboard"
-              animations={["Timeline 1",mode]}
+              animations={["Timeline 1", mode]}
               autoplay={true}
             />
           )}
 
           {loaderIdx === 2 && (
             <RiveComponentMemoized
-              src={SEARCH_ANIMATION_LOADER[loaderIdx]}
+              src={SEARCH_ANIMATION_LOADER[loaderIdx].url}
               artboard="New Artboard"
-              animations={["Timeline 1",mode]}
+              animations={["Timeline 1", mode]}
               autoplay={true}
             />
           )}
 
           {loaderIdx === 3 && (
             <RiveComponentMemoized
-              src={SEARCH_ANIMATION_LOADER[loaderIdx]}
+              src={SEARCH_ANIMATION_LOADER[loaderIdx].url}
               artboard="New Artboard"
-              animations={["Timeline 1",mode]}
+              animations={["Timeline 1", mode]}
               autoplay={true}
             />
           )}
 
           {loaderIdx === 4 && (
             <RiveComponentMemoized
-              src={SEARCH_ANIMATION_LOADER[loaderIdx]}
+              src={SEARCH_ANIMATION_LOADER[loaderIdx].url}
               artboard="New Artboard"
-              animations={["Timeline 1",mode]}
+              animations={["Timeline 1", mode]}
               autoplay={true}
             />
           )}
 
           {loaderIdx === 5 && (
             <RiveComponentMemoized
-              src={SEARCH_ANIMATION_LOADER[loaderIdx]}
+              src={SEARCH_ANIMATION_LOADER[loaderIdx].url}
               artboard="New Artboard"
-              animations={["Timeline 1",mode]}
+              animations={["Timeline 1", mode]}
               autoplay={true}
             />
           )}
 
           {loaderIdx === 6 && (
             <RiveComponentMemoized
-              src={SEARCH_ANIMATION_LOADER[loaderIdx]}
+              src={SEARCH_ANIMATION_LOADER[loaderIdx].url}
               artboard="New Artboard"
-              animations={["Timeline 1",mode]}
+              animations={["Timeline 1", mode]}
               autoplay={true}
             />
           )}
 
           {loaderIdx === 7 && (
             <RiveComponentMemoized
-              src={SEARCH_ANIMATION_LOADER[loaderIdx]}
+              src={SEARCH_ANIMATION_LOADER[loaderIdx].url}
               artboard="New Artboard"
-              animations={["Timeline 1",mode]}
+              animations={["Timeline 1", mode]}
               autoplay={true}
             />
           )}
 
           {loaderIdx === 8 && (
             <RiveComponentMemoized
-              src={SEARCH_ANIMATION_LOADER[loaderIdx]}
+              src={SEARCH_ANIMATION_LOADER[loaderIdx].url}
               artboard="New Artboard"
-              animations={["Timeline 1",mode]}
+              animations={["Timeline 1", mode]}
               autoplay={true}
             />
           )}
