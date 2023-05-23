@@ -501,6 +501,7 @@ export const Chat = ({ isLoading, setIsLoading, appMessages, clearAppMessages, i
             backgroundImage: `url(${CHAT_BACKGROUND_IMAGE_URL})`,
             backgroundRepeat: "no-repeat",
             backgroundPosition: "center",
+            backgroundSize: "208px auto"
           }),
         }}
       >
