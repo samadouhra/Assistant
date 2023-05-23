@@ -39,6 +39,13 @@ function ChatApp() {
       if (message.type === "REQUEST_AUTHENTICATED") {
         console.log("message.isAuthenticated", message.isAuthenticated);
         setIsAuthenticated(message.isAuthenticated);
+        if(!message.isAuthenticated) {
+          setTimeout(() => {
+            chrome.runtime.sendMessage(chrome.runtime.id, {
+              type: "REQUEST_ID_TOKEN"
+            });
+          }, 500);
+        }
       }
     });
     chrome.runtime.sendMessage(chrome.runtime.id, {
