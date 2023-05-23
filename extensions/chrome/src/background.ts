@@ -392,10 +392,10 @@ const onOpenNodes = (message: any, sender: chrome.runtime.MessageSender) => {
 const onOpenNotebook = (message: any, sender: chrome.runtime.MessageSender) => {
   (async () => {
     // console.log({ message })
-    const { idToken } = await chrome.storage.local.get("idToken") as { idToken?: string };
+    if (message?.messageType !== 'notebook:create-notebook') return
+    const idToken = await getIdToken(sender.tab?.id!);
 
     if (!idToken) return console.error('Cant find token')
-    if (message?.messageType !== 'notebook:create-notebook') return
     if (!sender.tab?.id) return console.error('Cant find tab id')
 
     const apiPayload = message.payload as IAssistantCreateNotebookRequestPayload
