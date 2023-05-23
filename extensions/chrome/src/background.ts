@@ -469,13 +469,10 @@ chrome.runtime.onMessage.addListener((message, sender) => {
   if (typeof message !== "object" || message === null) return;
   if (message?.type === "REQUEST_ID_TOKEN") {
     (async () => {
-      const storageValues: {
-        idToken?: string
-      } = await chrome.storage.local.get("idToken") as any;
-
+      const idToken = await getIdToken(sender.tab?.id!);
       chrome.tabs.sendMessage(sender.tab?.id!, {
         type: "REQUEST_AUTHENTICATED",
-        isAuthenticated: Boolean(storageValues.idToken)
+        isAuthenticated: Boolean(idToken)
       } as any);
     })()
   } else if (message?.type === "SELECT_NOTEBOOK") {
