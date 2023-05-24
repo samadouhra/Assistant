@@ -1,7 +1,7 @@
 import { db } from "./lib/firebase";
 import { doc, writeBatch, collection, getDocs, query, where, Timestamp } from "firebase/firestore";
 import { doesReloadRequired, fetchClientInfo } from "./helpers/chatgpt";
-import { recallGradeListener } from "./scripts/recallgrading";
+import { recallGradeListener } from "./scripts/transcribing";
 declare const createToaster: (toasterType: string, message: string) => void;
 
 const MAIN_MENUITEM_ID: string = "1cademy-assitant-ctx-mt";
