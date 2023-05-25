@@ -2,8 +2,9 @@ import { db } from "./lib/firebase";
 import { doc, writeBatch, collection, getDocs, query, where, Timestamp } from "firebase/firestore";
 import { doesReloadRequired, fetchClientInfo, sendPromptAndReceiveResponse } from "./helpers/chatgpt";
 import { ENDPOINT_BASE } from "./utils/constants";
-import { findOrCreateNotebookTab, getIdToken } from "./helpers/common";
+import { findOrCreateNotebookTab, getIdToken, setActiveTab } from "./helpers/common";
 import { IAssistantCreateNotebookRequestPayload, IViewNodeOpenNodesPayload, ViewNodeWorkerPayload, ViewNodeWorkerResponse } from "./types";
+import { IAssistantMessageRequest, IAssistantMessageResponse, IAssistantNode, createConversation, getBardPromptResponse, getBardQueryPrompt, getBardTabId } from "./helpers/assistant";
 declare const createToaster: (toasterType: string, message: string) => void;
 
 const MAIN_MENUITEM_ID: string = "1cademy-assitant-ctx-mt";
@@ -319,7 +320,25 @@ const onAskAssistant = (message: any, sender: chrome.runtime.MessageSender) => {
     if (message?.messageType !== 'assistant') return
     if (!sender.tab?.id) return console.error('Cant find tab id')
 
-    console.log('call onAskAssistant:', message)
+    if(message.forFrontend) {
+      await chrome.tabs.sendMessage(sender.tab.id, message);
+      return;
+    }
+
+    if(message.payload?.actionType === "TeachContent" || message.payload?.actionType === "DirectQuestion") {
+      await getIdToken(sender.tab?.id);
+      const conversationId = message?.conversationId || await createConversation();
+      bardRequestListener({
+        tabId: sender.tab.id!,
+        type: "ASSISTANT_BARD_ACTION_REQUEST",
+        requestAction: message.payload?.actionType,
+        message: getBardQueryPrompt(message?.payload?.message || ""),
+        selection: message.payload?.message || "",
+        conversationId
+      } as IAssistantMessageRequest, sender);
+      return;
+    }
+
     const headers: any = {
       "Content-Type": "application/json"
     };
@@ -645,3 +664,61 @@ chrome.runtime.onMessage.addListener((command: string) => {
     })();
   })();
 })
+
+// listener for bard assistant events
+const bardRequestListener = (message: IAssistantMessageRequest, sender: chrome.runtime.MessageSender) => {
+  if(!message || !message?.type) return;
+  if(message.type === "ASSISTANT_BARD_ACTION_REQUEST") {
+    (async () => {
+      const currentTabId = message.tabId || sender.tab?.id!
+      const tabId = await getBardTabId();
+      await setActiveTab(tabId);
+      const response = await getBardPromptResponse(tabId, message.message as string);
+      setTimeout(async () => {
+        await setActiveTab(currentTabId);
+      }, 1500);
+      const conversationId = message.conversationId || await createConversation();
+      console.log({conversationId})
+      chrome.tabs.sendMessage(currentTabId, {
+        type: "ASSISTANT_BARD_ACTION_RESPONSE",
+        requestAction: message.requestAction,
+        message: response,
+        nodes: message.nodes,
+        selection: message.selection,
+        conversationId
+      } as IAssistantMessageResponse);
+    })();
+  } else if(message.type === "ASSISTANT_ONE_ACTION_COMMAND_REQUEST") {
+    (async () => {
+      const token = await getIdToken(message.tabId || sender.tab?.id!);
+      const headers: any = {
+        "Content-Type": "application/json"
+      };
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+      }
+      const response = await fetch(`${ENDPOINT_BASE}/bardQuery`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          commands: message.commands
+        })
+      });
+      const _response = await response.json() as {
+        nodes: IAssistantNode[]
+      };
+      const conversationId = message.conversationId || await createConversation();
+      console.log({conversationId})
+
+      chrome.tabs.sendMessage(message.tabId || sender.tab?.id!, {
+        type: "ASSISTANT_ONE_ACTION_COMMAND_RESPONSE",
+        requestAction: message.requestAction,
+        message: _response,
+        selection: message.selection,
+        conversationId
+      } as IAssistantMessageResponse);
+    })();
+  }
+};
+chrome.runtime.onMessage.addListener(bardRequestListener);
+

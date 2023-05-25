@@ -110,6 +110,8 @@ const tempMap = (variant: string): ActionVariant => {
 };
 
 type ChatProps = {
+  conversationId: string,
+  setConversationId: (conversationId: string) => void,
   // setIsLoading: React.Dispatch<React.SetStateAction<boolean>>,
   isLoading: boolean,
   setIsLoading: React.Dispatch<React.SetStateAction<boolean>>,
@@ -122,13 +124,22 @@ type ChatProps = {
   }
 };
 
-export const Chat = ({ isLoading, setIsLoading, appMessages, clearAppMessages, isAuthenticated, isAuthenticatedRef, sx }: ChatProps) => {
+export const Chat = ({
+  conversationId,
+  setConversationId,
+  isLoading,
+  setIsLoading,
+  appMessages,
+  clearAppMessages,
+  isAuthenticated,
+  isAuthenticatedRef,
+  sx
+}: ChatProps) => {
 
   const [notebook, setNotebook] = useState<Notebook | null>(null)
   const [messagesObj, setMessagesObj] = useState<Message[]>([]);
   const [speakingMessageId, setSpeakingMessageId] = useState<string>("");
   const chatElementRef = useRef<HTMLDivElement | null>(null);
-  const [conversationId, setConversationId] = useState("");
   const [nodesToBeDisplayed, setNodesToBeDisplayed] = useState<NodeLinkType[]>([]);
   const [tmpNodesToBeDisplayed, setTmpNodesToBeDisplayed] = useState<NodeLinkType[]>([]);
   const { mode } = useTheme();

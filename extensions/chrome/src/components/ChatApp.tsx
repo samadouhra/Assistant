@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from "react";
+import React, { useCallback, useEffect, useRef } from "react";
 import { brandingLightTheme } from "../utils/brandingTheme";
 import "./ChatApp/styles.css";
 
@@ -9,9 +9,6 @@ import {
   Button,
   IconButton,
   ThemeProvider,
-  Tooltip,
-  tooltipClasses,
-  TooltipProps,
 } from "@mui/material";
 import { useState } from "react";
 import { DESIGN_SYSTEM_COLORS } from "../utils/colors";
@@ -22,13 +19,15 @@ import { db } from "../lib/firebase";
 import { IAssistantRequestPayload } from "../types";
 import { generateExplainSelectedText } from "../utils/messages";
 import { ONECADEMY_IFRAME_URL } from "../helpers/common";
+import { ASSISTANT_ONE_ACTIONS, extractSearchCommands, getBardTeachMePrompt, getBardQueryPrompt, ASSISTANT_BARD_ACTIONS, parseJSONObjectResponse, IAssistantMessageResponse, IAssistantMessageRequest, getNodesFromTitles, ASSISTANT_NOT_FOUND_MESSAGE, getBardDirectQuestionPrompt } from "../helpers/assistant";
 
 function ChatApp() {
   const [displayAssistant, setDisplayAssistant] = useState(false);
   const [selectedText, setSelectedText] = useState("");
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const isAuthenticatedRef = useRef<boolean>(false);
-  const [appMessages, setAppMessages] = useState<MessageData[]>([])
+  const [appMessages, setAppMessages] = useState<MessageData[]>([]);
+  const [conversationId, setConversationId] = useState("");
   const [isLoading, setIsLoading] = useState(false)
   const iframeRef = useRef<null | HTMLIFrameElement>(null);
   // const chatRef = useRef<any>(null)
@@ -151,6 +150,83 @@ function ChatApp() {
     }
   }, [iframeRef]);
 
+  useEffect(() => {
+    const listener = (message: IAssistantMessageResponse) => {
+      if(!message || !message?.type) return;
+      if(message.type === "ASSISTANT_BARD_ACTION_RESPONSE") {
+        const commands = extractSearchCommands(message.message);
+        if(commands.length) {
+          // nodes query
+          chrome.runtime.sendMessage({
+            type: "ASSISTANT_ONE_ACTION_COMMAND_REQUEST",
+            requestAction: message.requestAction,
+            commands,
+            selection: message.selection,
+            conversationId: message.conversationId
+          } as IAssistantMessageRequest);
+          console.log({message, commands}, ASSISTANT_BARD_ACTIONS.RESPONSE);
+        } else {
+          // Final response
+          let result: {
+            response: string,
+            nodes: string[]
+          } | null = null;
+          try {
+            result = parseJSONObjectResponse(message.message);
+          } catch(e) {}
+          
+          if(result) {
+            chrome.runtime.sendMessage({
+              forFrontend: true,
+              messageType: "assistant",
+              requestAction: message.requestAction,
+              nodes: getNodesFromTitles(result.nodes, message.nodes),
+              message: result.response,
+              conversationId: message.conversationId
+            })
+          } else {
+            chrome.runtime.sendMessage({
+              forFrontend: true,
+              messageType: "assistant",
+              requestAction: message.requestAction,
+              nodes: [],
+              message: ASSISTANT_NOT_FOUND_MESSAGE,
+              actions: [
+                {
+                  type: "GeneralExplanation",
+                  title: "Provide me an explanation",
+                  variant: "outline",
+                },
+                {
+                  type: "IllContribute",
+                  title: "I'll Contribute",
+                  variant: "outline",
+                },
+              ],
+              conversationId: message.conversationId
+            })
+          }
+        }
+      } else if(message.type === "ASSISTANT_ONE_ACTION_COMMAND_RESPONSE") {
+        const prompt = message.requestAction === "TeachContent" ?
+          getBardTeachMePrompt(message.selection, message?.message?.nodes || [])
+          :
+          getBardDirectQuestionPrompt(message.selection, message?.message?.nodes || []);
+        chrome.runtime.sendMessage({
+          type: "ASSISTANT_BARD_ACTION_REQUEST",
+          requestAction: message.requestAction,
+          message: prompt,
+          selection: message.selection,
+          nodes: message?.message?.nodes || [],
+          conversationId
+        } as IAssistantMessageRequest);
+      }
+    };
+    chrome.runtime.onMessage.addListener(listener);
+
+    return () => chrome.runtime.onMessage.removeListener(listener);
+  }, [conversationId]);
+
   return (
     <>
       <Box sx={{
@@ -197,6 +273,9 @@ function ChatApp() {
 
         {/* floating buttons */}
         <Box sx={{ position: "fixed", bottom: "38px", right: "38px" }}>
+          {/* <Button onClick={bardTest}>
+            Bard Test
+          </Button> */}
           {displayAssistant && (
             <Button
               onClick={onCloseChat}
@@ -268,7 +347,20 @@ function ChatApp() {
         </Box>
 
         {/* chat */}
-        {displayAssistant && <Chat isLoading={isLoading} setIsLoading={setIsLoading} appMessages={appMessages} clearAppMessages={() => setAppMessages([])} isAuthenticated={isAuthenticated} isAuthenticatedRef={isAuthenticatedRef} sx={{ position: "fixed", bottom: "112px", right: "38px" }} />}
+        {
+          displayAssistant &&
+          <Chat
+            conversationId={conversationId}
+            setConversationId={setConversationId}
+            isLoading={isLoading}
+            setIsLoading={setIsLoading}
+            appMessages={appMessages}
+            clearAppMessages={() => setAppMessages([])}
+            isAuthenticated={isAuthenticated}
+            isAuthenticatedRef={isAuthenticatedRef}
+            sx={{ position: "fixed", bottom: "112px", right: "38px" }}
+          />
+        }
       </Box >
     </>
   )
