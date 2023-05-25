@@ -45,6 +45,10 @@
       "js": ["paste-detector.js"]
     },
     {
+      "matches": ["https://*.core-econ.org/*", "https://core-econ.org/*"],
+      "js": ["assistant.js"]
+    },
+    {
       "matches": ["https://chat.openai.com/chat*"],
       "js": ["app.js"]
     }
