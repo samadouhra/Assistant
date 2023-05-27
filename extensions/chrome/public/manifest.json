@@ -45,7 +45,7 @@
       "js": ["paste-detector.js"]
     },
     {
-      "matches": ["https://*.core-econ.org/*", "https://core-econ.org/*"],
+      "matches": ["https://*.core-econ.org/*", "https://core-econ.org/*", "https://wordpress.deeplearning.ai/wp-content/uploads/2022/03/andrew-ng-machine-learning-yearning.pdf"],
       "js": ["assistant.js"]
     },
     {

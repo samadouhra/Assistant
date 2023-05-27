@@ -17,12 +17,13 @@ const SHORTEN_MENUITEM_ID: string = `${MAIN_MENUITEM_ID}-shorten`;
 const SIMPLIFY_MENUITEM_ID: string = `${MAIN_MENUITEM_ID}-simplify`;
 const SOCIALLY_MENUITEM_ID: string = `${MAIN_MENUITEM_ID}-socially`;
 const TEACH_MENUITEM_ID: string = `${MAIN_MENUITEM_ID}-teach`;
+const CHAT_MENUITEM_ID: string = `${MAIN_MENUITEM_ID}-chat`;
 
 type ICommandType = "Analyze-CGPT" | "Alternative-viewpoints-CGPT"
   | "Clarify-CGPT" | "Fact-check-CGPT" | "MCQ-CGPT"
   | "Improve-CGPT" | "Literature-CGPT"
   | "Paraphrase-CGPT" | "Shorten-CGPT" | "Simplify-CGPT"
-  | "Socially-Judge-CGPT" | "Teach-CGPT";
+  | "Socially-Judge-CGPT" | "Teach-CGPT" | "Assistant-Chat";
 
 const menuItems: {
   [menuItemId: string]: [ICommandType, string]
@@ -38,7 +39,8 @@ const menuItems: {
   [SHORTEN_MENUITEM_ID]: ["Shorten-CGPT", "Shorten by ChatGPT"],
   [SIMPLIFY_MENUITEM_ID]: ["Simplify-CGPT", "Simplify by ChatGPT"],
   [SOCIALLY_MENUITEM_ID]: ["Socially-Judge-CGPT", "Socially Judge by ChatGPT"],
-  [TEACH_MENUITEM_ID]: ["Teach-CGPT", "Teach stepwise by ChatGPT"]
+  [TEACH_MENUITEM_ID]: ["Teach-CGPT", "Teach stepwise by ChatGPT"],
+  [CHAT_MENUITEM_ID]: ["Assistant-Chat", "Send to Assistant Chat"]
 };
 
 const tryExecutionUsingChatGPT = async (paragraph: string, commandType: ICommandType) => {
@@ -214,10 +216,25 @@ const tryExecutionUsingChatGPT = async (paragraph: string, commandType: ICommand
 
 }
 
-const onParaphraseRequest = (onClickData: chrome.contextMenus.OnClickData) => {
+const onParaphraseRequest = (onClickData: chrome.contextMenus.OnClickData, tab?: chrome.tabs.Tab | undefined) => {
   const mItemId = String(onClickData.menuItemId);
   const menuItemIds = Object.keys(menuItems);
   if(!menuItemIds.includes(mItemId)) return;
+
+  if(mItemId === CHAT_MENUITEM_ID) {
+    (async () => {
+      const tabs = await chrome.tabs.query({
+        url: onClickData.frameUrl
+      });
+      for(const tab of tabs) {
+        chrome.tabs.sendMessage(tab.id!, {
+          type: "ASSISTANT_SELECTION",
+          selection: String(onClickData.selectionText)
+        })
+      }
+    })();
+    return;
+  }
   
   tryExecutionUsingChatGPT(
     String(onClickData.selectionText),

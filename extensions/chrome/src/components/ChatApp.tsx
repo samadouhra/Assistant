@@ -152,8 +152,23 @@ function ChatApp() {
 
     }
 
+    const selectionMessageListener = (message: any) => {
+      if (typeof message !== "object" || message?.type !== "ASSISTANT_SELECTION") return;
+      console.log(message, "CHAT_MENUITEM_ID")
+      setSelectedText(message.selection as string);
+      askSelectedTextToAssistant(message.selection as string);
+      setSelectedTextMouseUpPosition(null)
+      setDisplayAssistant(true)
+    }
+
+    chrome.runtime.onMessage.addListener(selectionMessageListener);
+
     document.addEventListener("mouseup", onDetectSelectedText);
-    return () => document.removeEventListener('mouseup', onDetectSelectedText)
+
+    return () => {
+      document.removeEventListener('mouseup', onDetectSelectedText)
+      chrome.runtime.onMessage.removeListener(selectionMessageListener);
+    }
   }, [])
 
   useEffect(() => {
