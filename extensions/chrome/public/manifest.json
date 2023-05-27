@@ -11,7 +11,7 @@
     "default_title": "1Cademy Assistant",
     "default_popup": "popup.html"
   },
-  "description": "This extension simplifies using OpenAI ChatGPT for researchers, instructors, and students.",
+  "description": "",
   "icons": {
     "128": "images/icon-8x.png",
     "16": "images/icon.png",
@@ -20,7 +20,7 @@
   },
   "manifest_version": 3,
   "minimum_chrome_version": "88.0",
-  "name": "1Cademy Assistant",
+  "name": "1Cademy Transcriber",
   "omnibox": {
     "keyword": "1cademy"
   },
