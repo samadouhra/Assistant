@@ -1,6 +1,7 @@
 import { db } from "./lib/firebase";
 import { doc, writeBatch, collection, getDocs, query, where, Timestamp } from "firebase/firestore";
 import { doesReloadRequired, fetchClientInfo, sendPromptAndReceiveResponse } from "./helpers/chatgpt";
+import { bardRequestListener, idTokenListener, onAskAssistant, onAssistantActions, onCreateNotebook, onOpenNode, onOpenNodes } from "./scripts/assistant";
 declare const createToaster: (toasterType: string, message: string) => void;
 
 const MAIN_MENUITEM_ID: string = "1cademy-assitant-ctx-mt";
@@ -466,3 +467,14 @@ chrome.runtime.onMessage.addListener((command: string) => {
     })();
   })();
 })
+
+// ------------------------------------1cademy asistant listener
+// detect to call assistant endpoint
+chrome.runtime.onMessage.addListener(onAskAssistant)
+chrome.runtime.onMessage.addListener(onOpenNode)
+chrome.runtime.onMessage.addListener(onCreateNotebook)
+chrome.runtime.onMessage.addListener(onOpenNodes)
+// to detect request messages from assistant chat to pass 1Cademy.com
+chrome.runtime.onMessageExternal.addListener(idTokenListener);
+chrome.runtime.onMessage.addListener(onAssistantActions);
+chrome.runtime.onMessage.addListener(bardRequestListener);
