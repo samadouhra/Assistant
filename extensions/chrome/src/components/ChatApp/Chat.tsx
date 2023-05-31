@@ -19,14 +19,22 @@ import { RiveComponentMemoized } from "./RiveMemoized";
 import { getFirestore } from "firebase/firestore";
 import { useAuth } from "../../utils/AuthContext";
 import {
+  ActionVariant,
   CreateNotebookWorkerResponse,
   IAssistantCreateNotebookRequestPayload,
+  IAssistantMessage,
   IAssistantRequestPayload,
   IAssistantResponse,
   IAssitantRequestAction,
   IViewNodeOpenNodesPayload,
+  Message,
+  MessageAction,
+  MessageData,
   NodeAssistantResponse,
+  NodeLinkType,
   NodeType,
+  Notebook,
+  TopicGeneratedResponse,
   ViewNodeWorkerResponse,
 } from "../../types";
 import { NodeLink } from "./NodeLink";
@@ -44,7 +52,7 @@ import { useTheme } from "../../hooks/useTheme";
 import { getCurrentDateYYMMDD, getCurrentHourHHMM } from "../../utils/date";
 import { Theme } from "@mui/system";
 import { generateRandomId } from "../../utils/others";
-import { generateContinueDisplayingNodeMessage, generateNodeMessage, generateTopicNotFound, generateUserActionAnswer, generateWhereContinueExplanation } from "../../utils/messages";
+import { generateContinueDisplayingNodeMessage, generateNodeMessage, generateSelectionActionMessage, generateTopicNotFound, generateUserActionAnswer, generateWhereContinueExplanation } from "../../utils/messages";
 import SearchMessage from "./SearchMessage";
 import moment from "moment";
 import MarkdownRender from "./MarkdownRender";
@@ -52,57 +60,6 @@ import { HeaderMessage } from "../ChatHeader";
 import { ChatFooter } from "../ChatFooter";
 import { ChatStickyMessage } from "../ChatStickyMessage";
 import { PieChart } from "../Charts/PieComponent";
-
-/**
- * - NORMAL: is only content
- * - HELP: content + button to practice + teach content page
- * - NODE: Node Link + content
- * - PRACTICE: content + button to remind later + begin practice
- * - EXPLANATION: content + button to continue explaining + button to stop explanation
- */
-// type MessageType = "NORMAL" | "HELP" | "NODE" | "PRACTICE";
-export type NodeLinkType = {
-  type: NodeType;
-  id: string;
-  title: string;
-  link: string;
-  content: string;
-  unit: string;
-  nodeImage: string;
-  nodeVideo: string
-};
-
-type ActionVariant = "contained" | "outlined";
-
-type MessageAction = {
-  type:
-  | IAssitantRequestAction
-  | "LOCAL_OPEN_NOTEBOOK"
-  | "LOCAL_CONTINUE_EXPLANATION_HERE"
-  title: string;
-  variant: ActionVariant;
-};
-
-export type MessageData = {
-  id: string;
-  type: "WRITER" | "READER";
-  // uname: string;
-  image: string;
-  video: string;
-  content: string;
-  nodes: NodeLinkType[];
-  actions: MessageAction[];
-  hour: string;
-  is404?: boolean
-  request?: string
-  componentContent?: ReactNode
-};
-type Message = {
-  date: string;
-  messages: MessageData[];
-};
-
-type Notebook = { id: string, name: string }
 
 const tempMap = (variant: string): ActionVariant => {
   if (variant === "outline") return "outlined";
@@ -124,7 +81,7 @@ type ChatProps = {
   }
 };
 
-export const Chat = ({
+export const Chat = forwardRef(({
   conversationId,
   setConversationId,
   isLoading,
@@ -134,8 +91,10 @@ export const Chat = ({
   isAuthenticated,
   isAuthenticatedRef,
   sx
-}: ChatProps) => {
+}: ChatProps, ref) => {
 
+  const [chatId, setChatId] = useState<string>("");
+  const [chatMessages, setChatMessages] = useState<IAssistantMessage[]>([]);
   const [notebook, setNotebook] = useState<Notebook | null>(null)
   const [messagesObj, setMessagesObj] = useState<Message[]>([]);
   const [speakingMessageId, setSpeakingMessageId] = useState<string>("");
@@ -145,51 +104,56 @@ export const Chat = ({
   const { mode } = useTheme();
   const [userMessage, setUserMessage] = useState("");
 
-  useEffect(() => {
-    if (!appMessages.length) return
-    appMessages.forEach(cur => pushMessage(cur, getCurrentDateYYMMDD()))
-    clearAppMessages()
-  }, [appMessages])
-
   const pushMessage = useCallback(
-    (message: MessageData, currentDateYYMMDD: string) => {
-      console.log('pushMessage', { message })
-
+    (message: IAssistantMessage, currentDateYYMMDD: string) => {
       // dont add empty message
-      if (!message.content) return
+      if (!message.message) return
 
-      setMessagesObj((prev) => {
-        if (prev.length === 0)
-          return [{ date: currentDateYYMMDD, messages: [message] }];
-        const res = prev.reduce(
-          (acu: { found: boolean; result: Message[] }, cur) => {
-            if (cur.date === currentDateYYMMDD)
-              return {
-                found: true,
-                result: [
-                  ...acu.result,
-                  { ...cur, messages: [...cur.messages, message] },
-                ],
-              };
-            return { ...acu, result: [...acu.result, cur] };
-          },
-          { found: false, result: [] }
-        );
-        // console.log("pushMessage", { res })
-        const newMessageObj: Message[] = res.found
-          ? res.result
-          : [...res.result, { date: currentDateYYMMDD, messages: [message] }];
-        return newMessageObj;
+      setChatMessages((prevChatMessages) => {
+        const messages = [...prevChatMessages];
+        messages.push(message);
+        return messages;
       });
 
-      if (message.type === 'WRITER') {
-        setTimeout(() => {
-          scrollToTheEnd();
-        }, 500)
-      }
+      // setMessagesObj((prev) => {
+      //   if (prev.length === 0)
+      //     return [{ date: currentDateYYMMDD, messages: [message] }];
+      //   const res = prev.reduce(
+      //     (acu: { found: boolean; result: Message[] }, cur) => {
+      //       if (cur.date === currentDateYYMMDD)
+      //         return {
+      //           found: true,
+      //           result: [
+      //             ...acu.result,
+      //             { ...cur, messages: [...cur.messages, message] },
+      //           ],
+      //         };
+      //       return { ...acu, result: [...acu.result, cur] };
+      //     },
+      //     { found: false, result: [] }
+      //   );
+      //   // console.log("pushMessage", { res })
+      //   const newMessageObj: Message[] = res.found
+      //     ? res.result
+      //     : [...res.result, { date: currentDateYYMMDD, messages: [message] }];
+      //   return newMessageObj;
+      // });
+
+      // if (message.type === 'WRITER') {
+      //   setTimeout(() => {
+      //     scrollToTheEnd();
+      //   }, 500)
+      // }
     },
     []
   );
+
+  useImperativeHandle(ref, () => {
+    return {
+      pushMessage,
+      clearMessages: () => setMessagesObj([])
+    }
+  }, [pushMessage, setMessagesObj])
 
   const removeActionOfAMessage = (messageId: string, date: string) => {
     const removeActionOFMessage = (message: MessageData): MessageData =>
@@ -401,7 +365,13 @@ export const Chat = ({
   };
 
   useEffect(() => {
-    const listenWorker = (message: (IAssistantResponse | ViewNodeWorkerResponse | CreateNotebookWorkerResponse) & { messageType: string }) => {
+    const listenWorker = (message: (IAssistantResponse | ViewNodeWorkerResponse | CreateNotebookWorkerResponse | TopicGeneratedResponse) & { messageType: string }) => {
+      if (message.messageType === 'TOPIC_GENERATED') {
+        const _message = message as TopicGeneratedResponse;
+        pushMessage(generateSelectionActionMessage(_message.selectedText, _message.topic), getCurrentDateYYMMDD());
+        setIsLoading(false);
+      }
+
       if (message.messageType === 'assistant') {
         console.log('>:message form assistant', { message })
         const { is404, request, nodes, conversationId } = message as IAssistantResponse
@@ -448,6 +418,18 @@ export const Chat = ({
     chrome.runtime.onMessage.addListener(listenWorker);
     return () => chrome.runtime.onMessage.removeListener(listenWorker);
   }, [notebook]);
+
+  useEffect(() => {
+    const listenWorker = (message: any) => {
+      if (message.type === 'CHAT_SNAPSHOT') {
+        setChatId(message.chatId);
+        setChatMessages(message.chat.messages);
+      }
+    }
+
+    chrome.runtime.onMessage.addListener(listenWorker);
+    return () => chrome.runtime.onMessage.removeListener(listenWorker);
+  }, []);
 
   const formatDate = (date: string) => {
     const _date = new Date();
@@ -717,7 +699,7 @@ export const Chat = ({
 
     </Stack>
   );
-}
+})
 
 
 const mapAssistantResponseToMessage = (

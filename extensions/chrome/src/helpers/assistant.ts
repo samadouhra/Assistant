@@ -1,3 +1,4 @@
+import { IAssistantNode } from "../types";
 import { ONECADEMY_BASEURL } from "../utils/constants";
 import { delay } from "./common";
 
@@ -12,21 +13,6 @@ export const ASSISTANT_BARD_ACTIONS = {
 export const ASSISTANT_ONE_ACTIONS = {
   COMMAND_REQUEST: "ASSISTANT_ONE_ACTION_COMMAND_REQUEST",
   COMMAND_RESPONSE: "ASSISTANT_ONE_ACTION_COMMAND_RESPONSE"
-};
-
-export type IAssistantNode = {
-  type: "Concept" | "Relation";
-  node: string;
-  title: string;
-  link: string;
-  content: string;
-  nodeImage?: string;
-  nodeVideo?: string;
-  practice?: {
-    totalQuestions: number;
-    answered: number;
-  };
-  unit?: string;
 };
 
 export const ASSISTANT_NOT_FOUND_MESSAGE =
@@ -397,6 +383,31 @@ export const createConversation = async (): Promise<string> => {
   return response.conversationId as string
 }
 
+export const getTopicFromSelection = async (selection: string): Promise<string> => {
+  const request = await fetch(`${ONECADEMY_BASEURL}/api/assistant/getTopic`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      passage: selection.trim()
+    })
+  });
+  const response = await request.json();
+  return response.topic as string
+}
+
+export const createChatId = async (): Promise<string> => {
+  const request = await fetch(`${ONECADEMY_BASEURL}/api/assistant/createChat`, {
+    method: "GET",
+    headers: {
+      "Content-Type": "application/json"
+    }
+  });
+  const response = await request.json();
+  return response.chatId as string
+}
+
 export type IAssistantMessageRequest = {
   tabId?: number;
   type: "ASSISTANT_BARD_ACTION_REQUEST",
@@ -422,7 +433,8 @@ export type IAssitantRequestAction =
 | "ExplainMore"
 | "GeneralExplanation"
 | "IllContribute"
-| "DirectQuestion";
+| "DirectQuestion"
+| "ProposeIt";
 
 export type IAssistantMessageResponse = {
   type: "ASSISTANT_BARD_ACTION_RESPONSE",

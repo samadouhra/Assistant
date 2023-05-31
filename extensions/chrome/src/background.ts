@@ -327,21 +327,23 @@ const onVoteDetection = (message: any, sender: chrome.runtime.MessageSender) => 
   })()
 }
 
-chrome.contextMenus.create({
-  id: MAIN_MENUITEM_ID,
-  title: "1Cademy Assistant",
-  contexts: ["selection"]
-})
-
-for(const menuItemId in menuItems) {
-  const menuItem = menuItems[menuItemId];
+chrome.runtime.onInstalled.addListener(() => {
   chrome.contextMenus.create({
-    id: menuItemId,
-    title: menuItem[1],
-    parentId: MAIN_MENUITEM_ID,
+    id: MAIN_MENUITEM_ID,
+    title: "1Cademy Assistant",
     contexts: ["selection"]
-  });
-}
+  })
+  
+  for(const menuItemId in menuItems) {
+    const menuItem = menuItems[menuItemId];
+    chrome.contextMenus.create({
+      id: menuItemId,
+      title: menuItem[1],
+      parentId: MAIN_MENUITEM_ID,
+      contexts: ["selection"]
+    });
+  }
+})
 
 chrome.contextMenus.onClicked.addListener(onParaphraseRequest)
 

@@ -1,5 +1,5 @@
 import { Timestamp } from "firebase/firestore";
-import { Dispatch } from "react";
+import { Dispatch, ReactNode } from "react";
 
 export type NodeType =
   | "Relation"
@@ -199,6 +199,42 @@ export type AuthActions = {
     handleError: (options: ErrorOptions) => void;
 };
 
+export type IAssistantNode = {
+  type: "Concept" | "Relation";
+  node: string;
+  title: string;
+  link: string;
+  content: string;
+  nodeImage?: string;
+  nodeVideo?: string;
+  practice?: {
+    totalQuestions: number;
+    answered: number;
+  };
+  unit?: string;
+};
+
+export type IAssistantMessage = {
+  id?: string;
+  request?: string;
+  is404?: boolean;
+  actions?: {
+    type: IAssitantRequestAction;
+    title: string;
+    variant: "contained" | "outline";
+  }[];
+  nodes?: IAssistantNode[];
+  message?: string;
+};
+
+export type IAssistantChat = {
+  documentId?: string;
+  uname?: string;
+  messages: IAssistantMessage[];
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+};
+
 export type IAssitantRequestAction =
   | "Practice"
   | "TeachContent"
@@ -207,7 +243,8 @@ export type IAssitantRequestAction =
   | "ExplainMore"
   | "GeneralExplanation"
   | "IllContribute"
-  | "DirectQuestion";
+  | "DirectQuestion"
+  | "ProposeIt";
 
 export type IAssistantRequestPayload = {
   actionType: IAssitantRequestAction;
@@ -238,6 +275,7 @@ export type IAssistantResponse = {
     type: IAssitantRequestAction;
     title: string;
     variant: "contained" | "outline";
+    data?: any
   }[];
 };
 
@@ -255,6 +293,12 @@ export type ViewNodeWorkerPayload = {
 export type ViewNodeWorkerResponse = {
   linkToOpenNode: string,
   messageType: string
+}
+
+export type TopicGeneratedResponse = {
+  messageType: "TOPIC_GENERATED";
+  topic: string;
+  selectedText: string;
 }
 
 export type IAssistantCreateNotebookRequestPayload = {
@@ -292,3 +336,60 @@ export type IAssistantResponseMessage = {
   type: "NOTEBOOK_ID_TOKEN",
   token: string
 };
+
+/**
+ * - NORMAL: is only content
+ * - HELP: content + button to practice + teach content page
+ * - NODE: Node Link + content
+ * - PRACTICE: content + button to remind later + begin practice
+ * - EXPLANATION: content + button to continue explaining + button to stop explanation
+ */
+// type MessageType = "NORMAL" | "HELP" | "NODE" | "PRACTICE";
+export type NodeLinkType = {
+  type: NodeType;
+  id: string;
+  title: string;
+  link: string;
+  content: string;
+  unit: string;
+  nodeImage: string;
+  nodeVideo: string
+};
+
+export type ActionVariant = "contained" | "outlined";
+
+export type Notebook = { id: string, name: string }
+
+export type MessageAction = {
+  type:
+  | IAssitantRequestAction
+  | "LOCAL_OPEN_NOTEBOOK"
+  | "LOCAL_CONTINUE_EXPLANATION_HERE"
+  title: string;
+  variant: ActionVariant;
+  data?: any;
+};
+
+export type MessageData = {
+  id: string;
+  type: "WRITER" | "READER";
+  // uname: string;
+  image: string;
+  video: string;
+  content: string;
+  nodes: NodeLinkType[];
+  actions: MessageAction[];
+  hour: string;
+  is404?: boolean
+  request?: string
+  componentContent?: ReactNode
+};
+export type Message = {
+  date: string;
+  messages: MessageData[];
+};
+
+export type IAssistantChatSignal = {
+  message: string;
+  
+}

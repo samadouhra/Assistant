@@ -128,3 +128,33 @@ export const generateExplainSelectedText = (selectedText: string): MessageData =
     video: "",
   }
 }
+
+export const generateSelectionActionMessage = (selectedText: string, topic: string): MessageData => {
+  return {
+    actions: [
+      {
+        title: "Propose it on 1Cademy",
+        type: "TeachContent",
+        variant: "outlined",
+        data: {
+          selectedText
+        }
+      },
+      {
+        title: "Propose it on 1Cademy",
+        type: "ProposeIt",
+        variant: "outlined",
+        data: {
+          selectedText
+        }
+      }
+    ],
+    content: `The text you've selected talks about ${topic}.\nWhich of the following would you like to do?`,
+    hour: getCurrentHourHHMM(),
+    id: generateRandomId(),
+    image: "",
+    video: "",
+    nodes: [],
+    type: "READER"
+  }
+}

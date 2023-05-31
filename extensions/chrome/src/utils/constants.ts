@@ -19,6 +19,11 @@ export const NOTEBOOK_LINK = `${ONECADEMY_BASEURL}/notebook`
 export const ASSISTANT_NAME = "1Cademy Assistant"
 export const ONECADEMY_IFRAME_URL = `${ONECADEMY_BASEURL}/iframe`;
 export const USER_NAME = `You`;
+export const TAB_URLS = [
+  "https://*.core-econ.org/*",
+  "https://core-econ.org/*",
+  "https://wordpress.deeplearning.ai/wp-content/uploads/2022/03/andrew-ng-machine-learning-yearning.pdf"
+];
 
 
 const TAG_ID: string = "HjIukJr12fIP9DNoD9gX";

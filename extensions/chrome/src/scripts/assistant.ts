@@ -1,7 +1,9 @@
 import { findOrCreateNotebookTab, getIdToken, setActiveTab } from "../helpers/common";
-import { IAssistantMessageRequest, IAssistantMessageResponse, IAssistantNode, createConversation, getBardPromptResponse, getBardQueryPrompt, getBardTabId, waitUntilBardAvailable } from "../helpers/assistant";
-import { ENDPOINT_BASE } from "../utils/constants";
-import { IAssistantCreateNotebookRequestPayload, IViewNodeOpenNodesPayload, ViewNodeWorkerPayload, ViewNodeWorkerResponse } from "../types";
+import { IAssistantMessageRequest, IAssistantMessageResponse, createChatId, createConversation, getBardPromptResponse, getBardQueryPrompt, getBardTabId, getTopicFromSelection, waitUntilBardAvailable } from "../helpers/assistant";
+import { ENDPOINT_BASE, TAB_URLS } from "../utils/constants";
+import { IAssistantChat, IAssistantCreateNotebookRequestPayload, IAssistantNode, IViewNodeOpenNodesPayload, ViewNodeWorkerPayload, ViewNodeWorkerResponse } from "../types";
+import { db } from "../lib/firebase";
+import { collection, doc, onSnapshot } from "firebase/firestore";
 
 // to detect request messages from assistant chat to pass 1Cademy.com
 export const idTokenListener = (message: any) => {
@@ -61,6 +63,48 @@ export const onAssistantActions = (message: any, sender: chrome.runtime.MessageS
         active: true
       });
     })()
+  } else if (message?.type === "GENERATE_TOPIC") {
+    (async () => {
+      const tabId = sender.tab?.id!;
+      const topic = await getTopicFromSelection(message.selectedText);
+      await chrome.tabs.sendMessage(tabId, {
+        messageType: "TOPIC_GENERATED",
+        topic,
+        selectedText: message.selectedText
+      })
+    })()
+  } else if(message?.type === "START_CHAT") {
+    (async () => {
+      const chatId = await createChatId();
+
+      const chatRef = doc(
+        collection(db, "chats"),
+        chatId
+      );
+      const unsubscribeSnapshot = onSnapshot(chatRef, (snapshot) => {
+        const chat = snapshot.data() as IAssistantChat;
+        (async () => {
+          const tabs = await chrome.tabs.query({
+            url: TAB_URLS
+          });
+          for(const tab of tabs) {
+            chrome.tabs.sendMessage(tab.id!, {
+              type: "CHAT_SNAPSHOT",
+              chatId,
+              chat
+            });
+          }
+        })();
+      })
+
+      const stopChatListener = (message: any, sender: chrome.runtime.MessageSender) => {
+        if (typeof message !== "object" || message === null) return;
+        if (message?.type !== "STOP_CHAT") return;
+        unsubscribeSnapshot();
+        chrome.runtime.onMessage.removeListener(stopChatListener);
+      };
+      chrome.runtime.onMessage.addListener(stopChatListener);
+    })();
   }
 };
 
@@ -71,20 +115,6 @@ export const onAskAssistant = (message: any, sender: chrome.runtime.MessageSende
 
     if(message.forFrontend) {
       await chrome.tabs.sendMessage(sender.tab.id, message);
-      return;
-    }
-
-    if(message.payload?.actionType === "TeachContent" || message.payload?.actionType === "DirectQuestion") {
-      await getIdToken(sender.tab?.id);
-      const conversationId = message?.conversationId || await createConversation();
-      bardRequestListener({
-        tabId: sender.tab.id!,
-        type: "ASSISTANT_BARD_ACTION_REQUEST",
-        requestAction: message.payload?.actionType,
-        message: getBardQueryPrompt(message?.payload?.message || ""),
-        selection: message.payload?.message || "",
-        conversationId
-      } as IAssistantMessageRequest, sender);
       return;
     }
 
