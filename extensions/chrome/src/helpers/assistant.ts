@@ -1,3 +1,4 @@
+import { FlashcardResponse } from "../types";
 import { ONECADEMY_BASEURL } from "../utils/constants";
 import { delay } from "./common";
 
@@ -395,6 +396,33 @@ export const createConversation = async (): Promise<string> => {
   });
   const response = await request.json();
   return response.conversationId as string
+}
+
+export const getTopic = async (passage: string): Promise<string> => {
+  const request = await fetch(`${ONECADEMY_BASEURL}/api/assistant/getTopic`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      passage
+    })
+  });
+  const response = await request.json();
+  return response.topic as string
+}
+
+export const getFlashcards = async (passage: string): Promise<FlashcardResponse> => {
+  const request = await fetch(`${ONECADEMY_BASEURL}/api/assistant/getFlashcards`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      passage
+    })
+  });
+  return (await request.json()) as FlashcardResponse;
 }
 
 export type IAssistantMessageRequest = {

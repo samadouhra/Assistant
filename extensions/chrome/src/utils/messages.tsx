@@ -1,8 +1,8 @@
 import { ReactNode } from "react";
 import { PieChart } from "../components/Charts/PieComponent";
-import { MessageData, NodeLinkType } from "../components/ChatApp/Chat";
 import { getCurrentHourHHMM } from "./date";
 import { generateRandomId } from "./others";
+import { MessageData, NodeLinkType } from "../types";
 
 
 export const generateContinueDisplayingNodeMessage = (title: string, unit: string, thereIsNextNode: boolean, practice?: { answered: number, totalQuestions: number }, componentContent?: ReactNode): MessageData => {
@@ -126,5 +126,36 @@ export const generateExplainSelectedText = (selectedText: string): MessageData =
     id: generateRandomId(),
     image: "",
     video: "",
+  }
+}
+
+export const generateTopicMessage = (request: string, isAuthenticated: boolean): MessageData => {
+  return {
+    actions: isAuthenticated ? [
+      {
+        title: "Provide me an explanation",
+        type: "GeneralExplanation",
+        variant: "outlined"
+      },
+      {
+        title: "I’ll contribute",
+        type: "IllContribute",
+        variant: "outlined"
+      },
+    ] : [
+      {
+        title: "Provide me an explanation",
+        type: "GeneralExplanation",
+        variant: "outlined"
+      },
+    ],
+    content: "The text you've selected talks about Adam Smith's concept of the invisible hand.\nWhich of the following would you like to do?",
+    nodes: [],
+    type: "READER",
+    hour: getCurrentHourHHMM(),
+    id: generateRandomId(),
+    image: "",
+    video: "",
+    request
   }
 }

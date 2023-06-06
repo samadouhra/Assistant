@@ -18,14 +18,14 @@ const FeedbackPopup = () => {
   const [hasError, setHasError] = useState<boolean>(false);
   const [likes, setLikes] = useState<number>(0);
   const [processing, setProcessing] = useState<boolean>(false);
-  const [vote, setVote] = useState<boolean|null>(null);
+  const [vote, setVote] = useState<boolean | null>(null);
   const [loaded, setLoaded] = useState<boolean>(false);
   const theme = useTheme();
   const feedbackId = useId();
 
   useEffect(() => {
     onSnapshot(query(collection(db, "assistantStats")), (snapshot) => {
-      if(snapshot.docs.length) {
+      if (snapshot.docs.length) {
         const statDoc = snapshot.docs[0];
         const statData = statDoc.data() as TAssistantStat;
         setLikes(statData.likes || 0);
@@ -39,7 +39,7 @@ const FeedbackPopup = () => {
       let vote: boolean | null = null;
       try {
         vote = JSON.parse(message.replace(/^current-vote-/, ""));
-      } catch(e) {}
+      } catch (e) { }
       setVote(vote);
       setLoaded(true);
     };
@@ -57,12 +57,12 @@ const FeedbackPopup = () => {
     const defaultUrl = "/images/icon.svg";
     try {
       return chrome.runtime.getURL("images/icon.svg") || defaultUrl
-    } catch(e) {}
+    } catch (e) { }
     return defaultUrl;
   }, [])
 
   const handleSubmit = useCallback(() => {
-    if(!feedback.trim()) {
+    if (!feedback.trim()) {
       setHasError(true);
       return;
     }
@@ -163,7 +163,7 @@ const FeedbackPopup = () => {
               return __vote;
             })}
           >
-             <Box sx={{
+            <Box sx={{
               paddingRight: "2px",
               paddingTop: "2px",
               display: "flex",

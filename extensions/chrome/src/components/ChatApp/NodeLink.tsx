@@ -1,7 +1,6 @@
 import { Stack, Typography } from "@mui/material";
 import React, { useCallback } from "react";
 import { DESIGN_SYSTEM_COLORS } from "../../utils/colors";
-import { NodeLinkType } from "./Chat";
 import NodeTypeIcon from "./NodeTypeIcon";
 import { useTheme } from "../../hooks/useTheme";
 import { IViewNodePayload, NodeType } from "../../types";

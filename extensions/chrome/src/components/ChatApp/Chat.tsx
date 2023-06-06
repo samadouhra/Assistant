@@ -19,14 +19,20 @@ import { RiveComponentMemoized } from "./RiveMemoized";
 import { getFirestore } from "firebase/firestore";
 import { useAuth } from "../../utils/AuthContext";
 import {
+  ActionVariant,
   CreateNotebookWorkerResponse,
   IAssistantCreateNotebookRequestPayload,
   IAssistantRequestPayload,
   IAssistantResponse,
   IAssitantRequestAction,
   IViewNodeOpenNodesPayload,
+  Message,
+  MessageAction,
+  MessageData,
   NodeAssistantResponse,
+  NodeLinkType,
   NodeType,
+  Notebook,
   ViewNodeWorkerResponse,
 } from "../../types";
 import { NodeLink } from "./NodeLink";
@@ -53,57 +59,6 @@ import { ChatFooter } from "../ChatFooter";
 import { ChatStickyMessage } from "../ChatStickyMessage";
 import { PieChart } from "../Charts/PieComponent";
 
-/**
- * - NORMAL: is only content
- * - HELP: content + button to practice + teach content page
- * - NODE: Node Link + content
- * - PRACTICE: content + button to remind later + begin practice
- * - EXPLANATION: content + button to continue explaining + button to stop explanation
- */
-// type MessageType = "NORMAL" | "HELP" | "NODE" | "PRACTICE";
-export type NodeLinkType = {
-  type: NodeType;
-  id: string;
-  title: string;
-  link: string;
-  content: string;
-  unit: string;
-  nodeImage: string;
-  nodeVideo: string
-};
-
-type ActionVariant = "contained" | "outlined";
-
-type MessageAction = {
-  type:
-  | IAssitantRequestAction
-  | "LOCAL_OPEN_NOTEBOOK"
-  | "LOCAL_CONTINUE_EXPLANATION_HERE"
-  title: string;
-  variant: ActionVariant;
-};
-
-export type MessageData = {
-  id: string;
-  type: "WRITER" | "READER";
-  // uname: string;
-  image: string;
-  video: string;
-  content: string;
-  nodes: NodeLinkType[];
-  actions: MessageAction[];
-  hour: string;
-  is404?: boolean
-  request?: string
-  componentContent?: ReactNode
-};
-type Message = {
-  date: string;
-  messages: MessageData[];
-};
-
-type Notebook = { id: string, name: string }
-
 const tempMap = (variant: string): ActionVariant => {
   if (variant === "outline") return "outlined";
   return "contained";
@@ -115,8 +70,6 @@ type ChatProps = {
   // setIsLoading: React.Dispatch<React.SetStateAction<boolean>>,
   isLoading: boolean,
   setIsLoading: React.Dispatch<React.SetStateAction<boolean>>,
-  appMessages: MessageData[]
-  clearAppMessages: () => void
   isAuthenticated: boolean,
   sx?: SxProps<Theme>,
   isAuthenticatedRef: {
@@ -124,17 +77,15 @@ type ChatProps = {
   }
 };
 
-export const Chat = ({
+export const Chat = forwardRef(({
   conversationId,
   setConversationId,
   isLoading,
   setIsLoading,
-  appMessages,
-  clearAppMessages,
   isAuthenticated,
   isAuthenticatedRef,
   sx
-}: ChatProps) => {
+}: ChatProps, ref) => {
 
   const [notebook, setNotebook] = useState<Notebook | null>(null)
   const [messagesObj, setMessagesObj] = useState<Message[]>([]);
@@ -145,16 +96,8 @@ export const Chat = ({
   const { mode } = useTheme();
   const [userMessage, setUserMessage] = useState("");
 
-  useEffect(() => {
-    if (!appMessages.length) return
-    appMessages.forEach(cur => pushMessage(cur, getCurrentDateYYMMDD()))
-    clearAppMessages()
-  }, [appMessages])
-
   const pushMessage = useCallback(
     (message: MessageData, currentDateYYMMDD: string) => {
-      console.log('pushMessage', { message })
-
       // dont add empty message
       if (!message.content) return
 
@@ -190,6 +133,12 @@ export const Chat = ({
     },
     []
   );
+
+  useImperativeHandle(ref, () => {
+    return {
+      pushMessage
+    }
+  }, [pushMessage]);
 
   const removeActionOfAMessage = (messageId: string, date: string) => {
     const removeActionOFMessage = (message: MessageData): MessageData =>
@@ -346,6 +295,18 @@ export const Chat = ({
         const messageWithSelectedAction = generateUserActionAnswer(
           action.title
         );
+
+        // open all nodes
+        const payload: IViewNodeOpenNodesPayload = {
+          nodeIds: tmpNodesToBeDisplayed.map(c => c.id),
+          notebookId: notebook.id,
+          visible: true
+        };
+        chrome.runtime.sendMessage(chrome.runtime.id || process.env.EXTENSION_ID, {
+          payload,
+          messageType: "notebook:open-nodes",
+        });
+
         pushMessage(messageWithSelectedAction, getCurrentDateYYMMDD());
         onDisplayNextNodeToBeDisplayed(tmpNodesToBeDisplayed);
         setTmpNodesToBeDisplayed([]);
@@ -441,6 +402,17 @@ export const Chat = ({
         console.log('>notebook:create-notebook', { message })
         pushMessage(generateWhereContinueExplanation(notebookTitle, isAuthenticatedRef.current, true), getCurrentDateYYMMDD())
         setNotebook({ id: notebookId, name: notebookTitle })
+        setIsLoading(false);
+      }
+    }
+
+    chrome.runtime.onMessage.addListener(listenWorker);
+    return () => chrome.runtime.onMessage.removeListener(listenWorker);
+  }, [notebook]);
+
+  useEffect(() => {
+    const listenWorker = (message: any) => {
+      if (message.type === 'TOPIC_RESPONSE') {
         setIsLoading(false);
       }
     }
@@ -717,7 +689,7 @@ export const Chat = ({
 
     </Stack>
   );
-}
+})
 
 
 const mapAssistantResponseToMessage = (

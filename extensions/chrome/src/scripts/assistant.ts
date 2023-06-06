@@ -1,5 +1,5 @@
 import { findOrCreateNotebookTab, getIdToken, setActiveTab } from "../helpers/common";
-import { IAssistantMessageRequest, IAssistantMessageResponse, IAssistantNode, createConversation, getBardPromptResponse, getBardQueryPrompt, getBardTabId, waitUntilBardAvailable } from "../helpers/assistant";
+import { IAssistantMessageRequest, IAssistantMessageResponse, IAssistantNode, createConversation, getBardPromptResponse, getBardQueryPrompt, getBardTabId, getFlashcards, getTopic, waitUntilBardAvailable } from "../helpers/assistant";
 import { ENDPOINT_BASE } from "../utils/constants";
 import { IAssistantCreateNotebookRequestPayload, IViewNodeOpenNodesPayload, ViewNodeWorkerPayload, ViewNodeWorkerResponse } from "../types";
 
@@ -61,6 +61,16 @@ export const onAssistantActions = (message: any, sender: chrome.runtime.MessageS
         active: true
       });
     })()
+  } else if (message?.type === "FETCH_FLASHCARDS") {
+    (async () => {
+      const flashcards = await getFlashcards(message?.selection);
+      const tabId = sender.tab?.id!;
+      await chrome.tabs.sendMessage(tabId, {
+        type: "FLASHCARDS_RESPONSE",
+        flashcards,
+        selection: message?.selection
+      });
+    })()
   }
 };
 
@@ -68,25 +78,6 @@ export const onAskAssistant = (message: any, sender: chrome.runtime.MessageSende
   (async () => {
     if (message?.messageType !== 'assistant') return
     if (!sender.tab?.id) return console.error('Cant find tab id')
-
-    if(message.forFrontend) {
-      await chrome.tabs.sendMessage(sender.tab.id, message);
-      return;
-    }
-
-    if(message.payload?.actionType === "TeachContent" || message.payload?.actionType === "DirectQuestion") {
-      await getIdToken(sender.tab?.id);
-      const conversationId = message?.conversationId || await createConversation();
-      bardRequestListener({
-        tabId: sender.tab.id!,
-        type: "ASSISTANT_BARD_ACTION_REQUEST",
-        requestAction: message.payload?.actionType,
-        message: getBardQueryPrompt(message?.payload?.message || ""),
-        selection: message.payload?.message || "",
-        conversationId
-      } as IAssistantMessageRequest, sender);
-      return;
-    }
 
     const headers: any = {
       "Content-Type": "application/json"
@@ -98,7 +89,7 @@ export const onAskAssistant = (message: any, sender: chrome.runtime.MessageSende
     console.log('token', token)
     const res = await fetch(`${ENDPOINT_BASE}/assistant`, {
       method: "POST",
-      body: JSON.stringify(message.payload),
+      body: JSON.stringify({url: sender.tab?.url, ...message.payload}),
       headers
     })
     const data = await res.json()

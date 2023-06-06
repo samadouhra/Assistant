@@ -1,5 +1,5 @@
 import { Timestamp } from "firebase/firestore";
-import { Dispatch } from "react";
+import { Dispatch, ReactNode } from "react";
 
 export type NodeType =
   | "Relation"
@@ -292,3 +292,61 @@ export type IAssistantResponseMessage = {
   type: "NOTEBOOK_ID_TOKEN",
   token: string
 };
+
+/**
+ * - NORMAL: is only content
+ * - HELP: content + button to practice + teach content page
+ * - NODE: Node Link + content
+ * - PRACTICE: content + button to remind later + begin practice
+ * - EXPLANATION: content + button to continue explaining + button to stop explanation
+ */
+// type MessageType = "NORMAL" | "HELP" | "NODE" | "PRACTICE";
+export type NodeLinkType = {
+  type: NodeType;
+  id: string;
+  title: string;
+  link: string;
+  content: string;
+  unit: string;
+  nodeImage: string;
+  nodeVideo: string
+};
+
+export type ActionVariant = "contained" | "outlined";
+
+export type MessageAction = {
+  type:
+  | IAssitantRequestAction
+  | "LOCAL_OPEN_NOTEBOOK"
+  | "LOCAL_CONTINUE_EXPLANATION_HERE"
+  title: string;
+  variant: ActionVariant;
+};
+
+export type MessageData = {
+  id: string;
+  type: "WRITER" | "READER";
+  // uname: string;
+  image: string;
+  video: string;
+  content: string;
+  nodes: NodeLinkType[];
+  actions: MessageAction[];
+  hour: string;
+  is404?: boolean
+  request?: string
+  componentContent?: ReactNode
+};
+
+export type Message = {
+  date: string;
+  messages: MessageData[];
+};
+
+export type Notebook = { id: string, name: string }
+
+export type FlashcardResponse = {
+  title: string;
+  type: "Relation" | "Concept";
+  content: string;
+}[];

@@ -19,8 +19,7 @@ import {
   DESIGN_SYSTEM_COLORS
 } from "../utils/colors";
 import {
-  Chat,
-  MessageData
+  Chat
 } from "./ChatApp/Chat";
 import {
   LOGO_URL
@@ -29,31 +28,25 @@ import {
   useTheme
 } from "../hooks/useTheme";
 import {
-  IAssistantRequestPayload
+  IAssistantRequestPayload, MessageData
 } from "../types";
 import {
   generateExplainSelectedText
 } from "../utils/messages";
-import {
-  extractSearchCommands,
-  getBardTeachMePrompt,
-  ASSISTANT_BARD_ACTIONS,
-  parseJSONObjectResponse,
-  IAssistantMessageResponse,
-  IAssistantMessageRequest,
-  getNodesFromTitles,
-  ASSISTANT_NOT_FOUND_MESSAGE,
-  getBardDirectQuestionPrompt
-} from "../helpers/assistant";
 import { ONECADEMY_IFRAME_URL } from "../utils/constants";
+import { getCurrentDateYYMMDD } from "../utils/date";
 
 function ChatApp() {
   const [displayAssistant, setDisplayAssistant] = useState(false);
   const [selectedText, setSelectedText] = useState("");
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const isAuthenticatedRef = useRef<boolean>(false);
-  const [appMessages, setAppMessages] = useState<MessageData[]>([]);
   const [conversationId, setConversationId] = useState("");
+  const chatRef = useRef<{
+    pushMessage: (message: MessageData, currentDateYYMMDD: string) => void
+  }>({
+    pushMessage: () => { }
+  });
   const [isLoading, setIsLoading] = useState(false)
   const iframeRef = useRef<null | HTMLIFrameElement>(null);
   const { mode } = useTheme();
@@ -89,7 +82,10 @@ function ChatApp() {
       payload,
       messageType: "assistant",
     });
-    setAppMessages([generateExplainSelectedText(selectedText)])
+    chatRef.current.pushMessage(
+      generateExplainSelectedText(selectedText),
+      getCurrentDateYYMMDD()
+    );
     setIsLoading(true)
   }
 
@@ -108,9 +104,11 @@ function ChatApp() {
   }
 
   const onAskSelectedText = () => {
-    askSelectedTextToAssistant(selectedText)
     setSelectedTextMouseUpPosition(null)
     setDisplayAssistant(true)
+    setTimeout(() => {
+      askSelectedTextToAssistant(selectedText)
+    }, 100)
   }
 
   useEffect(() => {
@@ -178,82 +176,6 @@ function ChatApp() {
       iframeRef.current.src = src;
     }
   }, [iframeRef]);
-
-  useEffect(() => {
-    const listener = (message: IAssistantMessageResponse) => {
-      if (!message || !message?.type) return;
-      if (message.type === "ASSISTANT_BARD_ACTION_RESPONSE") {
-        const commands = extractSearchCommands(message.message);
-        if (commands.length) {
-          // nodes query
-          chrome.runtime.sendMessage({
-            type: "ASSISTANT_ONE_ACTION_COMMAND_REQUEST",
-            requestAction: message.requestAction,
-            commands,
-            selection: message.selection,
-            conversationId: message.conversationId
-          } as IAssistantMessageRequest);
-        } else {
-          // Final response
-          let result: {
-            response: string,
-            nodes: string[]
-          } | null = null;
-          try {
-            result = parseJSONObjectResponse(message.message);
-          } catch (e) { }
-
-          if (result) {
-            chrome.runtime.sendMessage({
-              forFrontend: true,
-              messageType: "assistant",
-              requestAction: message.requestAction,
-              nodes: getNodesFromTitles(result.nodes, message.nodes),
-              message: result.response,
-              conversationId: message.conversationId
-            })
-          } else {
-            chrome.runtime.sendMessage({
-              forFrontend: true,
-              messageType: "assistant",
-              requestAction: message.requestAction,
-              nodes: [],
-              message: ASSISTANT_NOT_FOUND_MESSAGE,
-              actions: [
-                {
-                  type: "GeneralExplanation",
-                  title: "Provide me an explanation",
-                  variant: "outline",
-                },
-                {
-                  type: "IllContribute",
-                  title: "I'll Contribute",
-                  variant: "outline",
-                },
-              ],
-              conversationId: message.conversationId
-            })
-          }
-        }
-      } else if (message.type === "ASSISTANT_ONE_ACTION_COMMAND_RESPONSE") {
-        const prompt = message.requestAction === "TeachContent" ?
-          getBardTeachMePrompt(message.selection, message?.message?.nodes || [])
-          :
-          getBardDirectQuestionPrompt(message.selection, message?.message?.nodes || []);
-        chrome.runtime.sendMessage({
-          type: "ASSISTANT_BARD_ACTION_REQUEST",
-          requestAction: message.requestAction,
-          message: prompt,
-          selection: message.selection,
-          nodes: message?.message?.nodes || [],
-          conversationId
-        } as IAssistantMessageRequest);
-      }
-    };
-    chrome.runtime.onMessage.addListener(listener);
-
-    return () => chrome.runtime.onMessage.removeListener(listener);
-  }, [conversationId]);
 
   return (
     <>
@@ -365,12 +287,11 @@ function ChatApp() {
         {
           displayAssistant &&
           <Chat
+            ref={chatRef}
             conversationId={conversationId}
             setConversationId={setConversationId}
             isLoading={isLoading}
             setIsLoading={setIsLoading}
-            appMessages={appMessages}
-            clearAppMessages={() => setAppMessages([])}
             isAuthenticated={isAuthenticated}
             isAuthenticatedRef={isAuthenticatedRef}
             sx={{ position: "fixed", bottom: "112px", right: "38px" }}
