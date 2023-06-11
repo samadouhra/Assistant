@@ -1,31 +1,19 @@
-import { getStorage, ref, uploadString } from "firebase/storage";
-import { doesReloadRequired, startANewChat } from "../helpers/chatgpt";
-import { db, app, auth } from "../lib/firebase";
-// import { db_1cademy, app_1cademy, auth_1cademy } from "../lib/firebase-1cademy";
+import { db } from "../lib/firebase";
 import {
   collection,
-  getDoc,
   doc,
   getDocs,
   updateDoc,
   query,
   where,
-  orderBy,
   limit,
-  QueryDocumentSnapshot,
-  DocumentData,
-  startAfter,
-  runTransaction,
-  Timestamp,
   setDoc,
 } from "firebase/firestore";
-
-let transcribingStatus = "started";
 
 type TranscribingProcess = {
   status: "notStarted" | "started" | "completed";
   tabId: number;
-  gptTabId: number;
+  meetTabId: number;
 };
 const START_TRANSCRIBING = "start-transcribing";
 const STOP_TRANSCRIBING = "stop-transcribing";
@@ -36,59 +24,68 @@ const recallGradingCommands = [
   TANSCRIBING_STATUS,
 ];
 
-// chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
-//   if (message === "transcribing-status") {
-//     const storageValues = await chrome.storage.local.get(["transcribing"]);
-//     console.log("storageValues", storageValues);
-//     const message = "transcribing-status-" + storageValues.transcribing.status;
-//     await chrome.runtime.sendMessage(chrome.runtime.id, message);
-//   }
-// });
-
 chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
   if (message.conversation) {
-    let conversation: any = message.conversation;
-    const url = message.fullUrl.replace("https://meet.google.com/", "");
-    // Process the conversation data as needed
-    let surveyRef = collection(db, "transcript");
-    const userNodeQuery = query(
-      surveyRef,
-      where("mettingUrl", "==", message.fullUrl),
-      limit(1)
-    );
-    console.log(":: :: data data data :: :: ", message.conversation);
-    const docs = await getDocs(userNodeQuery);
-    if (docs.docs.length > 0) {
-      const data: any = docs.docs[0].data();
-      console.log("data", data);
-      const ref = doc(db, "transcript", docs.docs[0].id);
-      const newData = {
-        conversation,
-      };
-      await updateDoc(ref, newData);
-    } else {
-      await setDoc(doc(surveyRef), {
-        conversation,
-        mettingUrl: message.fullUrl,
-      });
+    const storageValues = await chrome.storage.local.get(["transcribing"]);
+    if (storageValues.transcribing?.status === "started") {
+      let conversation: any = message.conversation;
+      const meetingId = message.meetingId.replace(/"/g, "");
+      const transcriptQuery = query(
+        collection(db, "transcript"),
+        where("mettingUrl", "==", meetingId),
+        limit(1)
+      );
+      const transcriptDocs = await getDocs(transcriptQuery);
+      if (transcriptDocs.docs.length > 0) {
+        const transcriptData: any = transcriptDocs.docs[0].data();
+        const ref = doc(db, "transcript", transcriptDocs.docs[0].id);
+        const newData = {
+          conversation,
+        };
+        await updateDoc(ref, newData);
+      } else {
+        await setDoc(doc(collection(db, "transcript")), {
+          conversation,
+          mettingUrl: meetingId,
+        });
+      }
     }
   }
 });
 
 const transcribSessions = async (
-  gptTabId: number,
+  meetTabId: number,
   callback: (conversation: any[]) => void,
-  fullUrl: string
+  meetingId: string
 ) => {
-  const response = await chrome.scripting.executeScript<any, any>({
-    target: {
-      tabId: gptTabId,
-    },
-    args: [fullUrl],
-    func: (fullUrl) => {
-      let conversation: any = [];
-      const checkForUpdates = () => {
-        const currentsentence: any = {};
+  let oldConversation: any = [];
+  chrome.tabs.onRemoved.addListener(async (tabId, removeInfo) => {
+    if (tabId === meetTabId) {
+      await chrome.storage.local.set({
+        transcribing: {
+          status: "notStarted",
+        } as TranscribingProcess,
+      });
+    }
+  });
+  const _meetingId = meetingId.replace(/"/g, "");
+  const transcriptQuery = query(
+    collection(db, "transcript"),
+    where("mettingUrl", "==", _meetingId),
+    limit(1)
+  );
+  const transcriptDocs = await getDocs(transcriptQuery);
+  if (transcriptDocs.docs.length > 0) {
+    const transcriptData: any = transcriptDocs.docs[0].data();
+    oldConversation = transcriptData.conversation;
+  }
+  const executeScript = async (started: boolean) => {
+    await chrome.scripting.executeScript<any, any>({
+      target: {
+        tabId: meetTabId,
+      },
+      args: [started],
+      func: (started) => {
         const elementButon: any = document.getElementsByClassName("juFBl");
         let captionButon: any = null;
         if (elementButon) {
@@ -96,10 +93,32 @@ const transcribSessions = async (
         }
         if (captionButon) {
           const label = captionButon.getAttribute("aria-label");
-          if (captionButon && !label.includes("off")) {
+          if (captionButon && !label.includes("off") && started) {
+            captionButon.click();
+          }
+          if (captionButon && label.includes("off") && !started) {
             captionButon.click();
           }
         }
+      },
+    });
+  };
+  const checkStartedChange = async () => {
+    const storageValues = await chrome.storage.local.get(["transcribing"]);
+    const started = storageValues.transcribing?.status === "started";
+    executeScript(started);
+  };
+  setInterval(checkStartedChange, 500);
+  const response = await chrome.scripting.executeScript<any, any>({
+    target: {
+      tabId: meetTabId,
+    },
+    args: [meetingId, oldConversation],
+    func: (meetingId, oldConversation) => {
+      let conversation: any = oldConversation;
+      const checkForUpdates = () => {
+        console.log("meetingId", meetingId);
+        const currentsentence: any = {};
         const captionElements: any = document.getElementsByClassName("iOzk7");
         if (!captionElements.length) return;
         for (let captionElement of captionElements) {
@@ -113,13 +132,6 @@ const transcribSessions = async (
             if (speakerName === "You") {
               speakerName = "interviewer";
             }
-
-            if (
-              currentsentence.hasOwnProperty(speakerName) &&
-              speakerName !== ""
-            ) {
-              currentsentence[speakerName] = "";
-            }
             let captionText = "";
             const caption =
               captionElement.getElementsByClassName("iTTPOb VbkSUe")[0];
@@ -130,7 +142,6 @@ const transcribSessions = async (
             if (!captionText || !speakerName) {
               continue;
             }
-
             if (
               conversation.length > 0 &&
               conversation[conversation.length - 1].hasOwnProperty("speaker") &&
@@ -138,49 +149,22 @@ const transcribSessions = async (
             ) {
               continue;
             }
-
             if (
-              captionText.endsWith(".") ||
-              captionText.endsWith("!") ||
-              captionText.endsWith("?")
+              conversation.length > 0 &&
+              conversation[conversation.length - 1].hasOwnProperty("speaker") &&
+              speakerName === conversation[conversation.length - 1].speaker
             ) {
-              console.log(
-                "pushing",
-                currentsentence[speakerName],
-                currentsentence[speakerName] !== captionText,
-                captionText
-              );
-              if (currentsentence[speakerName] !== captionText) {
-                conversation.push({
-                  speaker: speakerName,
-                  sentence: captionText,
-                });
-              }
+              conversation[conversation.length - 1].sentence += captionText;
             } else {
-              if (
-                conversation.length > 0 &&
-                conversation[conversation.length - 1].hasOwnProperty(
-                  "speaker"
-                ) &&
-                speakerName === conversation[conversation.length - 1].speaker &&
-                currentsentence[speakerName] !== captionText
-              ) {
-                conversation[conversation.length - 1].sentence += captionText;
-              } else {
-                conversation.push({
-                  speaker: speakerName,
-                  sentence: captionText,
-                });
-              }
+              conversation.push({
+                speaker: speakerName,
+                sentence: captionText,
+                Timestamp: new Date().toLocaleString(),
+              });
             }
-            if (currentsentence[speakerName] !== captionText) {
-              currentsentence[speakerName] = captionText;
-            }
-            console.log(conversation[conversation.length - 1].speaker);
-            console.log("currentsentence", currentsentence);
           }
         }
-        chrome.runtime.sendMessage({ conversation, fullUrl });
+        chrome.runtime.sendMessage({ conversation, meetingId });
       };
       setInterval(checkForUpdates, 2000);
       return conversation;
@@ -204,8 +188,8 @@ export const recallGradeListener = (
   if (command === START_TRANSCRIBING) {
     // start recall grading
     (async () => {
-      let gptTabId: number;
-      let fullUrl: any = "";
+      let meetTabId: number;
+      let meetingId: string = "";
       const gptTabs = await chrome.tabs.query({
         url: "https://meet.google.com/*",
         active: true,
@@ -216,18 +200,20 @@ export const recallGradeListener = (
             status: "started",
           } as TranscribingProcess,
         });
-        gptTabId = gptTabs[0].id!;
+        meetTabId = gptTabs[0].id!;
         if (gptTabs[0].url) {
-          fullUrl = gptTabs[0].url;
+          const regex = /[a-z]{3}-[a-z]{4}-[a-z]{3}/;
+          const matchResult = gptTabs[0]?.url?.match(regex);
+          if (matchResult) {
+            meetingId = JSON.stringify(matchResult[0]);
+          }
         }
-
-        console.log("fullUrl", fullUrl);
         setTimeout(() => {
           chrome.runtime.sendMessage(
             chrome.runtime.id,
             "transcribing-status-started"
           );
-          transcribSessions(gptTabId, () => {}, fullUrl);
+          transcribSessions(meetTabId, () => {}, meetingId);
         });
       }
     })();
