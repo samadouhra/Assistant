@@ -21,6 +21,8 @@ import { useAuth } from "../../utils/AuthContext";
 import {
   ActionVariant,
   CreateNotebookWorkerResponse,
+  Flashcard,
+  FlashcardResponse,
   IAssistantCreateNotebookRequestPayload,
   IAssistantRequestPayload,
   IAssistantResponse,
@@ -33,6 +35,9 @@ import {
   NodeLinkType,
   NodeType,
   Notebook,
+  TAssistantNotebookMessage,
+  TAssistantResponseMessage,
+  TNode,
   ViewNodeWorkerResponse,
 } from "../../types";
 import { NodeLink } from "./NodeLink";
@@ -50,7 +55,7 @@ import { useTheme } from "../../hooks/useTheme";
 import { getCurrentDateYYMMDD, getCurrentHourHHMM } from "../../utils/date";
 import { Theme } from "@mui/system";
 import { generateRandomId } from "../../utils/others";
-import { generateContinueDisplayingNodeMessage, generateNodeMessage, generateTopicNotFound, generateUserActionAnswer, generateWhereContinueExplanation } from "../../utils/messages";
+import { generateConfirmNodeSelection, generateContinueDisplayingNodeMessage, generateExplainSelectedText, generateNodeDiscoverMessage, generateNodeKeepSelectionMessage, generateNodeMessage, generateNodeProposeMessage, generateNotebookIntro, generateNotebookListMessage, generateNotebookProposalApproval, generateSearchNodeMessage, generateStartProposeChildConfirmation, generateTopicMessage, generateTopicNotFound, generateUserActionAnswer, generateWhereContinueExplanation } from "../../utils/messages";
 import SearchMessage from "./SearchMessage";
 import moment from "moment";
 import MarkdownRender from "./MarkdownRender";
@@ -58,6 +63,7 @@ import { HeaderMessage } from "../ChatHeader";
 import { ChatFooter } from "../ChatFooter";
 import { ChatStickyMessage } from "../ChatStickyMessage";
 import { PieChart } from "../Charts/PieComponent";
+import { INotebook } from "../../types/INotebook";
 
 const tempMap = (variant: string): ActionVariant => {
   if (variant === "outline") return "outlined";
@@ -67,7 +73,15 @@ const tempMap = (variant: string): ActionVariant => {
 type ChatProps = {
   conversationId: string,
   setConversationId: (conversationId: string) => void,
+  setDisplayAssistant: (display: boolean) => void,
+  flashcards: Flashcard[],
+  setFlashcards: any,
+  currentFlashcard: Flashcard | undefined,
+  setCurrentFlashcard: any,
+  notebooks: INotebook[],
+  setNotebooks: any,
   // setIsLoading: React.Dispatch<React.SetStateAction<boolean>>,
+  selectedText: string,
   isLoading: boolean,
   setIsLoading: React.Dispatch<React.SetStateAction<boolean>>,
   isAuthenticated: boolean,
@@ -80,6 +94,14 @@ type ChatProps = {
 export const Chat = forwardRef(({
   conversationId,
   setConversationId,
+  setDisplayAssistant,
+  flashcards,
+  setFlashcards,
+  currentFlashcard,
+  setCurrentFlashcard,
+  notebooks,
+  setNotebooks,
+  selectedText,
   isLoading,
   setIsLoading,
   isAuthenticated,
@@ -95,6 +117,10 @@ export const Chat = forwardRef(({
   const [tmpNodesToBeDisplayed, setTmpNodesToBeDisplayed] = useState<NodeLinkType[]>([]);
   const { mode } = useTheme();
   const [userMessage, setUserMessage] = useState("");
+  // to store number during proposing nodes
+  const [nodeIdx, setNodeIdx] = useState<number>(0);
+  const [nodeSelection, setNodeSelection] = useState<"Parent" | "Child" | "Improvement" | null>(null);
+  const [selectedNode, setSelectedNode] = useState<TNode | null>(null);
 
   const pushMessage = useCallback(
     (message: MessageData, currentDateYYMMDD: string) => {
@@ -136,9 +162,22 @@ export const Chat = forwardRef(({
 
   useImperativeHandle(ref, () => {
     return {
-      pushMessage
+      pushMessage,
+      resetChat: () => {
+        setNotebook(null);
+        setMessagesObj([]);
+        setSpeakingMessageId("");
+        setNodesToBeDisplayed([]);
+        setTmpNodesToBeDisplayed([]);
+        setUserMessage("");
+        setNodeIdx(0);
+      }
     }
-  }, [pushMessage]);
+  }, [
+    pushMessage, setNotebook, setMessagesObj,
+    setSpeakingMessageId, setNodesToBeDisplayed,
+    setTmpNodesToBeDisplayed, setUserMessage
+  ]);
 
   const removeActionOfAMessage = (messageId: string, date: string) => {
     const removeActionOFMessage = (message: MessageData): MessageData =>
@@ -235,17 +274,20 @@ export const Chat = forwardRef(({
     if (!firstElement) return;
     pushMessage(generateNodeMessage(firstElement), getCurrentDateYYMMDD());
     const thereIsNextNode = Boolean(copyNodesToBeDisplayed.length);
-    pushMessage(
-      generateContinueDisplayingNodeMessage(
-        firstElement.title,
-        firstElement.unit,
-        thereIsNextNode,
-        // TODO: after map practice into a node, send practice property and add PieChart
-        // { answered: firstElement, totalQuestions: 10 },
-        // <PieChart answers={2} questions={10} />
-      ),
-      getCurrentDateYYMMDD()
-    );
+    if (firstElement.unit) {
+      pushMessage(
+        generateContinueDisplayingNodeMessage(
+          firstElement.title,
+          firstElement.unit,
+          thereIsNextNode,
+          firstElement.practice
+          // TODO: after map practice into a node, send practice property and add PieChart
+          // { answered: firstElement, totalQuestions: 10 },
+          // <PieChart answers={2} questions={10} />
+        ),
+        getCurrentDateYYMMDD()
+      );
+    }
     setNodesToBeDisplayed(copyNodesToBeDisplayed);
   };
 
@@ -256,7 +298,7 @@ export const Chat = forwardRef(({
     request?: string
   ) => {
 
-    if (!notebook) return null
+    if (!notebook && ["LOCAL_OPEN_NOTEBOOK", "LOCAL_CONTINUE_EXPLANATION_HERE", "IllContribute", "GeneralExplanation"].includes(action.type)) return null
 
     let onClick = undefined
     if (action.type === "LOCAL_OPEN_NOTEBOOK") {
@@ -272,7 +314,7 @@ export const Chat = forwardRef(({
         // open all nodes
         const payload: IViewNodeOpenNodesPayload = {
           nodeIds: tmpNodesToBeDisplayed.map(c => c.id),
-          notebookId: notebook.id,
+          notebookId: notebook ? notebook.id : "",
           visible: true
         };
         chrome.runtime.sendMessage(chrome.runtime.id || process.env.EXTENSION_ID, {
@@ -283,7 +325,7 @@ export const Chat = forwardRef(({
         setTmpNodesToBeDisplayed([]);
         chrome.runtime.sendMessage(chrome.runtime.id, {
           type: "SELECT_NOTEBOOK",
-          notebookId: notebook.id
+          notebookId: notebook ? notebook.id : ""
         });
         chrome.runtime.sendMessage(chrome.runtime.id, { type: "FOCUS_NOTEBOOK" });
       }
@@ -299,7 +341,7 @@ export const Chat = forwardRef(({
         // open all nodes
         const payload: IViewNodeOpenNodesPayload = {
           nodeIds: tmpNodesToBeDisplayed.map(c => c.id),
-          notebookId: notebook.id,
+          notebookId: notebook ? notebook.id : "",
           visible: true
         };
         chrome.runtime.sendMessage(chrome.runtime.id || process.env.EXTENSION_ID, {
@@ -354,6 +396,119 @@ export const Chat = forwardRef(({
       }
     }
 
+    if (action.type === 'ProposeIt') {
+      onClick = () => {
+        setFlashcards((flashcards: any) => {
+          chrome.runtime.sendMessage({
+            type: "START_PROPOSING",
+            flashcards,
+            request,
+            selection: request,
+            notebooks: []
+          } as TAssistantNotebookMessage);
+          return flashcards;
+        })
+        // starting to propose
+        console.log("-> ProposeIt");
+      }
+    }
+
+    if (action.type === 'TeachContent') {
+      onClick = () => {
+        console.log("-> TeachContent");
+        const payload: IAssistantRequestPayload = {
+          actionType: "TeachContent",
+          message: request! || selectedText,
+        };
+        chrome.runtime.sendMessage(chrome.runtime.id || process.env.EXTENSION_ID, {
+          payload,
+          messageType: "assistant",
+        });
+        pushMessage(
+          generateExplainSelectedText(request! || selectedText),
+          getCurrentDateYYMMDD()
+        );
+        setIsLoading(true);
+      }
+    }
+
+    if (action.type === 'ChooseNotebook') {
+      onClick = () => {
+        console.log("-> ChooseNotebook");
+        pushMessage(
+          generateNotebookListMessage(request! || selectedText, notebooks),
+          getCurrentDateYYMMDD()
+        );
+      }
+    }
+
+    if (action.type === 'NotebookSelected') {
+      onClick = () => {
+        console.log("-> NotebookSelected");
+        const notebook = action?.data?.notebook as INotebook;
+        setNotebook({
+          id: notebook.documentId!,
+          name: notebook.title
+        });
+
+        pushMessage(
+          generateNotebookIntro(
+            flashcards
+          ),
+          getCurrentDateYYMMDD()
+        )
+
+        let newFlashcards = [...flashcards];
+        const flashcard = newFlashcards.shift();
+        setFlashcards(newFlashcards);
+        const flashcardEvent = new CustomEvent("flashcard-start", {
+          detail: {
+            flashcard
+          }
+        });
+        setNodeIdx((nodeIdx) => nodeIdx + 1);
+        // adding node message with delay to look good
+        setTimeout(() => {
+          window.dispatchEvent(flashcardEvent);
+        }, 2000);
+      }
+    }
+
+    if (action.type === 'ConfirmNodeSelection') {
+      onClick = () => {
+        console.log("-> ConfirmNodeSelection");
+        setNodeSelection("Improvement");
+        setSelectedNode(action.data.node);
+      }
+    }
+
+    if (action.type === 'ContinueNodeSelection') {
+      onClick = () => {
+        console.log("-> ContinueNodeSelection");
+        pushMessage(
+          generateNodeKeepSelectionMessage(),
+          getCurrentDateYYMMDD()
+        );
+      }
+    }
+
+    if (action.type === "ProposeImprovementConfirm") {
+      onClick = () => {
+        console.log("-> ProposeImprovementConfirm");
+        setNodeSelection("Improvement");
+      }
+    }
+
+    if (action.type === "StartChildProposal") {
+      onClick = () => {
+        console.log("-> StartChildProposal");
+        pushMessage(
+          generateStartProposeChildConfirmation(),
+          getCurrentDateYYMMDD()
+        );
+      }
+    }
+
     return (
       <Button onClick={onClick} variant={action.variant} fullWidth>
         {action.title}
@@ -362,6 +517,9 @@ export const Chat = forwardRef(({
   };
 
   useEffect(() => {
+    // following listener only for non-notebook tabs
+    if (window.location.href.startsWith(NOTEBOOK_LINK)) return;
+
     const listenWorker = (message: (IAssistantResponse | ViewNodeWorkerResponse | CreateNotebookWorkerResponse) & { messageType: string }) => {
       if (message.messageType === 'assistant') {
         console.log('>:message form assistant', { message })
@@ -411,15 +569,81 @@ export const Chat = forwardRef(({
   }, [notebook]);
 
   useEffect(() => {
-    const listenWorker = (message: any) => {
-      if (message.type === 'TOPIC_RESPONSE') {
+    // following listener only for non-notebook tabs
+    if (window.location.href.startsWith(NOTEBOOK_LINK)) return;
+
+    const listenWorker = (message: TAssistantResponseMessage) => {
+      if (message.type === 'FLASHCARDS_RESPONSE') {
+        setFlashcards(message.flashcards);
+        pushMessage(
+          generateTopicMessage(
+            selectedText,
+            message.flashcards.map((flashcard) => flashcard.title)
+          ),
+          getCurrentDateYYMMDD()
+        );
         setIsLoading(false);
+        return setIsLoading(false);
       }
     }
 
     chrome.runtime.onMessage.addListener(listenWorker);
     return () => chrome.runtime.onMessage.removeListener(listenWorker);
-  }, [notebook]);
+  }, [notebook, flashcards]);
+
+  useEffect(() => {
+    const listener = (e: any) => {
+      const flashcard: Flashcard = e?.detail?.flashcard || {} as any;
+      setCurrentFlashcard(flashcard);
+    };
+    window.addEventListener("flashcard-start", listener);
+    return () => window.removeEventListener("flashcard-start", listener);
+  }, []);
+
+  useEffect(() => {
+    if (!nodeSelection) return;
+    const listener = (e: any) => {
+      pushMessage(
+        generateConfirmNodeSelection(
+          e.detail
+        ),
+        getCurrentDateYYMMDD()
+      );
+    };
+    window.addEventListener("node-selected", listener);
+    return () => window.removeEventListener("node-selected", listener);
+  }, [nodeSelection, pushMessage]);
+
+  useEffect(() => {
+    if (!currentFlashcard) return;
+    setNodeIdx((nodeIdx) => {
+      pushMessage(
+        generateNodeProposeMessage(currentFlashcard, nodeIdx),
+        getCurrentDateYYMMDD()
+      );
+      return nodeIdx;
+    });
+
+    const searchEvent = new CustomEvent("assistant", {
+      detail: {
+        type: "SEARCH_NODES",
+        query: currentFlashcard.title
+      }
+    });
+    window.dispatchEvent(searchEvent);
+    setTimeout(() => {
+      pushMessage(
+        generateSearchNodeMessage(),
+        getCurrentDateYYMMDD()
+      );
+      setTimeout(() => {
+        pushMessage(
+          generateNodeDiscoverMessage(),
+          getCurrentDateYYMMDD()
+        );
+      }, 2000);
+    }, 2000)
+  }, [currentFlashcard, setNodeIdx, pushMessage, setNodeSelection]);
 
   const formatDate = (date: string) => {
     const _date = new Date();
@@ -519,7 +743,7 @@ export const Chat = forwardRef(({
                   </Typography>
                 </Divider>
               </Box>
-              {cur.messages.map((c, idx) => (
+              {cur.messages.map((c) => (
                 <Stack
                   key={c.id}
                   direction={c.type === "READER" ? "row" : "row-reverse"}
@@ -663,7 +887,14 @@ export const Chat = forwardRef(({
                             style={{ border: "0px" }}
                           ></iframe>
                         </Box>}
-                        {c.componentContent && <Box sx={{ mt: "12px" }}>{c.componentContent}</Box>}
+                        {
+                          (c.practice && c.practice.answered && c.practice.totalQuestions) ?
+                            <Box sx={{ mt: "12px" }}>
+                              <PieChart answers={c.practice.answered} questions={c.practice.totalQuestions} />
+                            </Box>
+                            :
+                            null
+                        }
                       </Box>
 
                       {c.actions.length > 0 && (
@@ -682,6 +913,11 @@ export const Chat = forwardRef(({
             </Fragment>
           );
         })}
+        {
+          !messagesObj?.length && isLoading ? (
+            <SearchMessage />
+          ) : null
+        }
       </Stack>
 
       {/* footer options */}

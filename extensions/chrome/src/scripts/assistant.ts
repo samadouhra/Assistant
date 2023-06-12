@@ -1,5 +1,5 @@
 import { findOrCreateNotebookTab, getIdToken, setActiveTab } from "../helpers/common";
-import { IAssistantMessageRequest, IAssistantMessageResponse, IAssistantNode, createConversation, getBardPromptResponse, getBardQueryPrompt, getBardTabId, getFlashcards, getTopic, waitUntilBardAvailable } from "../helpers/assistant";
+import { IAssistantMessageRequest, IAssistantMessageResponse, IAssistantNode, createConversation, getBardPromptResponse, getBardQueryPrompt, getBardTabId, getFlashcards, getNotebooks, getTopic, waitUntilBardAvailable } from "../helpers/assistant";
 import { ENDPOINT_BASE } from "../utils/constants";
 import { IAssistantCreateNotebookRequestPayload, IViewNodeOpenNodesPayload, ViewNodeWorkerPayload, ViewNodeWorkerResponse } from "../types";
 
@@ -63,13 +63,24 @@ export const onAssistantActions = (message: any, sender: chrome.runtime.MessageS
     })()
   } else if (message?.type === "FETCH_FLASHCARDS") {
     (async () => {
-      const flashcards = await getFlashcards(message?.selection);
+      const flashcards = await getFlashcards(message?.selection, sender.url!);
       const tabId = sender.tab?.id!;
       await chrome.tabs.sendMessage(tabId, {
         type: "FLASHCARDS_RESPONSE",
         flashcards,
         selection: message?.selection
       });
+    })()
+  } else if(message?.type === "START_PROPOSING") {
+    (async () => {
+      const notebooks = await getNotebooks(sender.tab?.id!);
+      const tabId = await findOrCreateNotebookTab();
+      await chrome.tabs.update(tabId, {
+        active: true
+      });
+
+      console.log({message, tabId}, "START_PROPOSING");
+      await chrome.tabs.sendMessage(tabId, {...message, notebooks});
     })()
   }
 };

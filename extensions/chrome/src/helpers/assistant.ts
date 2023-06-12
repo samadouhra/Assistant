@@ -1,6 +1,7 @@
 import { FlashcardResponse } from "../types";
+import { INotebook } from "../types/INotebook";
 import { ONECADEMY_BASEURL } from "../utils/constants";
-import { delay } from "./common";
+import { delay, getIdToken } from "./common";
 
 export const ASSISTANT_BARD_MESSAGE = "ASSISTANT_BARD_MESSAGE";
 export const ASSISTANT_BARD_RESPONSE = "ASSISTANT_BARD_RESPONSE";
@@ -412,17 +413,33 @@ export const getTopic = async (passage: string): Promise<string> => {
   return response.topic as string
 }
 
-export const getFlashcards = async (passage: string): Promise<FlashcardResponse> => {
+export const getNotebooks = async (tabId: number): Promise<INotebook[]> => {
+  const headers: any = {
+    "Content-Type": "application/json"
+  };
+  const token = await getIdToken(tabId);
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+  const request = await fetch(`${ONECADEMY_BASEURL}/api/assistant/getNotebooks`, {
+    method: "GET",
+    headers
+  });
+  return ((await request.json()) || []) as INotebook[];
+}
+
+export const getFlashcards = async (passage: string, url: string): Promise<FlashcardResponse> => {
   const request = await fetch(`${ONECADEMY_BASEURL}/api/assistant/getFlashcards`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json"
     },
     body: JSON.stringify({
-      passage
+      passage,
+      url
     })
   });
-  return (await request.json()) as FlashcardResponse;
+  return ((await request.json())?.topic || []) as FlashcardResponse;
 }
 
 export type IAssistantMessageRequest = {

@@ -22,19 +22,24 @@ import {
   Chat
 } from "./ChatApp/Chat";
 import {
-  LOGO_URL
+  LOGO_URL, NOTEBOOK_LINK
 } from "../utils/constants";
 import {
   useTheme
 } from "../hooks/useTheme";
 import {
-  IAssistantRequestPayload, MessageData
+  Flashcard,
+  FlashcardResponse,
+  MessageData,
+  TAssistantNotebookMessage
 } from "../types";
 import {
-  generateExplainSelectedText
+  generateNotebookIntro, generateNotebookProposalApproval
 } from "../utils/messages";
 import { ONECADEMY_IFRAME_URL } from "../utils/constants";
 import { getCurrentDateYYMMDD } from "../utils/date";
+import { RiveComponentMemoized } from "./ChatApp/RiveMemoized";
+import { INotebook } from "../types/INotebook";
 
 function ChatApp() {
   const [displayAssistant, setDisplayAssistant] = useState(false);
@@ -43,13 +48,18 @@ function ChatApp() {
   const isAuthenticatedRef = useRef<boolean>(false);
   const [conversationId, setConversationId] = useState("");
   const chatRef = useRef<{
-    pushMessage: (message: MessageData, currentDateYYMMDD: string) => void
+    pushMessage: (message: MessageData, currentDateYYMMDD: string) => void,
+    resetChat: () => void
   }>({
-    pushMessage: () => { }
+    pushMessage: () => { },
+    resetChat: () => { }
   });
   const [isLoading, setIsLoading] = useState(false)
   const iframeRef = useRef<null | HTMLIFrameElement>(null);
   const { mode } = useTheme();
+  const [flashcards, setFlashcards] = useState<FlashcardResponse>([]);
+  const [currentFlashcard, setCurrentFlashcard] = useState<Flashcard | undefined>(undefined);
+  const [notebooks, setNotebooks] = useState<INotebook[]>([]);
 
   useEffect(() => {
     chrome.runtime.onMessage.addListener((message, sender) => {
@@ -74,18 +84,22 @@ function ChatApp() {
   const [selectedTextMouseUpPosition, setSelectedTextMouseUpPosition] = useState<{ mouseX: number, mouseY: number } | null>(null);
 
   const askSelectedTextToAssistant = (selectedText: string) => {
-    const payload: IAssistantRequestPayload = {
-      actionType: "TeachContent",
-      message: selectedText,
-    };
-    chrome.runtime.sendMessage(chrome.runtime.id || process.env.EXTENSION_ID, {
-      payload,
-      messageType: "assistant",
+    chrome.runtime.sendMessage({
+      type: "FETCH_FLASHCARDS",
+      selection: selectedText
     });
-    chatRef.current.pushMessage(
-      generateExplainSelectedText(selectedText),
-      getCurrentDateYYMMDD()
-    );
+    // const payload: IAssistantRequestPayload = {
+    //   actionType: "TeachContent",
+    //   message: selectedText,
+    // };
+    // chrome.runtime.sendMessage(chrome.runtime.id || process.env.EXTENSION_ID, {
+    //   payload,
+    //   messageType: "assistant",
+    // });
+    // chatRef.current.pushMessage(
+    //   generateExplainSelectedText(selectedText),
+    //   getCurrentDateYYMMDD()
+    // );
     setIsLoading(true)
   }
 
@@ -167,7 +181,38 @@ function ChatApp() {
       document.removeEventListener('mouseup', onDetectSelectedText)
       chrome.runtime.onMessage.removeListener(selectionMessageListener);
     }
-  }, [])
+  }, []);
+
+  useEffect(() => {
+    console.log(window.location.href.startsWith(NOTEBOOK_LINK), "NOTEBOOK_LINK", window.location.href);
+    // following listener only for notebook tabs
+    if (!window.location.href.startsWith(NOTEBOOK_LINK)) return;
+
+    const listenWorker = (message: TAssistantNotebookMessage) => {
+      console.log(message, "START_PROPOSING")
+      if (message.type === 'START_PROPOSING') {
+        setDisplayAssistant(true);
+        setFlashcards(message.flashcards);
+        setNotebooks(message.notebooks);
+        chatRef.current.pushMessage(
+          generateNotebookProposalApproval(
+            message.request,
+            message.notebooks?.[0] || {}
+          ),
+          getCurrentDateYYMMDD()
+        );
+        setIsLoading(false);
+      }
+    }
+
+    chrome.runtime.onMessage.addListener(listenWorker);
+    return () => chrome.runtime.onMessage.removeListener(listenWorker);
+  }, []);
+
+  useEffect(() => {
+    if (displayAssistant) return;
+    chatRef.current.resetChat()
+  }, [displayAssistant])
 
   useEffect(() => {
     if (iframeRef.current) {
@@ -258,45 +303,44 @@ function ChatApp() {
               onClick={onOpenChat}
               sx={{
                 minWidth: "0px",
-                width: "52px",
-                height: "52px",
-                border: `solid 2px ${DESIGN_SYSTEM_COLORS.primary200}`,
-                borderRadius: "12px",
-                backgroundColor:
-                  mode === "light"
-                    ? DESIGN_SYSTEM_COLORS.gray250
-                    : DESIGN_SYSTEM_COLORS.notebookG800,
-                ":hover": {
-                  backgroundColor:
-                    mode === "light"
-                      ? DESIGN_SYSTEM_COLORS.gray250
-                      : DESIGN_SYSTEM_COLORS.notebookG500,
-                },
+                width: "80",
+                height: "80"
               }}
             >
-              <img
-                src={LOGO_URL}
-                alt="onecademy assistant logo"
-                style={{ width: "32px", height: "32px" }}
+              <RiveComponentMemoized
+                src={chrome.runtime.getURL("rive-assistant/idle.riv")}
+                artboard="New Artboard"
+                animations={["Timeline 1"]}
+                autoplay={true}
               />
             </Button>
           )}
         </Box>
 
         {/* chat */}
-        {
-          displayAssistant &&
-          <Chat
-            ref={chatRef}
-            conversationId={conversationId}
-            setConversationId={setConversationId}
-            isLoading={isLoading}
-            setIsLoading={setIsLoading}
-            isAuthenticated={isAuthenticated}
-            isAuthenticatedRef={isAuthenticatedRef}
-            sx={{ position: "fixed", bottom: "112px", right: "38px" }}
-          />
-        }
+        <Chat
+          ref={chatRef}
+          selectedText={selectedText}
+          conversationId={conversationId}
+          setConversationId={setConversationId}
+          setDisplayAssistant={setDisplayAssistant}
+          flashcards={flashcards}
+          setFlashcards={setFlashcards}
+          currentFlashcard={currentFlashcard}
+          setCurrentFlashcard={setCurrentFlashcard}
+          notebooks={notebooks}
+          setNotebooks={setNotebooks}
+          isLoading={isLoading}
+          setIsLoading={setIsLoading}
+          isAuthenticated={isAuthenticated}
+          isAuthenticatedRef={isAuthenticatedRef}
+          sx={{
+            position: "fixed",
+            bottom: "112px",
+            right: "38px",
+            display: displayAssistant ? "flex" : "none"
+          }}
+        />
       </Box >
     </>
   )

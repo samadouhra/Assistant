@@ -1,16 +1,16 @@
-import { ReactNode } from "react";
-import { PieChart } from "../components/Charts/PieComponent";
 import { getCurrentHourHHMM } from "./date";
 import { generateRandomId } from "./others";
-import { MessageData, NodeLinkType } from "../types";
+import { Flashcard, MessageAction, MessageData, NodeLinkType } from "../types";
+import { INotebook } from "../types/INotebook";
 
 
-export const generateContinueDisplayingNodeMessage = (title: string, unit: string, thereIsNextNode: boolean, practice?: { answered: number, totalQuestions: number }, componentContent?: ReactNode): MessageData => {
+export const generateContinueDisplayingNodeMessage = (title: string, unit: string, thereIsNextNode: boolean, practice?: { answered: number, totalQuestions: number }, componentContent?: any): MessageData => {
   return {
     actions: [],
-    content: `You learned about "${title}" in Unit ${unit}. ${practice ? `You've correctly answered ${practice.answered} out of ${practice.totalQuestions} related practice questions.` : ""}`,
-    // componentContent: practice ? PieChart({ answers: practice.answered, questions: practice.totalQuestions }) : null,// INFO: on my editor I was having an error to use in this way: <PieChart/>
-    componentContent,
+    content: `You learned about "${title}" in Unit ${unit}. ${(practice?.answered && practice?.totalQuestions) ? `You've correctly answered ${practice.answered} out of ${practice.totalQuestions} related practice questions.` : ""}`,
+    // componentContent: practice ? <PieChart answers={practice.answered} questions={practice.totalQuestions} /> : undefined,// INFO: on my editor I was having an error to use in this way: <PieChart/>
+    // componentContent,
+    practice,
     nodes: [],
     type: "READER",
     hour: getCurrentHourHHMM(),
@@ -129,27 +129,21 @@ export const generateExplainSelectedText = (selectedText: string): MessageData =
   }
 }
 
-export const generateTopicMessage = (request: string, isAuthenticated: boolean): MessageData => {
+export const generateTopicMessage = (request: string, topics: string[]): MessageData => {
   return {
-    actions: isAuthenticated ? [
+    actions: [
       {
-        title: "Provide me an explanation",
-        type: "GeneralExplanation",
+        title: "Explain it",
+        type: "TeachContent",
         variant: "outlined"
       },
       {
-        title: "I’ll contribute",
-        type: "IllContribute",
-        variant: "outlined"
-      },
-    ] : [
-      {
-        title: "Provide me an explanation",
-        type: "GeneralExplanation",
+        title: "Propose it on 1Cademy",
+        type: "ProposeIt",
         variant: "outlined"
       },
     ],
-    content: "The text you've selected talks about Adam Smith's concept of the invisible hand.\nWhich of the following would you like to do?",
+    content: `The text your've selected talks about ${topics.join(", ")}. Which of the following would you like to do with it?`,
     nodes: [],
     type: "READER",
     hour: getCurrentHourHHMM(),
@@ -157,5 +151,240 @@ export const generateTopicMessage = (request: string, isAuthenticated: boolean):
     image: "",
     video: "",
     request
+  }
+}
+
+export const generateNotebookIntro = (flashcards: Flashcard[]): MessageData => {
+  return {
+    actions: [],
+    content: `I extracted ${flashcards.length} potential nodes from your selected text. I'm going to assist you step-by-step to propose a node for each of them that you find necessary.`,
+    nodes: [],
+    type: "READER",
+    hour: getCurrentHourHHMM(),
+    id: generateRandomId(),
+    image: "",
+    video: ""
+  }
+}
+
+export const generateNotebookProposalApproval = (request: string, notebook: INotebook): MessageData => {
+  return {
+    actions: [
+      {
+        title: "Yes",
+        type: "NotebookSelected",
+        variant: "outlined",
+        data: {
+          notebook
+        }
+      },
+      {
+        title: "No",
+        type: "ChooseNotebook",
+        variant: "outlined"
+      },
+    ],
+    content: `Would you like to propose the child/improvement in the current notebook "${notebook.title}", or switch it to another notebook?`,
+    nodes: [],
+    type: "READER",
+    hour: getCurrentHourHHMM(),
+    id: generateRandomId(),
+    image: "",
+    video: "",
+    request
+  }
+}
+
+export const generateNotebookListMessage = (request: string, notebooks: INotebook[]): MessageData => {
+  const actions: MessageAction[] = notebooks.map((notebook) => ({
+    title: notebook.title,
+    type: "NotebookSelected",
+    variant: "outlined",
+    data: {
+      notebook
+    }
+  }));
+  actions.push({
+    title: "Create a New Notebook",
+    type: "ChatNotebookCreate",
+    variant: "outlined",
+  });
+
+  return {
+    actions,
+    content: `Which of the following notebooks would you like to open?`,
+    nodes: [],
+    type: "READER",
+    hour: getCurrentHourHHMM(),
+    id: generateRandomId(),
+    image: "",
+    video: "",
+    request
+  }
+}
+
+export const generateNodeProposeMessage = (node: Flashcard, nodeIdx: number): MessageData => {
+  return {
+    actions: [],
+    content: `**Node ${nodeIdx}:**\n**${node.title}**\n${node.content}`,
+    nodes: [],
+    type: "READER",
+    hour: getCurrentHourHHMM(),
+    id: generateRandomId(),
+    image: "",
+    video: ""
+  }
+}
+
+export const generateSearchNodeMessage = (): MessageData => {
+  return {
+    actions: [],
+    content: `I searched 1Cademy and listed all the relevant nodes to the above potential node in Search sidebar on the left. You can open any of the search results in your notebook and search more nodes.`,
+    nodes: [],
+    type: "READER",
+    hour: getCurrentHourHHMM(),
+    id: generateRandomId(),
+    image: "",
+    video: ""
+  }
+}
+
+export const generateNodeDiscoverMessage = (): MessageData => {
+  return {
+    actions: [
+      {
+        title: "Yes",
+        type: "ProposeImprovementConfirm",
+        variant: "outlined",
+      },
+      {
+        title: "No",
+        type: "StartChildProposal",
+        variant: "outlined",
+      }
+    ],
+    content: `Can you find any node on 1Cademy that explains the same content as this potential node?`,
+    nodes: [],
+    type: "READER",
+    hour: getCurrentHourHHMM(),
+    id: generateRandomId(),
+    image: "",
+    video: ""
+  }
+}
+
+export const generateConfirmContinueWithPotentialNodeMessage = (): MessageData => {
+  return {
+    actions: [
+      {
+        title: "Yes",
+        type: "ProceedPotentialNodes",
+        variant: "outlined",
+      },
+      {
+        title: "No",
+        type: "DontProceedPotentialNodes",
+        variant: "outlined",
+      }
+    ],
+    content: `Would you like to continue with the next potential node?`,
+    nodes: [],
+    type: "READER",
+    hour: getCurrentHourHHMM(),
+    id: generateRandomId(),
+    image: "",
+    video: ""
+  }
+}
+
+export const generateConfirmNodeSelection = (node: { title: string, [key: string]: any }): MessageData => {
+  // Then, would you like to go back to the original document to continue reading it?
+  return {
+    actions: [
+      {
+        title: "Yes",
+        type: "ConfirmNodeSelection",
+        variant: "outlined",
+        data: {
+          node
+        }
+      },
+      {
+        title: "No",
+        type: "ContinueNodeSelection",
+        variant: "outlined",
+      }
+    ],
+    content: `Did you selected "${node.title}"?`,
+    nodes: [],
+    type: "READER",
+    hour: getCurrentHourHHMM(),
+    id: generateRandomId(),
+    image: "",
+    video: ""
+  }
+}
+
+export const generateNodeKeepSelectionMessage = (): MessageData => {
+  return {
+    actions: [],
+    content: `You can open any of the search results in your notebook and search more nodes.\nClick on Node to select it.`,
+    nodes: [],
+    type: "READER",
+    hour: getCurrentHourHHMM(),
+    id: generateRandomId(),
+    image: "",
+    video: ""
+  }
+}
+
+export const generateProposeImprovementConfirmation = (node: { title: string, [key: string]: any }): MessageData => {
+  return {
+    actions: [
+      {
+        title: "Yes",
+        type: "ConfirmNodeSelection",
+        variant: "outlined",
+        data: {
+          node
+        }
+      },
+      {
+        title: "No",
+        type: "ContinueNodeSelection",
+        variant: "outlined",
+      }
+    ],
+    content: `Would you like to propose an improvement to that node?`,
+    nodes: [],
+    type: "READER",
+    hour: getCurrentHourHHMM(),
+    id: generateRandomId(),
+    image: "",
+    video: ""
+  }
+}
+
+export const generateStartProposeChildConfirmation = (): MessageData => {
+  return {
+    actions: [
+      {
+        title: "Yes",
+        type: "ConfirmNodeSelection",
+        variant: "outlined"
+      },
+      {
+        title: "No",
+        type: "ProceedPotentialNodes",
+        variant: "outlined",
+      }
+    ],
+    content: `Would you like to propose the selected text as child nodes?`,
+    nodes: [],
+    type: "READER",
+    hour: getCurrentHourHHMM(),
+    id: generateRandomId(),
+    image: "",
+    video: ""
   }
 }

@@ -1,5 +1,6 @@
 import { Timestamp } from "firebase/firestore";
 import { Dispatch, ReactNode } from "react";
+import { INotebook } from "./INotebook";
 
 export type NodeType =
   | "Relation"
@@ -207,7 +208,15 @@ export type IAssitantRequestAction =
   | "ExplainMore"
   | "GeneralExplanation"
   | "IllContribute"
-  | "DirectQuestion";
+  | "DirectQuestion"
+  | "ProposeIt" // to start chat in notebook for propose content
+  | "ConfirmNodeSelection" // triggers when you select "Yes" after selecting a node
+  | "ContinueNodeSelection" // triggers when you select "No" after selecting a node
+  | "ProposeImprovementConfirm" // triggers when you were able find node after Notebook selection for potential nodes and clicked "Yes"
+  | "StartNodeSelection" // start selection of node for parent link
+  | "StartChildProposal" // triggers when you select "No" for find node after Notebook selection for potential nodes
+  | "ProceedPotentialNodes" // triggers when you are trying to skip potential node and click "Yes" to proceed with next node
+  | "DontProceedPotentialNodes"; // triggers when you are trying to skip potential node and click "No" to proceed with next node
 
 export type IAssistantRequestPayload = {
   actionType: IAssitantRequestAction;
@@ -308,6 +317,7 @@ export type NodeLinkType = {
   link: string;
   content: string;
   unit: string;
+  practice?: { answered: number, totalQuestions: number };
   nodeImage: string;
   nodeVideo: string
 };
@@ -319,8 +329,13 @@ export type MessageAction = {
   | IAssitantRequestAction
   | "LOCAL_OPEN_NOTEBOOK"
   | "LOCAL_CONTINUE_EXPLANATION_HERE"
+  | "NotebookSelected"
+  | "ChooseNotebook"
+  | "CreateNotebook"
+  | "ChatNotebookCreate"
   title: string;
   variant: ActionVariant;
+  data?: any;
 };
 
 export type MessageData = {
@@ -335,7 +350,8 @@ export type MessageData = {
   hour: string;
   is404?: boolean
   request?: string
-  componentContent?: ReactNode
+  componentContent?: any;
+  practice?: { answered: number, totalQuestions: number };
 };
 
 export type Message = {
@@ -345,8 +361,28 @@ export type Message = {
 
 export type Notebook = { id: string, name: string }
 
-export type FlashcardResponse = {
+export type Flashcard = {
   title: string;
   type: "Relation" | "Concept";
   content: string;
-}[];
+}
+export type FlashcardResponse = Flashcard[];
+
+export type TAssistantResponseMessage = {
+  type: "FLASHCARDS_RESPONSE",
+  flashcards: FlashcardResponse,
+  selection: string
+};
+
+export type TAssistantNotebookMessage = {
+  type: "START_PROPOSING",
+  flashcards: FlashcardResponse,
+  request: string,
+  selection: string,
+  notebooks: INotebook[]
+};
+
+export type TNode = {
+  id: string;
+  title: string;
+}

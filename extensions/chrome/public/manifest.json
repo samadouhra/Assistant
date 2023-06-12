@@ -45,7 +45,13 @@
       "js": ["paste-detector.js"]
     },
     {
-      "matches": ["https://*.core-econ.org/*", "https://core-econ.org/*", "https://wordpress.deeplearning.ai/wp-content/uploads/2022/03/andrew-ng-machine-learning-yearning.pdf"],
+      "matches": [
+        "https://*.core-econ.org/*",
+        "https://core-econ.org/*",
+        "https://wordpress.deeplearning.ai/wp-content/uploads/2022/03/andrew-ng-machine-learning-yearning.pdf",
+        "http://localhost:3000/notebook*",
+        "https://1cademy.com/notebook*"
+      ],
       "js": ["assistant.js"]
     },
     {
@@ -63,6 +69,9 @@
   "web_accessible_resources": [
     {
       "resources": [
+        "rive-assistant/loader/*.riv",
+        "rive-assistant/assistant-0.riv",
+        "rive-assistant/idle.riv",
         "paste-detector.js",
         "images/icon-2x.png",
         "images/icon-3x.png",
