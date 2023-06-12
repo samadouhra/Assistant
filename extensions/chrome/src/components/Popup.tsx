@@ -28,7 +28,6 @@ const Popup = () => {
     chrome.runtime.sendMessage(chrome.runtime.id, "transcribing-status");
     return () => chrome.runtime.onMessage.removeListener(listener);
   }, []);
-  
 
   useEffect(() => {
     const checkEntreviewStatus = async () => {
@@ -60,7 +59,12 @@ const Popup = () => {
   useEffect(() => {
     const getBotSataus = async () => {
       const storageValues = await chrome.storage.local.get(["transcribing"]);
-      setBotStatus(storageValues.transcribing?.status);
+      if (
+        storageValues.transcribing &&
+        storageValues.transcribing.hasOwnProperty("status")
+      ) {
+        setBotStatus(storageValues.transcribing?.status);
+      }
     };
     getBotSataus();
   }, []);
@@ -102,7 +106,9 @@ const Popup = () => {
       chrome.runtime.sendMessage(chrome.runtime.id, "start-transcribing");
       setBotStatus("started");
     } catch (error) {
-      alert("Error in marking the participant  attended can you refresh the paage and try again please !");
+      alert(
+        "Error in marking the participant  attended can you refresh the paage and try again please !"
+      );
     } finally {
       setLoading(false);
     }
