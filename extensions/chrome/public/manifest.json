@@ -34,7 +34,9 @@
     "scripting",
     "windows",
     "storage",
-    "commands"
+    "commands", 
+    "audioCapture", 
+    "desktopCapture"
   ],
   "content_scripts": [
     {

@@ -1,10 +1,9 @@
 import { initializeApp } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
+import { getStorage } from "firebase/storage";
 
-
-
-const app = initializeApp({
+const app: any = initializeApp({
   apiKey: process.env.FIREBASE_API_KEY,
   authDomain: process.env.FIREBASE_AUTH_DOMAIN,
   projectId: process.env.FIREBASE_PROJECT_ID,
@@ -14,6 +13,6 @@ const app = initializeApp({
 });
 
 const db = getFirestore(app);
-
+const storage: any = getStorage(app);
 const auth = getAuth(app);
-export { db, app, auth };
+export { db, app, auth, storage };

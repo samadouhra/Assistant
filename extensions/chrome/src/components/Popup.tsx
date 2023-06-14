@@ -40,7 +40,7 @@ const Popup = () => {
       if (gptTabs.length > 0 && gptTabs[0].url) {
         fullUrl = gptTabs[0].url;
         const response: any = await axios.post(
-          "https://1cademy.us/api/checkEntreviewStatus",
+          process.env.backendURL + "/checkEntreviewStatus",
           {
             meetingURL: fullUrl,
           }
@@ -94,7 +94,7 @@ const Popup = () => {
         fullUrl = gptTabs[0].url;
       }
       setLoading(true);
-      await axios.post("https://1cademy.us/api/markEntreviewAttended", {
+      await axios.post(process.env.backendURL + "/markEntreviewAttended", {
         meetingURL: fullUrl,
       });
       await chrome.storage.local.set({

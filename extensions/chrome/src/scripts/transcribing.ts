@@ -24,15 +24,22 @@ const recallGradingCommands = [
   TANSCRIBING_STATUS,
 ];
 
+const retreiveMeetingId = (fullUrl: string) => {
+  if (!fullUrl) return "";
+  const regex = /[a-z]{3}-[a-z]{4}-[a-z]{3}/;
+  const matchResult = fullUrl.match(regex);
+  if (matchResult) {
+    return matchResult[0];
+  }
+};
 chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
   if (message.conversation) {
     const storageValues = await chrome.storage.local.get(["transcribing"]);
     if (storageValues.transcribing?.status === "started") {
       let conversation: any = message.conversation;
-      const meetingId = message.meetingId.replace(/"/g, "");
       const transcriptQuery = query(
         collection(db, "transcript"),
-        where("mettingUrl", "==", meetingId),
+        where("mettingUrl", "==", retreiveMeetingId(message.fullUrl)),
         limit(1)
       );
       const transcriptDocs = await getDocs(transcriptQuery);
@@ -46,17 +53,53 @@ chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
       } else {
         await setDoc(doc(collection(db, "transcript")), {
           conversation,
-          mettingUrl: meetingId,
+          mettingUrl: retreiveMeetingId(message.fullUrl),
         });
       }
     }
   }
 });
 
+//record the audio
+chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
+  try {
+    if (message.audioDataUrl) {
+      console.log("message.audioBlob", message);
+      const base64String = message.audioDataUrl;
+      console.log("base64String", base64String);
+      console.log(
+        "JSON.stringify({ audioBlob: base64String })",
+        JSON.stringify({ audioBlob: base64String })
+      );
+      fetch(`${process.env.backendURL}/recordAudio`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          audioBlob: base64String,
+          meetingUrl: message.fullUrl,
+        }),
+      })
+        .then((response) => response.json())
+        .then((data) => {
+          console.log("Data stored in the database:", data);
+        })
+        .catch((error) => {
+          console.error("Error storing data in the database:", error);
+        });
+      sendResponse({ status: "success" });
+    }
+  } catch (error) {
+    console.log(error);
+    sendResponse({ status: "error" });
+  }
+});
+
 const transcribSessions = async (
   meetTabId: number,
   callback: (conversation: any[]) => void,
-  meetingId: string
+  fullUrl: string
 ) => {
   let oldConversation: any = [];
   chrome.tabs.onRemoved.addListener(async (tabId, removeInfo) => {
@@ -68,16 +111,15 @@ const transcribSessions = async (
       });
     }
   });
-  const _meetingId = meetingId.replace(/"/g, "");
   const transcriptQuery = query(
     collection(db, "transcript"),
-    where("mettingUrl", "==", _meetingId),
+    where("mettingUrl", "==", retreiveMeetingId(fullUrl)),
     limit(1)
   );
   const transcriptDocs = await getDocs(transcriptQuery);
   if (transcriptDocs.docs.length > 0) {
     const transcriptData: any = transcriptDocs.docs[0].data();
-    oldConversation = transcriptData.conversation;
+    oldConversation = transcriptData?.conversation || [];
   }
   const executeScript = async (started: boolean) => {
     await chrome.scripting.executeScript<any, any>({
@@ -109,64 +151,141 @@ const transcribSessions = async (
     executeScript(started);
   };
   setInterval(checkStartedChange, 500);
+
+  const startRecording = async () => {
+    return new Promise((resolve, reject) => {
+      chrome.scripting.executeScript<any, any>({
+        target: {
+          tabId: meetTabId,
+        },
+        args: [fullUrl],
+        func: (fullUrl) => {
+          navigator.mediaDevices
+            .getUserMedia({ audio: true })
+            .then(function (stream) {
+              const mediaRecorder = new MediaRecorder(stream);
+              const chunks: any = [];
+              mediaRecorder.ondataavailable = function (event) {
+                chunks.push(event.data);
+              };
+              mediaRecorder.onstop = function () {
+                const audioBlob = new Blob(chunks, { type: "audio/webm" });
+                const reader = new FileReader();
+                reader.onloadend = function () {
+                  const audioDataUrl = reader.result;
+                  chrome.runtime.sendMessage({ audioDataUrl, fullUrl });
+                };
+                reader.readAsDataURL(audioBlob);
+              };
+              setInterval(() => {
+                mediaRecorder.stop();
+                mediaRecorder.start();
+              }, 10000);
+              mediaRecorder.start();
+            })
+            .catch(function (error) {
+              console.error("Error accessing audio stream:", error);
+              reject(error);
+            });
+        },
+      });
+    });
+  };
+  startRecording();
   const response = await chrome.scripting.executeScript<any, any>({
     target: {
       tabId: meetTabId,
     },
-    args: [meetingId, oldConversation],
-    func: (meetingId, oldConversation) => {
+    args: [fullUrl, oldConversation],
+    func: (fullUrl, oldConversation) => {
       let conversation: any = oldConversation;
+      // Request access to audio stream
       const checkForUpdates = () => {
-        console.log("meetingId", meetingId);
+        console.log("meetingId", fullUrl);
         const currentsentence: any = {};
         const captionElements: any = document.getElementsByClassName("iOzk7");
         if (!captionElements.length) return;
+        const promises = [];
         for (let captionElement of captionElements) {
-          if (captionElement) {
-            const speakerElement: any =
-              document.getElementsByClassName("zs7s8d jxFHg")[0];
-            let speakerName = "";
-            if (speakerElement) {
-              speakerName = speakerElement?.innerText || "";
-            }
-            if (speakerName === "You") {
-              speakerName = "interviewer";
-            }
-            let captionText = "";
-            const caption =
-              captionElement.getElementsByClassName("iTTPOb VbkSUe")[0];
-            if (caption) {
-              captionText = caption?.innerText || "";
-            }
+          promises.push(
+            new Promise((resolve: any, reject) => {
+              if (captionElement) {
+                const speakerElement: any =
+                  document.getElementsByClassName("zs7s8d jxFHg")[0];
+                let speakerName = "";
+                if (speakerElement) {
+                  speakerName = speakerElement?.innerText || "";
+                }
+                if (speakerName === "You") {
+                  speakerName = "interviewer";
+                }
+                let captionText = "";
+                const caption =
+                  captionElement.getElementsByClassName("iTTPOb VbkSUe")[0];
+                if (caption) {
+                  captionText = caption?.innerText || "";
+                }
 
-            if (!captionText || !speakerName) {
-              continue;
-            }
-            if (
-              conversation.length > 0 &&
-              conversation[conversation.length - 1].hasOwnProperty("speaker") &&
-              captionText === conversation[conversation.length - 1].sentence
-            ) {
-              continue;
-            }
-            if (
-              conversation.length > 0 &&
-              conversation[conversation.length - 1].hasOwnProperty("speaker") &&
-              speakerName === conversation[conversation.length - 1].speaker
-            ) {
-              conversation[conversation.length - 1].sentence += captionText;
-            } else {
-              conversation.push({
-                speaker: speakerName,
-                sentence: captionText,
-                Timestamp: new Date().toLocaleString(),
-              });
-            }
-          }
+                if (!captionText || !speakerName) {
+                  resolve();
+                } else if (
+                  conversation.length > 0 &&
+                  conversation[conversation.length - 1].hasOwnProperty(
+                    "speaker"
+                  ) &&
+                  conversation[conversation.length - 1].sentence &&
+                  conversation[conversation.length - 1].sentence.includes(
+                    captionText
+                  )
+                ) {
+                  resolve();
+                } else if (
+                  conversation.length > 0 &&
+                  conversation[conversation.length - 1].hasOwnProperty(
+                    "speaker"
+                  ) &&
+                  speakerName === conversation[conversation.length - 1].speaker
+                ) {
+                  let cleanVersion = "";
+                  let removepart = "";
+                  let originalText =
+                    conversation[conversation.length - 1].sentence;
+
+                  for (let i = 1; i < captionText.length; i++) {
+                    const substring = captionText.substring(0, i);
+                    if (!originalText.includes(substring)) {
+                      cleanVersion = captionText.replace(removepart, "");
+                    } else {
+                      removepart = captionText.substring(0, i);
+                    }
+                  }
+                  conversation[conversation.length - 1].sentence +=
+                    cleanVersion;
+                  resolve();
+                } else {
+                  conversation.push({
+                    speaker: speakerName,
+                    sentence: captionText,
+                    Timestamp: new Date().toLocaleString(),
+                  });
+                  resolve();
+                }
+              } else {
+                resolve();
+              }
+            })
+          );
         }
-        chrome.runtime.sendMessage({ conversation, meetingId });
+        Promise.all(promises)
+          .then(() => {
+            console.log("All caption elements processed successfully.");
+          })
+          .catch((error) => {
+            console.error("Error processing caption elements:", error);
+          });
+        chrome.runtime.sendMessage({ conversation, fullUrl });
       };
-      setInterval(checkForUpdates, 2000);
+      setInterval(checkForUpdates, 4000);
       return conversation;
     },
   });
@@ -189,7 +308,7 @@ export const recallGradeListener = (
     // start recall grading
     (async () => {
       let meetTabId: number;
-      let meetingId: string = "";
+      let fullUrl: any = "";
       const gptTabs = await chrome.tabs.query({
         url: "https://meet.google.com/*",
         active: true,
@@ -202,18 +321,14 @@ export const recallGradeListener = (
         });
         meetTabId = gptTabs[0].id!;
         if (gptTabs[0].url) {
-          const regex = /[a-z]{3}-[a-z]{4}-[a-z]{3}/;
-          const matchResult = gptTabs[0]?.url?.match(regex);
-          if (matchResult) {
-            meetingId = JSON.stringify(matchResult[0]);
-          }
+          fullUrl = gptTabs[0].url;
         }
         setTimeout(() => {
           chrome.runtime.sendMessage(
             chrome.runtime.id,
             "transcribing-status-started"
           );
-          transcribSessions(meetTabId, () => {}, meetingId);
+          transcribSessions(meetTabId, () => {}, fullUrl);
         });
       }
     })();
