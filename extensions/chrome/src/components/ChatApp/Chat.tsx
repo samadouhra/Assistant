@@ -55,7 +55,7 @@ import { useTheme } from "../../hooks/useTheme";
 import { getCurrentDateYYMMDD, getCurrentHourHHMM } from "../../utils/date";
 import { Theme } from "@mui/system";
 import { generateRandomId } from "../../utils/others";
-import { generateConfirmNodeSelection, generateContinueDisplayingNodeMessage, generateExplainSelectedText, generateNodeDiscoverMessage, generateNodeKeepSelectionMessage, generateNodeMessage, generateNodeProposeMessage, generateNotebookIntro, generateNotebookListMessage, generateNotebookProposalApproval, generateSearchNodeMessage, generateStartProposeChildConfirmation, generateTopicMessage, generateTopicNotFound, generateUserActionAnswer, generateWhereContinueExplanation } from "../../utils/messages";
+import { generateConfirmNodeSelection, generateContinueDisplayingNodeMessage, generateExplainSelectedText, generateImprovementTypeSelectorMessage, generateNodeDiscoverMessage, generateNodeKeepSelectionMessage, generateNodeMessage, generateNodeProposeMessage, generateNodeSelectorMessage, generateNotebookIntro, generateNotebookListMessage, generateNotebookProposalApproval, generateProposeImprovementConfirmation, generateSearchNodeMessage, generateStartProposeChildConfirmation, generateTopicMessage, generateTopicNotFound, generateUserActionAnswer, generateWhereContinueExplanation } from "../../utils/messages";
 import SearchMessage from "./SearchMessage";
 import moment from "moment";
 import MarkdownRender from "./MarkdownRender";
@@ -474,14 +474,6 @@ export const Chat = forwardRef(({
       }
     }
 
-    if (action.type === 'ConfirmNodeSelection') {
-      onClick = () => {
-        console.log("-> ConfirmNodeSelection");
-        setNodeSelection("Improvement");
-        setSelectedNode(action.data.node);
-      }
-    }
-
     if (action.type === 'ContinueNodeSelection') {
       onClick = () => {
         console.log("-> ContinueNodeSelection");
@@ -496,6 +488,46 @@ export const Chat = forwardRef(({
       onClick = () => {
         console.log("-> ProposeImprovementConfirm");
         setNodeSelection("Improvement");
+        pushMessage(
+          generateNodeSelectorMessage(),
+          getCurrentDateYYMMDD()
+        );
+      }
+    }
+
+    if (action.type === "ConfirmNodeSelection") {
+      onClick = () => {
+        console.log("-> ConfirmNodeSelection", nodeSelection);
+        if (nodeSelection === "Improvement") {
+          setSelectedNode(action.data.node);
+          pushMessage(
+            generateProposeImprovementConfirmation(action.data.node),
+            getCurrentDateYYMMDD()
+          );
+        }
+      }
+    }
+
+    if (action.type === "StartProposeImprovement") {
+      onClick = () => {
+        console.log("-> StartProposeImprovement");
+        pushMessage(
+          generateImprovementTypeSelectorMessage(),
+          getCurrentDateYYMMDD()
+        );
+      }
+    }
+
+    if (action.type === "ReplaceWithImprovement") {
+      onClick = () => {
+        console.log("-> ReplaceWithImprovement");
+        const editorEvent = new CustomEvent("assistant", {
+          detail: {
+            type: "IMPROVEMENT",
+            selectedNode
+          }
+        });
+        window.dispatchEvent(editorEvent);
       }
     }
 

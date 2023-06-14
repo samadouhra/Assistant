@@ -212,11 +212,15 @@ export type IAssitantRequestAction =
   | "ProposeIt" // to start chat in notebook for propose content
   | "ConfirmNodeSelection" // triggers when you select "Yes" after selecting a node
   | "ContinueNodeSelection" // triggers when you select "No" after selecting a node
+  | "StartSkipOrCancel" // when you don't want to propose improvement after node selection
   | "ProposeImprovementConfirm" // triggers when you were able find node after Notebook selection for potential nodes and clicked "Yes"
+  | "StartProposeImprovement"
   | "StartNodeSelection" // start selection of node for parent link
   | "StartChildProposal" // triggers when you select "No" for find node after Notebook selection for potential nodes
   | "ProceedPotentialNodes" // triggers when you are trying to skip potential node and click "Yes" to proceed with next node
-  | "DontProceedPotentialNodes"; // triggers when you are trying to skip potential node and click "No" to proceed with next node
+  | "DontProceedPotentialNodes" // triggers when you are trying to skip potential node and click "No" to proceed with next node
+  | "ReplaceWithImprovement" // triggers when you click on "Use the potential node title and content to generate an improvement proposal"
+  | "CombineWithImprovement"; // triggers when you click on "Combine the current title and content of the node with the title and content of the potential node"
 
 export type IAssistantRequestPayload = {
   actionType: IAssitantRequestAction;
