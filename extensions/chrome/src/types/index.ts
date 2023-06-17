@@ -220,7 +220,9 @@ export type IAssitantRequestAction =
   | "ProceedPotentialNodes" // triggers when you are trying to skip potential node and click "Yes" to proceed with next node
   | "DontProceedPotentialNodes" // triggers when you are trying to skip potential node and click "No" to proceed with next node
   | "ReplaceWithImprovement" // triggers when you click on "Use the potential node title and content to generate an improvement proposal"
-  | "CombineWithImprovement"; // triggers when you click on "Combine the current title and content of the node with the title and content of the potential node"
+  | "CombineWithImprovement" // triggers when you click on "Combine the current title and content of the node with the title and content of the potential node"
+  | "BackToBook"
+  | "CompleteChat";
 
 export type IAssistantRequestPayload = {
   actionType: IAssitantRequestAction;
@@ -383,6 +385,11 @@ export type TAssistantNotebookMessage = {
   flashcards: FlashcardResponse,
   request: string,
   selection: string,
+  notebooks: INotebook[]
+} | {
+  type: "CREATE_NOTEBOOK",
+  notebookId: string,
+  notebookTitle: string,
   notebooks: INotebook[]
 };
 

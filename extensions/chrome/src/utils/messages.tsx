@@ -249,6 +249,19 @@ export const generateSearchNodeMessage = (): MessageData => {
   }
 }
 
+export const generateInputNotebookNameMessage = (): MessageData => {
+  return {
+    actions: [],
+    content: `What would you like to call this notebook?`,
+    nodes: [],
+    type: "READER",
+    hour: getCurrentHourHHMM(),
+    id: generateRandomId(),
+    image: "",
+    video: ""
+  }
+}
+
 export const generateNodeDiscoverMessage = (): MessageData => {
   return {
     actions: [
@@ -440,6 +453,30 @@ export const generateSkipOrCancelMessage = (): MessageData => {
       }
     ],
     content: `How can I help you with improving the selected node?`,
+    nodes: [],
+    type: "READER",
+    hour: getCurrentHourHHMM(),
+    id: generateRandomId(),
+    image: "",
+    video: ""
+  }
+}
+
+export const generateBackToReadingMessage = (): MessageData => {
+  return {
+    actions: [
+      {
+        title: "Yes",
+        type: "BackToBook",
+        variant: "outlined"
+      },
+      {
+        title: "No",
+        type: "CompleteChat",
+        variant: "outlined",
+      }
+    ],
+    content: `Then, would you like to go back to the original document to continue reading it?`,
     nodes: [],
     type: "READER",
     hour: getCurrentHourHHMM(),

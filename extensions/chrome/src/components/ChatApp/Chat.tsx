@@ -55,7 +55,7 @@ import { useTheme } from "../../hooks/useTheme";
 import { getCurrentDateYYMMDD, getCurrentHourHHMM } from "../../utils/date";
 import { Theme } from "@mui/system";
 import { generateRandomId } from "../../utils/others";
-import { generateConfirmNodeSelection, generateContinueDisplayingNodeMessage, generateExplainSelectedText, generateImprovementTypeSelectorMessage, generateNodeDiscoverMessage, generateNodeKeepSelectionMessage, generateNodeMessage, generateNodeProposeMessage, generateNodeSelectorMessage, generateNotebookIntro, generateNotebookListMessage, generateNotebookProposalApproval, generateProposeImprovementConfirmation, generateSearchNodeMessage, generateStartProposeChildConfirmation, generateTopicMessage, generateTopicNotFound, generateUserActionAnswer, generateWhereContinueExplanation } from "../../utils/messages";
+import { generateBackToReadingMessage, generateConfirmNodeSelection, generateContinueDisplayingNodeMessage, generateExplainSelectedText, generateImprovementTypeSelectorMessage, generateInputNotebookNameMessage, generateNodeDiscoverMessage, generateNodeKeepSelectionMessage, generateNodeMessage, generateNodeProposeMessage, generateNodeSelectorMessage, generateNotebookIntro, generateNotebookListMessage, generateNotebookProposalApproval, generateProposeImprovementConfirmation, generateSearchNodeMessage, generateStartProposeChildConfirmation, generateTopicMessage, generateTopicNotFound, generateUserActionAnswer, generateWhereContinueExplanation } from "../../utils/messages";
 import SearchMessage from "./SearchMessage";
 import moment from "moment";
 import MarkdownRender from "./MarkdownRender";
@@ -121,6 +121,7 @@ export const Chat = forwardRef(({
   const [nodeIdx, setNodeIdx] = useState<number>(0);
   const [nodeSelection, setNodeSelection] = useState<"Parent" | "Child" | "Improvement" | null>(null);
   const [selectedNode, setSelectedNode] = useState<TNode | null>(null);
+  const [creatingNotebook, setCreatingNotebook] = useState<boolean>(false);
 
   const pushMessage = useCallback(
     (message: MessageData, currentDateYYMMDD: string) => {
@@ -171,12 +172,15 @@ export const Chat = forwardRef(({
         setTmpNodesToBeDisplayed([]);
         setUserMessage("");
         setNodeIdx(0);
-      }
+      },
+      setCreatingNotebook,
+      setNotebook
     }
   }, [
     pushMessage, setNotebook, setMessagesObj,
     setSpeakingMessageId, setNodesToBeDisplayed,
-    setTmpNodesToBeDisplayed, setUserMessage
+    setTmpNodesToBeDisplayed, setUserMessage,
+    setCreatingNotebook
   ]);
 
   const removeActionOfAMessage = (messageId: string, date: string) => {
@@ -210,6 +214,17 @@ export const Chat = forwardRef(({
     if (!userMessageProcessed) return;
 
     setIsLoading(true);
+    if (creatingNotebook) {
+      chrome.runtime.sendMessage(chrome.runtime.id || process.env.EXTENSION_ID, {
+        payload: {
+          message: userMessageProcessed,
+        },
+        type: "CREATE_NOTEBOOK"
+      });
+      onPushUserMessage(userMessageProcessed);
+      setUserMessage("");
+      return;
+    }
     onPushUserMessage(userMessageProcessed);
     const payload: IAssistantRequestPayload = {
       actionType: "DirectQuestion",
@@ -222,7 +237,7 @@ export const Chat = forwardRef(({
     });
 
     setUserMessage("");
-  }, [isLoading, userMessage, conversationId]);
+  }, [isLoading, userMessage, conversationId, creatingNotebook]);
 
   const scrollToTheEnd = () => {
     if (!chatElementRef.current) return;
@@ -263,6 +278,35 @@ export const Chat = forwardRef(({
       window.speechSynthesis.cancel();
       setSpeakingMessageId("");
     }
+  }, []);
+
+  const nextFlashcard = useCallback((delay = 500) => {
+    setFlashcards((flashcards: any[]) => {
+      // end potential nodes flow
+      if (!flashcards.length) {
+        pushMessage(
+          generateBackToReadingMessage(),
+          getCurrentDateYYMMDD()
+        );
+        setTimeout(scrollToTheEnd, 1000);
+        return;
+      }
+
+      let newFlashcards = [...flashcards];
+      const flashcard = newFlashcards.shift();
+      const flashcardEvent = new CustomEvent("flashcard-start", {
+        detail: {
+          flashcard
+        }
+      });
+      // adding node message with delay to look good
+      setTimeout(() => {
+        window.dispatchEvent(flashcardEvent);
+        setTimeout(scrollToTheEnd, 500);
+      }, delay);
+      return newFlashcards;
+    });
+    setNodeIdx((nodeIdx) => nodeIdx + 1);
   }, []);
 
   const onDisplayNextNodeToBeDisplayed = (
@@ -439,6 +483,7 @@ export const Chat = forwardRef(({
           generateNotebookListMessage(request! || selectedText, notebooks),
           getCurrentDateYYMMDD()
         );
+        setTimeout(scrollToTheEnd, 1000);
       }
     }
 
@@ -457,20 +502,22 @@ export const Chat = forwardRef(({
           ),
           getCurrentDateYYMMDD()
         )
+        setTimeout(scrollToTheEnd, 1000);
 
-        let newFlashcards = [...flashcards];
-        const flashcard = newFlashcards.shift();
-        setFlashcards(newFlashcards);
-        const flashcardEvent = new CustomEvent("flashcard-start", {
-          detail: {
-            flashcard
-          }
-        });
-        setNodeIdx((nodeIdx) => nodeIdx + 1);
-        // adding node message with delay to look good
-        setTimeout(() => {
-          window.dispatchEvent(flashcardEvent);
-        }, 2000);
+        setNodeIdx(0);
+        nextFlashcard(2000);
+      }
+    }
+
+    if (action.type === "ChatNotebookCreate") {
+      onClick = () => {
+        console.log("-> ChatNotebookCreate");
+        setCreatingNotebook(true);
+        pushMessage(
+          generateInputNotebookNameMessage(),
+          getCurrentDateYYMMDD()
+        )
+        setTimeout(scrollToTheEnd, 1000);
       }
     }
 
@@ -481,6 +528,7 @@ export const Chat = forwardRef(({
           generateNodeKeepSelectionMessage(),
           getCurrentDateYYMMDD()
         );
+        setTimeout(scrollToTheEnd, 1000);
       }
     }
 
@@ -492,6 +540,7 @@ export const Chat = forwardRef(({
           generateNodeSelectorMessage(),
           getCurrentDateYYMMDD()
         );
+        setTimeout(scrollToTheEnd, 1000);
       }
     }
 
@@ -505,6 +554,7 @@ export const Chat = forwardRef(({
             getCurrentDateYYMMDD()
           );
         }
+        setTimeout(scrollToTheEnd, 1000);
       }
     }
 
@@ -515,6 +565,7 @@ export const Chat = forwardRef(({
           generateImprovementTypeSelectorMessage(),
           getCurrentDateYYMMDD()
         );
+        setTimeout(scrollToTheEnd, 1000);
       }
     }
 
@@ -524,7 +575,10 @@ export const Chat = forwardRef(({
         const editorEvent = new CustomEvent("assistant", {
           detail: {
             type: "IMPROVEMENT",
-            selectedNode
+            selectedNode: {
+              id: selectedNode?.id,
+              ...currentFlashcard
+            }
           }
         });
         window.dispatchEvent(editorEvent);
@@ -538,6 +592,18 @@ export const Chat = forwardRef(({
           generateStartProposeChildConfirmation(),
           getCurrentDateYYMMDD()
         );
+      }
+    }
+
+    if (action.type === "ProceedPotentialNodes") {
+      onClick = () => {
+        console.log("-> ProceedPotentialNodes");
+        pushMessage(
+          generateStartProposeChildConfirmation(),
+          getCurrentDateYYMMDD()
+        );
+        nextFlashcard(500);
+        setTimeout(scrollToTheEnd, 1000);
       }
     }
 
@@ -604,7 +670,7 @@ export const Chat = forwardRef(({
     // following listener only for non-notebook tabs
     if (window.location.href.startsWith(NOTEBOOK_LINK)) return;
 
-    const listenWorker = (message: TAssistantResponseMessage) => {
+    const listenWorker = (message: TAssistantResponseMessage | TAssistantNotebookMessage) => {
       if (message.type === 'FLASHCARDS_RESPONSE') {
         setFlashcards(message.flashcards);
         pushMessage(
@@ -624,6 +690,36 @@ export const Chat = forwardRef(({
   }, [notebook, flashcards]);
 
   useEffect(() => {
+    // following listener only for notebook tabs
+    if (!window.location.href.startsWith(NOTEBOOK_LINK)) return;
+
+    const listenWorker = (message: TAssistantResponseMessage | TAssistantNotebookMessage) => {
+      if (message.type === "CREATE_NOTEBOOK") {
+        setCreatingNotebook(false);
+        setNotebooks(message.notebooks);
+        setNotebook({
+          id: message.notebookId,
+          name: message.notebookTitle
+        } as Notebook);
+        setIsLoading(false);
+
+        pushMessage(
+          generateNotebookIntro(
+            flashcards
+          ),
+          getCurrentDateYYMMDD()
+        )
+
+        setNodeIdx(0);
+        nextFlashcard(2000);
+      }
+    }
+
+    chrome.runtime.onMessage.addListener(listenWorker);
+    return () => chrome.runtime.onMessage.removeListener(listenWorker);
+  }, [flashcards]);
+
+  useEffect(() => {
     const listener = (e: any) => {
       const flashcard: Flashcard = e?.detail?.flashcard || {} as any;
       setCurrentFlashcard(flashcard);
@@ -641,6 +737,7 @@ export const Chat = forwardRef(({
         ),
         getCurrentDateYYMMDD()
       );
+      setTimeout(scrollToTheEnd, 1000);
     };
     window.addEventListener("node-selected", listener);
     return () => window.removeEventListener("node-selected", listener);
@@ -653,6 +750,7 @@ export const Chat = forwardRef(({
         generateNodeProposeMessage(currentFlashcard, nodeIdx),
         getCurrentDateYYMMDD()
       );
+      setTimeout(scrollToTheEnd, 1000);
       return nodeIdx;
     });
 
@@ -668,11 +766,13 @@ export const Chat = forwardRef(({
         generateSearchNodeMessage(),
         getCurrentDateYYMMDD()
       );
+      setTimeout(scrollToTheEnd, 1000);
       setTimeout(() => {
         pushMessage(
           generateNodeDiscoverMessage(),
           getCurrentDateYYMMDD()
         );
+        setTimeout(scrollToTheEnd, 1000);
       }, 2000);
     }, 2000)
   }, [currentFlashcard, setNodeIdx, pushMessage, setNodeSelection]);

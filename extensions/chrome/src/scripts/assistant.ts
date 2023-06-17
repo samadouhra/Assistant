@@ -82,6 +82,27 @@ export const onAssistantActions = (message: any, sender: chrome.runtime.MessageS
       console.log({message, tabId}, "START_PROPOSING");
       await chrome.tabs.sendMessage(tabId, {...message, notebooks});
     })()
+  } else if(message?.type === "CREATE_NOTEBOOK") {
+    (async () => {
+      const tabId = sender.tab?.id!;
+      const idToken = await getIdToken(tabId);
+      // api/assistant/createNotebook
+      const headers: any = {
+        "Content-Type": "application/json"
+      };
+      if (idToken) {
+        headers["Authorization"] = `Bearer ${idToken}`;
+      }
+      const res = await fetch(`${ENDPOINT_BASE}/assistant/createNotebook`, {
+        method: "POST",
+        body: JSON.stringify({title: message?.payload?.message}),
+        headers
+      })
+      const data = await res.json()
+      const notebooks = await getNotebooks(tabId);
+      console.log({ ...data, notebooks, type: "CREATE_NOTEBOOK" }, "notebooks getNotebooks")
+      await chrome.tabs.sendMessage(tabId, { ...data, notebooks, type: "CREATE_NOTEBOOK" })
+    })()
   }
 };
 

@@ -31,6 +31,7 @@ import {
   Flashcard,
   FlashcardResponse,
   MessageData,
+  Notebook,
   TAssistantNotebookMessage
 } from "../types";
 import {
@@ -49,10 +50,14 @@ function ChatApp() {
   const [conversationId, setConversationId] = useState("");
   const chatRef = useRef<{
     pushMessage: (message: MessageData, currentDateYYMMDD: string) => void,
-    resetChat: () => void
+    resetChat: () => void,
+    setCreatingNotebook: (creatingNotebook: any) => any,
+    setNotebook: (notebook: any) => any
   }>({
     pushMessage: () => { },
-    resetChat: () => { }
+    resetChat: () => { },
+    setCreatingNotebook: (creatingNotebook) => creatingNotebook,
+    setNotebook: () => { }
   });
   const [isLoading, setIsLoading] = useState(false)
   const iframeRef = useRef<null | HTMLIFrameElement>(null);
