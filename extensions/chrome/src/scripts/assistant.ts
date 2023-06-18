@@ -73,14 +73,18 @@ export const onAssistantActions = (message: any, sender: chrome.runtime.MessageS
     })()
   } else if(message?.type === "START_PROPOSING") {
     (async () => {
-      const notebooks = await getNotebooks(sender.tab?.id!);
+      const bookTabId = sender.tab?.id!;
+      const notebooks = await getNotebooks(bookTabId);
+      await chrome.tabs.sendMessage(bookTabId, {
+        type: "LOADING_COMPLETED"
+      });
       const tabId = await findOrCreateNotebookTab();
       await chrome.tabs.update(tabId, {
         active: true
       });
 
       console.log({message, tabId}, "START_PROPOSING");
-      await chrome.tabs.sendMessage(tabId, {...message, notebooks});
+      await chrome.tabs.sendMessage(tabId, {...message, tabId: bookTabId, notebooks});
     })()
   } else if(message?.type === "CREATE_NOTEBOOK") {
     (async () => {
@@ -102,6 +106,12 @@ export const onAssistantActions = (message: any, sender: chrome.runtime.MessageS
       const notebooks = await getNotebooks(tabId);
       console.log({ ...data, notebooks, type: "CREATE_NOTEBOOK" }, "notebooks getNotebooks")
       await chrome.tabs.sendMessage(tabId, { ...data, notebooks, type: "CREATE_NOTEBOOK" })
+    })()
+  } else if(message?.type === "BackToBook") {
+    (async () => {
+      await chrome.tabs.update(message?.bookTabId, {
+        active: true
+      });
     })()
   }
 };

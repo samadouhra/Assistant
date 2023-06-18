@@ -310,6 +310,30 @@ export const generateConfirmContinueWithPotentialNodeMessage = (): MessageData =
   }
 }
 
+export const generateExitPotentialNodesMessage = (): MessageData => {
+  return {
+    actions: [
+      {
+        title: "Yes",
+        type: "BackToBook",
+        variant: "outlined",
+      },
+      {
+        title: "No",
+        type: "CompleteChat",
+        variant: "outlined",
+      }
+    ],
+    content: `Then, would you like to go back to the original document to continue reading it?`,
+    nodes: [],
+    type: "READER",
+    hour: getCurrentHourHHMM(),
+    id: generateRandomId(),
+    image: "",
+    video: ""
+  }
+}
+
 export const generateConfirmNodeSelection = (node: { title: string, [key: string]: any }): MessageData => {
   return {
     actions: [

@@ -52,12 +52,14 @@ function ChatApp() {
     pushMessage: (message: MessageData, currentDateYYMMDD: string) => void,
     resetChat: () => void,
     setCreatingNotebook: (creatingNotebook: any) => any,
-    setNotebook: (notebook: any) => any
+    setNotebook: (notebook: any) => any,
+    setBookTabId: (bookTabId: any) => any
   }>({
     pushMessage: () => { },
     resetChat: () => { },
     setCreatingNotebook: (creatingNotebook) => creatingNotebook,
-    setNotebook: () => { }
+    setNotebook: () => { },
+    setBookTabId: () => { }
   });
   const [isLoading, setIsLoading] = useState(false)
   const iframeRef = useRef<null | HTMLIFrameElement>(null);
@@ -189,13 +191,13 @@ function ChatApp() {
   }, []);
 
   useEffect(() => {
-    console.log(window.location.href.startsWith(NOTEBOOK_LINK), "NOTEBOOK_LINK", window.location.href);
     // following listener only for notebook tabs
     if (!window.location.href.startsWith(NOTEBOOK_LINK)) return;
 
     const listenWorker = (message: TAssistantNotebookMessage) => {
       console.log(message, "START_PROPOSING")
       if (message.type === 'START_PROPOSING') {
+        chatRef.current.setBookTabId(message.tabId);
         setDisplayAssistant(true);
         setFlashcards(message.flashcards);
         setNotebooks(message.notebooks);

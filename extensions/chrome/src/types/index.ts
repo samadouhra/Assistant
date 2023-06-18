@@ -385,12 +385,15 @@ export type TAssistantNotebookMessage = {
   flashcards: FlashcardResponse,
   request: string,
   selection: string,
+  tabId: number,
   notebooks: INotebook[]
 } | {
   type: "CREATE_NOTEBOOK",
   notebookId: string,
   notebookTitle: string,
   notebooks: INotebook[]
+} | {
+  type: "LOADING_COMPLETED"
 };
 
 export type TNode = {
