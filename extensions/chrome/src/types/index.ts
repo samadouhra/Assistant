@@ -401,4 +401,5 @@ export type TAssistantNotebookMessage = {
 export type TNode = {
   id: string;
   title: string;
+  content: string;
 }

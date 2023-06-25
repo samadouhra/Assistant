@@ -456,6 +456,19 @@ export const getReferenceNodes = async (query: string): Promise<NodeLinkType[]> 
   return ((await request.json()) || []) as NodeLinkType[];
 }
 
+export const combineContent = async (passages: string[]): Promise<string> => {
+  const request = await fetch(`${ONECADEMY_BASEURL}/api/assistant/combineContent`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      passages
+    })
+  });
+  return String(((await request.json()) || {content: ""}).content);
+}
+
 export const matchReferenceContent = (src: string, referenceContent: string) => {
   let src_parts = src.split("/");
   const count = src_parts.length;

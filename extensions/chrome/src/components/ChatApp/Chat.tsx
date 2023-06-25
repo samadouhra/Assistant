@@ -670,9 +670,12 @@ export const Chat = forwardRef(({
       }
     }
 
-    if (action.type === "ReplaceWithImprovement") {
+    if (
+      action.type === "ReplaceWithImprovement" ||
+      action.type === "CombineWithImprovement"
+    ) {
       onClick = () => {
-        console.log("-> ReplaceWithImprovement");
+        console.log("-> " + action.type);
 
         const messageWithSelectedAction = generateUserActionAnswer(
           action.title
@@ -680,11 +683,13 @@ export const Chat = forwardRef(({
         pushMessage(messageWithSelectedAction, getCurrentDateYYMMDD());
         removeActionOfAMessage(messageId, date);
 
+        setIsLoading(true);
         chrome.runtime.sendMessage({
-          type: "PROPOSE_IMPROVEMENT",
+          type: action.type === "ReplaceWithImprovement" ? "PROPOSE_IMPROVEMENT" : "PROPOSE_IMPROVEMENT_COMBINE",
           selectedNode: {
             id: selectedNode?.id,
-            ...currentFlashcard
+            title: selectedNode?.title,
+            content: selectedNode?.content
           },
           flashcard: currentFlashcard,
           bookTabId
@@ -695,6 +700,13 @@ export const Chat = forwardRef(({
     if (action.type === "StartChildProposal") {
       onClick = () => {
         console.log("-> StartChildProposal");
+
+        const messageWithSelectedAction = generateUserActionAnswer(
+          action.title
+        );
+        pushMessage(messageWithSelectedAction, getCurrentDateYYMMDD());
+        removeActionOfAMessage(messageId, date);
+
         pushMessage(
           generateStartProposeChildConfirmation(),
           getCurrentDateYYMMDD()
@@ -713,17 +725,17 @@ export const Chat = forwardRef(({
         pushMessage(messageWithSelectedAction, getCurrentDateYYMMDD());
         removeActionOfAMessage(messageId, date);
 
-        const editorEvent = new CustomEvent("assistant", {
-          detail: {
-            type: "CHILD",
-            selectedNode: {
-              id: selectedNode?.id,
-              ...currentFlashcard
-            },
-            flashcard: currentFlashcard
-          }
+        setIsLoading(true);
+        chrome.runtime.sendMessage({
+          type: "PROPOSE_CHILD",
+          selectedNode: {
+            id: selectedNode?.id,
+            title: selectedNode?.title,
+            content: selectedNode?.content
+          },
+          flashcard: currentFlashcard,
+          bookTabId
         });
-        window.dispatchEvent(editorEvent);
       }
     }
 
@@ -867,6 +879,9 @@ export const Chat = forwardRef(({
 
         setNodeIdx(0);
         nextFlashcard(2000);
+      } else if (message.type === 'LOADING_COMPLETED') {
+        setIsLoading(false);
+        return setTimeout(scrollToTheEnd, 500);
       }
     }
 
