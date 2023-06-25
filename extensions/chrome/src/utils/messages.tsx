@@ -129,21 +129,27 @@ export const generateExplainSelectedText = (selectedText: string): MessageData =
   }
 }
 
-export const generateTopicMessage = (request: string, topics: string[]): MessageData => {
+export const generateTopicMessage = (request: string, flashcards: Flashcard[]): MessageData => {
+  const _flashcards = flashcards.filter(flashcard => !flashcard.proposed);
+
+  const actions = [
+    {
+      title: "Explain it",
+      type: "TeachContent",
+      variant: "outlined"
+    }
+  ];
+  if (_flashcards.length) {
+    actions.push({
+      title: "Propose it on 1Cademy",
+      type: "ProposeIt",
+      variant: "outlined"
+    });
+  }
+
   return {
-    actions: [
-      {
-        title: "Explain it",
-        type: "TeachContent",
-        variant: "outlined"
-      },
-      {
-        title: "Propose it on 1Cademy",
-        type: "ProposeIt",
-        variant: "outlined"
-      },
-    ],
-    content: `The text your've selected talks about ${topics.join(", ")}. Which of the following would you like to do with it?`,
+    actions: actions as any,
+    content: `The text your've selected talks about ${flashcards.map((flashcard) => flashcard.title).join(", ")}. Which of the following would you like to do with it?`,
     nodes: [],
     type: "READER",
     hour: getCurrentHourHHMM(),

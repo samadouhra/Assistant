@@ -370,6 +370,8 @@ export type Message = {
 export type Notebook = { id: string, name: string }
 
 export type Flashcard = {
+  passageId: string;
+  proposed?: boolean;
   title: string;
   type: "Relation" | "Concept";
   content: string;

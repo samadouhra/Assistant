@@ -469,6 +469,44 @@ export const combineContent = async (passages: string[]): Promise<string> => {
   return String(((await request.json()) || {content: ""}).content);
 }
 
+export type ProposeFlashCardParam = {
+  token: string;
+  url: string; // book url
+  passageId: string; // passage id
+  title: string; // flashcard title
+  node?: string;
+  version: string;
+};
+
+export const proposeFlashcard = async ({
+  token,
+  url,
+  passageId,
+  title,
+  node,
+  version
+}: ProposeFlashCardParam) => {
+  const headers: any = {
+    "Content-Type": "application/json"
+  };
+  
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+  const request = await fetch(`${ONECADEMY_BASEURL}/api/assistant/proposeFlashcard`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({
+      url,
+      passageId,
+      title,
+      node,
+      version
+    })
+  });
+  return ((await request.json()) || []) as INotebook[];
+}
+
 export const matchReferenceContent = (src: string, referenceContent: string) => {
   let src_parts = src.split("/");
   const count = src_parts.length;

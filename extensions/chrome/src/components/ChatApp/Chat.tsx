@@ -841,7 +841,7 @@ export const Chat = forwardRef(({
         pushMessage(
           generateTopicMessage(
             selectedText,
-            message.flashcards.map((flashcard) => flashcard.title)
+            message.flashcards
           ),
           getCurrentDateYYMMDD()
         );
@@ -897,6 +897,28 @@ export const Chat = forwardRef(({
     window.addEventListener("flashcard-start", listener);
     return () => window.removeEventListener("flashcard-start", listener);
   }, []);
+
+  useEffect(() => {
+    const listener = (e: any) => {
+      const detail: {
+        node: string,
+        proposal: string,
+        flashcard: Flashcard,
+        token: string
+      } = e?.detail || {} as any;
+
+      chrome.runtime.sendMessage({
+        type: "PROPOSE_FLASHCARD",
+        node: detail.node,
+        proposal: detail.proposal,
+        flashcard: detail.flashcard,
+        token: detail.token,
+        bookTabId,
+      })
+    };
+    window.addEventListener("propose-flashcard", listener);
+    return () => window.removeEventListener("propose-flashcard", listener);
+  }, [bookTabId]);
 
   useEffect(() => {
     const listener = (e: any) => {

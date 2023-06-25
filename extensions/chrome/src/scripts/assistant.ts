@@ -1,7 +1,7 @@
 import { findOrCreateNotebookTab, getIdToken, setActiveTab } from "../helpers/common";
-import { IAssistantMessageRequest, IAssistantMessageResponse, IAssistantNode, combineContent, createConversation, findPossibleReferenceFromList, getBardPromptResponse, getBardQueryPrompt, getBardTabId, getFlashcards, getNotebooks, getReferenceNodes, getTopic, waitUntilBardAvailable } from "../helpers/assistant";
+import { IAssistantMessageRequest, IAssistantMessageResponse, IAssistantNode, combineContent, createConversation, findPossibleReferenceFromList, getBardPromptResponse, getBardQueryPrompt, getBardTabId, getFlashcards, getNotebooks, getReferenceNodes, getTopic, proposeFlashcard, waitUntilBardAvailable } from "../helpers/assistant";
 import { ENDPOINT_BASE } from "../utils/constants";
-import { IAssistantCreateNotebookRequestPayload, IViewNodeOpenNodesPayload, NodeLinkType, ViewNodeWorkerPayload, ViewNodeWorkerResponse } from "../types";
+import { Flashcard, IAssistantCreateNotebookRequestPayload, IViewNodeOpenNodesPayload, NodeLinkType, ViewNodeWorkerPayload, ViewNodeWorkerResponse } from "../types";
 
 // to detect request messages from assistant chat to pass 1Cademy.com
 export const idTokenListener = (message: any) => {
@@ -98,12 +98,12 @@ export const onAssistantActions = (message: any, sender: chrome.runtime.MessageS
       const referenceNodes = await getReferenceNodes(bookUrl);
       const referenceNode = findPossibleReferenceFromList(bookUrl, referenceNodes);
       if(message?.type === "PROPOSE_IMPROVEMENT_COMBINE") {
-        message.flashcard.title = await combineContent([
+        message.title = await combineContent([
           message.selectedNode.title,
           message.flashcard.title
         ]);
 
-        message.flashcard.content = await combineContent([
+        message.content = await combineContent([
           message.selectedNode.content,
           message.flashcard.content
         ]);
@@ -122,6 +122,8 @@ export const onAssistantActions = (message: any, sender: chrome.runtime.MessageS
               type: "IMPROVEMENT",
               selectedNode: message.selectedNode,
               flashcard: message.flashcard,
+              title: message.flashcard?.title,
+              content: message.flashcard?.content,
               referenceNode,
               bookUrl
             }
@@ -152,6 +154,8 @@ export const onAssistantActions = (message: any, sender: chrome.runtime.MessageS
               type: "CHILD",
               selectedNode: message.selectedNode,
               flashcard: message.flashcard,
+              title: message.flashcard?.title,
+              content: message.flashcard?.content,
               referenceNode,
               bookUrl
             }
@@ -159,6 +163,22 @@ export const onAssistantActions = (message: any, sender: chrome.runtime.MessageS
           window.dispatchEvent(editorEvent);
         },
       })
+    })()
+  } else if(message?.type === "PROPOSE_FLASHCARD") {
+    (async () => {
+      const bookTabId: number = message?.bookTabId!;
+      const bookTab = await chrome.tabs.get(bookTabId);
+      const bookUrl = String(bookTab.url);
+      const flashcard = message?.flashcard as Flashcard;
+
+      await proposeFlashcard({
+        passageId: flashcard.passageId,
+        url: bookUrl,
+        token: message?.token,
+        title: flashcard.title,
+        version: message?.proposal!,
+        node: message?.node
+      });
     })()
   } else if(message?.type === "CREATE_NOTEBOOK") {
     (async () => {
