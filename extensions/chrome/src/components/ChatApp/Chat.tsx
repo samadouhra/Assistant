@@ -1,4 +1,4 @@
-import React, { forwardRef, ReactNode, useImperativeHandle } from "react";
+import React, { forwardRef, useImperativeHandle } from "react";
 import VolumeOffIcon from "@mui/icons-material/VolumeOff";
 import VolumeUpIcon from "@mui/icons-material/VolumeUp";
 import { Fragment, useCallback, useEffect, useRef, useState } from "react";
@@ -9,31 +9,23 @@ import {
   Button,
   Divider,
   IconButton,
-  InputBase,
   Stack,
   SxProps,
-  Tooltip,
   Typography,
 } from "@mui/material";
-import { RiveComponentMemoized } from "./RiveMemoized";
-import { getFirestore } from "firebase/firestore";
-import { useAuth } from "../../utils/AuthContext";
 import {
   ActionVariant,
   CreateNotebookWorkerResponse,
   Flashcard,
-  FlashcardResponse,
   IAssistantCreateNotebookRequestPayload,
   IAssistantRequestPayload,
   IAssistantResponse,
-  IAssitantRequestAction,
   IViewNodeOpenNodesPayload,
   Message,
   MessageAction,
   MessageData,
   NodeAssistantResponse,
   NodeLinkType,
-  NodeType,
   Notebook,
   TAssistantNotebookMessage,
   TAssistantResponseMessage,
@@ -44,18 +36,40 @@ import { NodeLink } from "./NodeLink";
 import {
   ASSISTANT_NAME,
   CHAT_BACKGROUND_IMAGE_URL,
-  ENDPOINT_BASE,
   LOGO_URL,
-  NOTEBOOKS_LINK,
   NOTEBOOK_LINK,
-  SEARCH_ANIMATION_URL,
   USER_NAME,
 } from "../../utils/constants";
 import { useTheme } from "../../hooks/useTheme";
 import { getCurrentDateYYMMDD, getCurrentHourHHMM } from "../../utils/date";
 import { Theme } from "@mui/system";
 import { generateRandomId } from "../../utils/others";
-import { generateBackToReadingMessage, generateConfirmContinueWithPotentialNodeMessage, generateConfirmNodeSelection, generateContinueDisplayingNodeMessage, generateExitPotentialNodesMessage, generateExplainSelectedText, generateImprovementTypeSelectorMessage, generateInputNotebookNameMessage, generateNodeDiscoverMessage, generateNodeKeepSelectionMessage, generateNodeMessage, generateNodeProposeMessage, generateNodeSelectorMessage, generateNotebookIntro, generateNotebookListMessage, generateNotebookProposalApproval, generateProposeImprovementConfirmation, generateSearchNodeMessage, generateStartProposeChildConfirmation, generateTopicMessage, generateTopicNotFound, generateUserActionAnswer, generateWhereContinueExplanation } from "../../utils/messages";
+import {
+  generateBackToReadingMessage,
+  generateConfirmContinueWithPotentialNodeMessage,
+  generateConfirmNodeSelection,
+  generateContinueDisplayingNodeMessage,
+  generateExitPotentialNodesMessage,
+  generateExplainSelectedText,
+  generateImprovementTypeSelectorMessage,
+  generateInputNotebookNameMessage,
+  generateNodeDiscoverMessage,
+  generateNodeKeepSelectionMessage,
+  generateNodeMessage,
+  generateNodeProposeMessage,
+  generateNodeSelectorMessage,
+  generateNotebookIntro,
+  generateNotebookListMessage,
+  generateParentDiscoverMessage,
+  generateProposeChildConfirmation,
+  generateProposeImprovementConfirmation,
+  generateSearchNodeMessage,
+  generateStartProposeChildConfirmation,
+  generateTopicMessage,
+  generateTopicNotFound,
+  generateUserActionAnswer,
+  generateWhereContinueExplanation
+} from "../../utils/messages";
 import SearchMessage from "./SearchMessage";
 import moment from "moment";
 import MarkdownRender from "./MarkdownRender";
@@ -554,9 +568,9 @@ export const Chat = forwardRef(({
       }
     }
 
-    if (action.type === "ProposeImprovementConfirm") {
+    if (action.type === "ProposeImprovementConfirm" || action.type === "ProposeChidParentConfirm") {
       onClick = () => {
-        console.log("-> ProposeImprovementConfirm");
+        console.log("-> " + action.type);
 
         const messageWithSelectedAction = generateUserActionAnswer(
           action.title
@@ -564,7 +578,7 @@ export const Chat = forwardRef(({
         pushMessage(messageWithSelectedAction, getCurrentDateYYMMDD());
         removeActionOfAMessage(messageId, date);
 
-        setNodeSelection("Improvement");
+        setNodeSelection(action.type === "ProposeImprovementConfirm" ? "Improvement" : "Parent");
         pushMessage(
           generateNodeSelectorMessage(),
           getCurrentDateYYMMDD()
@@ -614,17 +628,22 @@ export const Chat = forwardRef(({
     if (action.type === "ConfirmNodeSelection") {
       onClick = () => {
         console.log("-> ConfirmNodeSelection", nodeSelection);
+        setSelectedNode(action.data.node);
+
+        const messageWithSelectedAction = generateUserActionAnswer(
+          action.title
+        );
+        pushMessage(messageWithSelectedAction, getCurrentDateYYMMDD());
+        removeActionOfAMessage(messageId, date);
+
         if (nodeSelection === "Improvement") {
-          setSelectedNode(action.data.node);
-
-          const messageWithSelectedAction = generateUserActionAnswer(
-            action.title
-          );
-          pushMessage(messageWithSelectedAction, getCurrentDateYYMMDD());
-          removeActionOfAMessage(messageId, date);
-
           pushMessage(
             generateProposeImprovementConfirmation(action.data.node),
+            getCurrentDateYYMMDD()
+          );
+        } else if (nodeSelection === "Parent") {
+          pushMessage(
+            generateProposeChildConfirmation(action.data.node),
             getCurrentDateYYMMDD()
           );
         }
@@ -661,16 +680,15 @@ export const Chat = forwardRef(({
         pushMessage(messageWithSelectedAction, getCurrentDateYYMMDD());
         removeActionOfAMessage(messageId, date);
 
-        const editorEvent = new CustomEvent("assistant", {
-          detail: {
-            type: "IMPROVEMENT",
-            selectedNode: {
-              id: selectedNode?.id,
-              ...currentFlashcard
-            }
-          }
+        chrome.runtime.sendMessage({
+          type: "PROPOSE_IMPROVEMENT",
+          selectedNode: {
+            id: selectedNode?.id,
+            ...currentFlashcard
+          },
+          flashcard: currentFlashcard,
+          bookTabId
         });
-        window.dispatchEvent(editorEvent);
       }
     }
 
@@ -682,6 +700,30 @@ export const Chat = forwardRef(({
           getCurrentDateYYMMDD()
         );
         setTimeout(scrollToTheEnd, 1000);
+      }
+    }
+
+    if (action.type === "StartProposeChild") {
+      onClick = () => {
+        console.log("-> StartProposeChild");
+
+        const messageWithSelectedAction = generateUserActionAnswer(
+          action.title
+        );
+        pushMessage(messageWithSelectedAction, getCurrentDateYYMMDD());
+        removeActionOfAMessage(messageId, date);
+
+        const editorEvent = new CustomEvent("assistant", {
+          detail: {
+            type: "CHILD",
+            selectedNode: {
+              id: selectedNode?.id,
+              ...currentFlashcard
+            },
+            flashcard: currentFlashcard
+          }
+        });
+        window.dispatchEvent(editorEvent);
       }
     }
 
@@ -840,6 +882,14 @@ export const Chat = forwardRef(({
     window.addEventListener("flashcard-start", listener);
     return () => window.removeEventListener("flashcard-start", listener);
   }, []);
+
+  useEffect(() => {
+    const listener = (e: any) => {
+      nextFlashcard(500);
+    };
+    window.addEventListener("next-flashcard", listener);
+    return () => window.removeEventListener("next-flashcard", listener);
+  }, [nextFlashcard]);
 
   useEffect(() => {
     if (!nodeSelection) return;

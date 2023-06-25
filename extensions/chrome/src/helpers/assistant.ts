@@ -1,4 +1,4 @@
-import { FlashcardResponse } from "../types";
+import { FlashcardResponse, NodeLinkType } from "../types";
 import { INotebook } from "../types/INotebook";
 import { ONECADEMY_BASEURL } from "../utils/constants";
 import { delay, getIdToken } from "./common";
@@ -440,6 +440,44 @@ export const getFlashcards = async (passage: string, url: string): Promise<Flash
     })
   });
   return ((await request.json())?.topic || []) as FlashcardResponse;
+}
+
+export const getReferenceNodes = async (query: string): Promise<NodeLinkType[]> => {
+  const _url = query.split("/").slice(0, 3).join("/");
+  const request = await fetch(`${ONECADEMY_BASEURL}/api/assistant/getReferenceNodes`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      query: _url
+    })
+  });
+  return ((await request.json()) || []) as NodeLinkType[];
+}
+
+export const matchReferenceContent = (src: string, referenceContent: string) => {
+  let src_parts = src.split("/");
+  const count = src_parts.length;
+  for(let i = 0; i < count - 1; i++) {
+    let _src = src_parts.join("/");
+    if(referenceContent.includes(_src)) {
+      return _src.length;
+    }
+    src_parts.pop()
+  }
+  return 0;
+}
+
+export const findPossibleReferenceFromList = (url: string, references: NodeLinkType[]): NodeLinkType | undefined => {
+  let _references = references.map((reference) => {
+    return {
+      reference,
+      match: matchReferenceContent(url, reference.content)
+    }
+  });
+  _references.sort((r1, r2) => r1.match < r2.match ? 1 : -1)
+  return _references.length ? _references[0].reference : undefined;
 }
 
 export type IAssistantMessageRequest = {

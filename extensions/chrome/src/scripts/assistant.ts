@@ -1,7 +1,7 @@
 import { findOrCreateNotebookTab, getIdToken, setActiveTab } from "../helpers/common";
-import { IAssistantMessageRequest, IAssistantMessageResponse, IAssistantNode, createConversation, getBardPromptResponse, getBardQueryPrompt, getBardTabId, getFlashcards, getNotebooks, getTopic, waitUntilBardAvailable } from "../helpers/assistant";
+import { IAssistantMessageRequest, IAssistantMessageResponse, IAssistantNode, createConversation, findPossibleReferenceFromList, getBardPromptResponse, getBardQueryPrompt, getBardTabId, getFlashcards, getNotebooks, getReferenceNodes, getTopic, waitUntilBardAvailable } from "../helpers/assistant";
 import { ENDPOINT_BASE } from "../utils/constants";
-import { IAssistantCreateNotebookRequestPayload, IViewNodeOpenNodesPayload, ViewNodeWorkerPayload, ViewNodeWorkerResponse } from "../types";
+import { IAssistantCreateNotebookRequestPayload, IViewNodeOpenNodesPayload, NodeLinkType, ViewNodeWorkerPayload, ViewNodeWorkerResponse } from "../types";
 
 // to detect request messages from assistant chat to pass 1Cademy.com
 export const idTokenListener = (message: any) => {
@@ -85,6 +85,33 @@ export const onAssistantActions = (message: any, sender: chrome.runtime.MessageS
 
       console.log({message, tabId}, "START_PROPOSING");
       await chrome.tabs.sendMessage(tabId, {...message, tabId: bookTabId, notebooks});
+    })()
+  } else if(message?.type === "PROPOSE_IMPROVEMENT") {
+    (async () => {
+      const bookTabId: number = message?.bookTabId!;
+      const notebookTabId: number = sender.tab?.id!;
+      const bookTab = await chrome.tabs.get(bookTabId);
+      const bookUrl = String(bookTab.url);
+      const referenceNodes = await getReferenceNodes(bookUrl);
+      const referenceNode = findPossibleReferenceFromList(bookUrl, referenceNodes);
+      await chrome.scripting.executeScript({
+        target: {
+          tabId: notebookTabId,
+        },
+        args: [message, referenceNode, bookUrl],
+        func: (message: any, referenceNode: NodeLinkType | undefined, bookUrl: string) => {
+          const editorEvent = new CustomEvent("assistant", {
+            detail: {
+              type: "IMPROVEMENT",
+              selectedNode: message.selectedNode,
+              flashcard: message.flashcard,
+              referenceNode,
+              bookUrl
+            }
+          });
+          window.dispatchEvent(editorEvent);
+        },
+      })
     })()
   } else if(message?.type === "CREATE_NOTEBOOK") {
     (async () => {

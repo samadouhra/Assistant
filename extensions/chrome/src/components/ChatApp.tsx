@@ -265,7 +265,7 @@ function ChatApp() {
         className="oassitant-bot"
         sx={{
           position: "absolute",
-          zIndex: 2,
+          zIndex: 999,
           "*": {
             boxSizing: "border-box",
             fontFamily: `"Inter", sans-serif`,

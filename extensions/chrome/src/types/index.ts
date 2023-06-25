@@ -222,7 +222,9 @@ export type IAssitantRequestAction =
   | "ReplaceWithImprovement" // triggers when you click on "Use the potential node title and content to generate an improvement proposal"
   | "CombineWithImprovement" // triggers when you click on "Combine the current title and content of the node with the title and content of the potential node"
   | "BackToBook"
-  | "CompleteChat";
+  | "CompleteChat"
+  | "ProposeChidParentConfirm"
+  | "StartProposeChild";
 
 export type IAssistantRequestPayload = {
   actionType: IAssitantRequestAction;

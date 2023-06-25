@@ -334,6 +334,30 @@ export const generateExitPotentialNodesMessage = (): MessageData => {
   }
 }
 
+export const generateParentDiscoverMessage = (): MessageData => {
+  return {
+    actions: [
+      {
+        title: "Yes",
+        type: "ProposeChidParentConfirm",
+        variant: "outlined",
+      },
+      {
+        title: "No",
+        type: "StartSkipOrCancel",
+        variant: "outlined",
+      }
+    ],
+    content: `Can you find a node on 1Cademy that is a prerequisite to learning this potential node?`,
+    nodes: [],
+    type: "READER",
+    hour: getCurrentHourHHMM(),
+    id: generateRandomId(),
+    image: "",
+    video: ""
+  }
+}
+
 export const generateConfirmNodeSelection = (node: { title: string, [key: string]: any }): MessageData => {
   return {
     actions: [
@@ -401,12 +425,39 @@ export const generateProposeImprovementConfirmation = (node: { title: string, [k
   }
 }
 
+export const generateProposeChildConfirmation = (node: { title: string, [key: string]: any }): MessageData => {
+  return {
+    actions: [
+      {
+        title: "Yes",
+        type: "StartProposeChild",
+        variant: "outlined",
+        data: {
+          node
+        }
+      },
+      {
+        title: "No",
+        type: "StartSkipOrCancel",
+        variant: "outlined",
+      }
+    ],
+    content: `Would you like to propose a child node to this node?`,
+    nodes: [],
+    type: "READER",
+    hour: getCurrentHourHHMM(),
+    id: generateRandomId(),
+    image: "",
+    video: ""
+  }
+}
+
 export const generateStartProposeChildConfirmation = (): MessageData => {
   return {
     actions: [
       {
         title: "Yes",
-        type: "ConfirmNodeSelection",
+        type: "ProposeChidParentConfirm",
         variant: "outlined"
       },
       {
