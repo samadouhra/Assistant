@@ -68,25 +68,26 @@ function ChatApp() {
   const [currentFlashcard, setCurrentFlashcard] = useState<Flashcard | undefined>(undefined);
   const [notebooks, setNotebooks] = useState<INotebook[]>([]);
 
-  useEffect(() => {
-    chrome.runtime.onMessage.addListener((message, sender) => {
-      if (typeof message !== "object" || message === null) return;
-      if (message.type === "REQUEST_AUTHENTICATED") {
-        setIsAuthenticated(message.isAuthenticated);
-        isAuthenticatedRef.current = message.isAuthenticated;
-        if (!message.isAuthenticated) {
-          setTimeout(() => {
-            chrome.runtime.sendMessage(chrome.runtime.id, {
-              type: "REQUEST_ID_TOKEN"
-            });
-          }, 500);
-        }
-      }
-    });
-    chrome.runtime.sendMessage(chrome.runtime.id, {
-      type: "REQUEST_ID_TOKEN"
-    });
-  }, []);
+  // useEffect(() => {
+  //   if (window.location.href.startsWith(NOTEBOOK_LINK)) return;
+  //   chrome.runtime.onMessage.addListener((message, sender) => {
+  //     if (typeof message !== "object" || message === null) return;
+  //     if (message.type === "REQUEST_AUTHENTICATED") {
+  //       setIsAuthenticated(message.isAuthenticated);
+  //       isAuthenticatedRef.current = message.isAuthenticated;
+  //       if (!message.isAuthenticated) {
+  //         setTimeout(() => {
+  //           chrome.runtime.sendMessage(chrome.runtime.id, {
+  //             type: "REQUEST_ID_TOKEN"
+  //           });
+  //         }, 500);
+  //       }
+  //     }
+  //   });
+  //   chrome.runtime.sendMessage(chrome.runtime.id, {
+  //     type: "REQUEST_ID_TOKEN"
+  //   });
+  // }, []);
 
   const [selectedTextMouseUpPosition, setSelectedTextMouseUpPosition] = useState<{ mouseX: number, mouseY: number } | null>(null);
 

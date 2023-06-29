@@ -46,8 +46,8 @@
     },
     {
       "matches": [
-        "https://*.core-econ.org/*",
-        "https://core-econ.org/*",
+        "https://*.core-econ.org/the-economy/book/text/*",
+        "https://core-econ.org/the-economy/book/text/*",
         "https://wordpress.deeplearning.ai/wp-content/uploads/2022/03/andrew-ng-machine-learning-yearning.pdf",
         "http://localhost:3000/notebook*",
         "https://1cademy.com/notebook*"
