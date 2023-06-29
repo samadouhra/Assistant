@@ -40,6 +40,19 @@ import { getCurrentDateYYMMDD } from '../utils/date'
 import { RiveComponentMemoized } from './ChatApp/RiveMemoized'
 import { INotebook } from '../types/INotebook'
 import { MessageAction } from '../types'
+import ArticleIcon from '@mui/icons-material/Article'
+import CodeIcon from '@mui/icons-material/Code'
+import EmojiObjectsIcon from '@mui/icons-material/EmojiObjects'
+
+import HelpOutlineIcon from '@mui/icons-material/HelpOutline'
+import LocalLibraryIcon from '@mui/icons-material/LocalLibrary'
+import LockIcon from '@mui/icons-material/Lock'
+import MenuBookIcon from '@mui/icons-material/MenuBook'
+
+import ShareIcon from '@mui/icons-material/Share'
+import { SvgIconProps } from '@mui/material/SvgIcon'
+
+import { FC } from 'react'
 
 import {
   collection,
@@ -50,6 +63,44 @@ import {
   writeBatch,
 } from 'firebase/firestore'
 
+const NodeTypeIcon: FC<any> = ({
+  nodeType,
+  tooltipPlacement,
+  color = 'primary',
+  ...rest
+}) => {
+  const renderIcon = () => {
+    switch (nodeType) {
+      case 'Code':
+        return <CodeIcon color={color} {...rest} />
+      case 'Concept':
+        return <LocalLibraryIcon color={color} {...rest} />
+      case 'Relation':
+        return <ShareIcon color={color} {...rest} />
+      case 'Question':
+        return <HelpOutlineIcon color={color} {...rest} />
+      case 'Reference':
+        return <MenuBookIcon color={color} {...rest} />
+      case 'Idea':
+        return <EmojiObjectsIcon color={color} {...rest} />
+      case 'News':
+        return <ArticleIcon color={color} {...rest} />
+      default:
+        return <LockIcon color={color} {...rest} />
+    }
+  }
+
+  if (!nodeType) return null
+
+  if (tooltipPlacement)
+    return (
+      <Tooltip title={`${nodeType} node`} placement={tooltipPlacement}>
+        {renderIcon()}
+      </Tooltip>
+    )
+
+  return renderIcon()
+}
 const getAction = (proposed: boolean, nodeId: string, flashcard: any) => {
   const action = proposed ? 'Open in the Notebook' : 'Propose'
   let onClick = () => {
@@ -83,18 +134,19 @@ function SidebarNodes() {
   const [flashcards, setFlashcards] = useState<any[]>([])
   const [tabcUrl, setTabUrl] = useState<string>('')
   const [section, setSection] = useState<string>('')
+  const [nodesWidth, setNodesWidth] = useState<number>(0)
   const { mode } = useTheme()
 
   useEffect(() => {
     const handleScroll = () => {
       const baseURL =
         location.protocol + '//' + location.host + location.pathname
-      var scrollPosition = window.pageYOffset
-      var sections = document.querySelectorAll('section')
-
-      for (var i = 0; i < sections.length; i++) {
-        var section = sections[i]
-        var sectionPosition = section.offsetTop
+      let scrollPosition = window.pageYOffset
+      let sections = document.querySelectorAll('section')
+      setNodesWidth((window.innerWidth - sections[1].offsetWidth) / 2 - 10)
+      for (let i = 0; i < sections.length; i++) {
+        let section = sections[i]
+        let sectionPosition = section.offsetTop
         if (scrollPosition >= sectionPosition) {
           const headerElement = section.getElementsByTagName('header')[0]
           const sectionElement =
@@ -165,7 +217,7 @@ function SidebarNodes() {
               top: '0px',
               right: '0px',
               zIndex: 99,
-              width: '400px',
+              width: nodesWidth,
               height: '100vh',
               overflow: 'auto',
               backgroundColor: mode === 'light' ? '#F9FAFB' : '#1B1A1A',
@@ -173,12 +225,15 @@ function SidebarNodes() {
           >
             <Typography
               variant="h5"
-              style={{
+              sx={{
                 color:
                   mode === 'light'
                     ? DESIGN_SYSTEM_COLORS.baseBlack
                     : DESIGN_SYSTEM_COLORS.baseWhite,
                 position: 'sticky',
+                ml: '10px',
+                mt: '10px',
+                mb: '10px',
               }}
             >
               {section}
@@ -190,7 +245,7 @@ function SidebarNodes() {
                 sx={{
                   overflow: 'hidden',
                   listStyle: 'none',
-                  mb: '2px',
+                  mb: '10px',
                   padding: {
                     xs: '5px 10px',
                     sm: '12px 16px 10px 16px',
@@ -204,6 +259,14 @@ function SidebarNodes() {
                     'proposed' in flashcard && flashcard.proposed
                       ? 'solid 6px #fd7373'
                       : 'solid 6px #fdc473',
+                  ':hover': {
+                    backgroundColor:
+                      mode === 'light'
+                        ? DESIGN_SYSTEM_COLORS.gray250
+                        : DESIGN_SYSTEM_COLORS.notebookG500,
+                  },
+                  ml: '10px',
+                  mt: '10px',
                 }}
               >
                 <Typography
@@ -227,7 +290,19 @@ function SidebarNodes() {
                 >
                   {flashcard.content}
                 </Typography>
-                {getAction(flashcard.proposed, flashcard.nodeId, flashcard)}
+                <Box
+                  sx={{
+                    display: 'flex',
+                    justifyContent: 'flex-end',
+                    mt: '15px',
+                  }}
+                >
+                  {getAction(flashcard.proposed, flashcard.nodeId, flashcard)}
+                </Box>
+                <NodeTypeIcon
+                  nodeType={flashcard.type || ''}
+                  fontSize="inherit"
+                />
               </Paper>
             ))}
           </Paper>
