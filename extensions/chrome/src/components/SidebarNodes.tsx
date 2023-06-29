@@ -13,7 +13,9 @@ import {
   Typography,
   Paper,
   useForkRef,
+  Tooltip,
 } from '@mui/material'
+
 import { signIn } from '../serveless/auth'
 import { useState } from 'react'
 import { DESIGN_SYSTEM_COLORS } from '../utils/colors'
@@ -163,29 +165,45 @@ function SidebarNodes() {
               top: '0px',
               right: '0px',
               zIndex: 99,
-              width: '500px',
+              width: '400px',
               height: '100vh',
               overflow: 'auto',
-              backgroundColor:
-                mode === 'light'
-                  ? DESIGN_SYSTEM_COLORS.gray50
-                  : DESIGN_SYSTEM_COLORS.notebookG50,
+              backgroundColor: mode === 'light' ? '#F9FAFB' : '#1B1A1A',
             }}
           >
-            <Typography variant="h5">{section}</Typography>
+            <Typography
+              variant="h5"
+              style={{
+                color:
+                  mode === 'light'
+                    ? DESIGN_SYSTEM_COLORS.baseBlack
+                    : DESIGN_SYSTEM_COLORS.baseWhite,
+                position: 'sticky',
+              }}
+            >
+              {section}
+            </Typography>
             {flashcards?.map((flashcard: any) => (
               <Paper
-                key={flashcard.id}
+                elevation={3}
+                key={`resNode${flashcard.id}`}
                 sx={{
-                  p: '10px 12px',
-                  backgroundColor:
+                  overflow: 'hidden',
+                  listStyle: 'none',
+                  mb: '2px',
+                  padding: {
+                    xs: '5px 10px',
+                    sm: '12px 16px 10px 16px',
+                  },
+                  background:
                     mode === 'light'
                       ? DESIGN_SYSTEM_COLORS.gray100
-                      : DESIGN_SYSTEM_COLORS.notebookG400,
+                      : DESIGN_SYSTEM_COLORS.notebookG700,
                   borderRadius: '8px',
-                  boxShadow:
-                    '0px 1px 2px rgba(0, 0, 0, 0.06), 0px 1px 3px rgba(0, 0, 0, 0.1)',
-                  mb: '5px',
+                  borderLeft:
+                    'proposed' in flashcard && flashcard.proposed
+                      ? 'solid 6px #fd7373'
+                      : 'solid 6px #fdc473',
                 }}
               >
                 <Typography
@@ -193,8 +211,8 @@ function SidebarNodes() {
                   style={{
                     color:
                       mode === 'light'
-                        ? DESIGN_SYSTEM_COLORS.notebookO200
-                        : DESIGN_SYSTEM_COLORS.primary50,
+                        ? DESIGN_SYSTEM_COLORS.baseBlack
+                        : DESIGN_SYSTEM_COLORS.baseWhite,
                   }}
                 >
                   {flashcard.title}
@@ -203,8 +221,8 @@ function SidebarNodes() {
                   style={{
                     color:
                       mode === 'light'
-                        ? DESIGN_SYSTEM_COLORS.notebookO200
-                        : DESIGN_SYSTEM_COLORS.primary50,
+                        ? DESIGN_SYSTEM_COLORS.baseBlack
+                        : DESIGN_SYSTEM_COLORS.baseWhite,
                   }}
                 >
                   {flashcard.content}
