@@ -22,7 +22,7 @@ const MarkdownRender: FC<Props> = ({ text, customClass, sx = { fontSize: "inheri
 
       components={{
         p: ({ ...props }) => (
-          <Typography lineHeight={"inherit"} {...props} sx={{ p: "0px", wordBreak: "break-word", color: "inherit", ...sx }} />
+          <Typography lineHeight={"inherit"} {...props} sx={{ p: "0px", wordBreak: "break-word", color: "inherit",userSelect: "text", ...sx }} />
         ),
         a: ({ ...props }) => {
           return (

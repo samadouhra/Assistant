@@ -1,72 +1,58 @@
-import React, {
-  useEffect,
-  useRef
-} from "react";
-import { brandingLightTheme } from "../utils/brandingTheme";
-import "./ChatApp/styles.css";
+import React, { useEffect, useRef } from 'react'
+import { brandingLightTheme } from '../utils/brandingTheme'
+import './ChatApp/styles.css'
 
-import CloseIcon from "@mui/icons-material/Close";
-import {
-  Box,
-  Button,
-  IconButton,
-  ThemeProvider,
-} from "@mui/material";
-import {
-  useState
-} from "react";
-import {
-  DESIGN_SYSTEM_COLORS
-} from "../utils/colors";
-import {
-  Chat
-} from "./ChatApp/Chat";
-import {
-  LOGO_URL, NOTEBOOK_LINK
-} from "../utils/constants";
-import {
-  useTheme
-} from "../hooks/useTheme";
+import CloseIcon from '@mui/icons-material/Close'
+import { Box, Button, IconButton, ThemeProvider } from '@mui/material'
+import { useState } from 'react'
+import { DESIGN_SYSTEM_COLORS } from '../utils/colors'
+import { Chat } from './ChatApp/Chat'
+import { LOGO_URL, NOTEBOOK_LINK } from '../utils/constants'
+import { useTheme } from '../hooks/useTheme'
 import {
   Flashcard,
   FlashcardResponse,
   MessageData,
   Notebook,
-  TAssistantNotebookMessage
-} from "../types";
+  TAssistantNotebookMessage,
+} from '../types'
 import {
-  generateNotebookIntro, generateNotebookProposalApproval
-} from "../utils/messages";
-import { ONECADEMY_IFRAME_URL } from "../utils/constants";
-import { getCurrentDateYYMMDD } from "../utils/date";
-import { RiveComponentMemoized } from "./ChatApp/RiveMemoized";
-import { INotebook } from "../types/INotebook";
+  generateNotebookIntro,
+  generateNotebookProposalApproval,
+} from '../utils/messages'
+import { ONECADEMY_IFRAME_URL } from '../utils/constants'
+import { getCurrentDateYYMMDD } from '../utils/date'
+import { RiveComponentMemoized } from './ChatApp/RiveMemoized'
+import { INotebook } from '../types/INotebook'
 
 function ChatApp() {
-  const [displayAssistant, setDisplayAssistant] = useState(false);
-  const [selectedText, setSelectedText] = useState("");
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const isAuthenticatedRef = useRef<boolean>(false);
-  const [conversationId, setConversationId] = useState("");
+  const [displayAssistant, setDisplayAssistant] = useState(false)
+  const [selectedText, setSelectedText] = useState('')
+  const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const isAuthenticatedRef = useRef<boolean>(false)
+  const [conversationId, setConversationId] = useState('')
+  const [selecteSidebar, setSelecteSidebar] = useState<boolean>(false)
   const chatRef = useRef<{
-    pushMessage: (message: MessageData, currentDateYYMMDD: string) => void,
-    resetChat: () => void,
-    setCreatingNotebook: (creatingNotebook: any) => any,
-    setNotebook: (notebook: any) => any,
+    pushMessage: (message: MessageData, currentDateYYMMDD: string) => void
+    resetChat: () => void
+    setCreatingNotebook: (creatingNotebook: any) => any
+    setNotebook: (notebook: any) => any
     setBookTabId: (bookTabId: any) => any
   }>({
-    pushMessage: () => { },
-    resetChat: () => { },
+    pushMessage: () => {},
+    resetChat: () => {},
     setCreatingNotebook: (creatingNotebook) => creatingNotebook,
-    setNotebook: () => { },
-    setBookTabId: () => { }
-  });
+    setNotebook: () => {},
+    setBookTabId: () => {},
+  })
   const [isLoading, setIsLoading] = useState(false)
-  const iframeRef = useRef<null | HTMLIFrameElement>(null);
-  const { mode } = useTheme();
-  const [flashcards, setFlashcards] = useState<FlashcardResponse>([]);
-  const [currentFlashcard, setCurrentFlashcard] = useState<Flashcard | undefined>(undefined);
-  const [notebooks, setNotebooks] = useState<INotebook[]>([]);
+  const iframeRef = useRef<null | HTMLIFrameElement>(null)
+  const { mode } = useTheme()
+  const [flashcards, setFlashcards] = useState<FlashcardResponse>([])
+  const [currentFlashcard, setCurrentFlashcard] = useState<
+    Flashcard | undefined
+  >(undefined)
+  const [notebooks, setNotebooks] = useState<INotebook[]>([])
 
   // useEffect(() => {
   //   if (window.location.href.startsWith(NOTEBOOK_LINK)) return;
@@ -89,13 +75,14 @@ function ChatApp() {
   //   });
   // }, []);
 
-  const [selectedTextMouseUpPosition, setSelectedTextMouseUpPosition] = useState<{ mouseX: number, mouseY: number } | null>(null);
+  const [selectedTextMouseUpPosition, setSelectedTextMouseUpPosition] =
+    useState<{ mouseX: number; mouseY: number } | null>(null)
 
   const askSelectedTextToAssistant = (selectedText: string) => {
     chrome.runtime.sendMessage({
-      type: "FETCH_FLASHCARDS",
-      selection: selectedText
-    });
+      type: 'FETCH_FLASHCARDS',
+      selection: selectedText,
+    })
     // const payload: IAssistantRequestPayload = {
     //   actionType: "TeachContent",
     //   message: selectedText,
@@ -116,7 +103,7 @@ function ChatApp() {
     if (!selectedText) return
 
     askSelectedTextToAssistant(selectedText)
-    setSelectedText("")
+    setSelectedText('')
     setSelectedTextMouseUpPosition(null)
   }
 
@@ -134,169 +121,184 @@ function ChatApp() {
   }
 
   useEffect(() => {
-
     const onDetectSelectedText = () => {
-      var selection = window.getSelection();
+      var selection = window.getSelection()
       if (!selection) {
         setSelectedTextMouseUpPosition(null)
-        setSelectedText("")
+        setSelectedText('')
         return
       }
 
-      const selectionText = selection.toString();
+      const selectionText = selection.toString()
       const selectionProcess = selectionText.trim()
 
       if (!selectionProcess) {
         setSelectedTextMouseUpPosition(null)
-        setSelectedText("")
+        setSelectedText('')
         return
       }
 
-      const range = selection.getRangeAt(0);
-      const rect = range.getBoundingClientRect();
-      const posX = rect.left + window.pageXOffset;
-      const posY = rect.top + window.pageYOffset;
+      const range = selection.getRangeAt(0)
+      const rect = range.getBoundingClientRect()
+      const posX = rect.left + window.pageXOffset
+      const posY = rect.top + window.pageYOffset
 
-      const elementWidth = 48;
-      const elementHeight = 48;
-      const shiftX = 20;
-      const shiftY = 0;
-      const windowHeight = window.innerHeight;
-      const positionBelow = posY + shiftX + elementHeight > windowHeight;
-      const positionY = positionBelow ? posY - shiftY - elementHeight : posY + shiftY;
-      const positionX = posX - shiftX - elementWidth;
+      const elementWidth = 48
+      const elementHeight = 48
+      const shiftX = 20
+      const shiftY = 0
+      const windowHeight = window.innerHeight
+      const positionBelow = posY + shiftX + elementHeight > windowHeight
+      const positionY = positionBelow
+        ? posY - shiftY - elementHeight
+        : posY + shiftY
+      const positionX = posX - shiftX - elementWidth
 
       console.log('onDetectSelectedText:', { positionX, positionY })
       setSelectedText(selectionProcess)
       setSelectedTextMouseUpPosition({ mouseX: positionX, mouseY: positionY })
-
     }
 
     const selectionMessageListener = (message: any) => {
-      if (typeof message !== "object" || message?.type !== "ASSISTANT_SELECTION") return;
-      console.log(message, "CHAT_MENUITEM_ID")
-      setSelectedText(message.selection as string);
-      askSelectedTextToAssistant(message.selection as string);
+      if (
+        typeof message !== 'object' ||
+        message?.type !== 'ASSISTANT_SELECTION'
+      )
+        return
+      console.log(message, 'CHAT_MENUITEM_ID')
+      setSelectedText(message.selection as string)
+      askSelectedTextToAssistant(message.selection as string)
       setSelectedTextMouseUpPosition(null)
       setDisplayAssistant(true)
     }
 
-    chrome.runtime.onMessage.addListener(selectionMessageListener);
+    chrome.runtime.onMessage.addListener(selectionMessageListener)
 
-    document.addEventListener("mouseup", onDetectSelectedText);
+    document.addEventListener('mouseup', onDetectSelectedText)
 
     return () => {
       document.removeEventListener('mouseup', onDetectSelectedText)
-      chrome.runtime.onMessage.removeListener(selectionMessageListener);
+      chrome.runtime.onMessage.removeListener(selectionMessageListener)
     }
-  }, []);
+  }, [])
 
   useEffect(() => {
     // following listener only for notebook tabs
-    if (!window.location.href.startsWith(NOTEBOOK_LINK)) return;
+    if (!window.location.href.startsWith(NOTEBOOK_LINK)) return
 
     const listenWorker = (message: TAssistantNotebookMessage) => {
-      console.log(message, "START_PROPOSING")
+      console.log(message, 'START_PROPOSING')
       if (message.type === 'START_PROPOSING') {
-        chatRef.current.setBookTabId(message.tabId);
-        setDisplayAssistant(true);
-        setFlashcards(message.flashcards);
-        setNotebooks(message.notebooks);
+        chatRef.current.setBookTabId(message.tabId)
+        setDisplayAssistant(true)
+        setFlashcards(message.flashcards)
+        setNotebooks(message.notebooks)
+        setSelecteSidebar(message.selecteSidebar)
         chatRef.current.pushMessage(
           generateNotebookProposalApproval(
             message.request,
             message.notebooks?.[0] || {}
           ),
           getCurrentDateYYMMDD()
-        );
-        setIsLoading(false);
+        )
+        setIsLoading(false)
       }
     }
 
-    chrome.runtime.onMessage.addListener(listenWorker);
-    return () => chrome.runtime.onMessage.removeListener(listenWorker);
-  }, []);
+    chrome.runtime.onMessage.addListener(listenWorker)
+    return () => chrome.runtime.onMessage.removeListener(listenWorker)
+  }, [])
 
   useEffect(() => {
-    if (displayAssistant) return;
+    if (displayAssistant) return
     chatRef.current.resetChat()
   }, [displayAssistant])
 
   useEffect(() => {
     if (iframeRef.current) {
-      const src = iframeRef.current.src;
-      iframeRef.current.src = ""
-      iframeRef.current.src = src;
+      const src = iframeRef.current.src
+      iframeRef.current.src = ''
+      iframeRef.current.src = src
     }
-  }, [iframeRef]);
+  }, [iframeRef])
 
   return (
     <>
-      <Box sx={{
-        position: "fixed",
-        top: "0px",
-        left: "0px"
-      }}>
-        <iframe ref={iframeRef} src={ONECADEMY_IFRAME_URL} width={"0px"} height={"0px"} />
-      </Box>
-      {selectedText && selectedTextMouseUpPosition && <IconButton
-        onClick={onAskSelectedText}
+      <Box
         sx={{
-          position: "absolute",
-          top: selectedTextMouseUpPosition.mouseY,
-          left: selectedTextMouseUpPosition.mouseX,
-          backgroundColor: mode === "light"
-            ? DESIGN_SYSTEM_COLORS.gray100
-            : DESIGN_SYSTEM_COLORS.notebookG800,
-          ":hover": {
-            backgroundColor: mode === "light"
-              ? DESIGN_SYSTEM_COLORS.gray200
-              : DESIGN_SYSTEM_COLORS.notebookG600,
-          }
+          position: 'fixed',
+          top: '0px',
+          left: '0px',
         }}
       >
-        <img
-          src={LOGO_URL}
-          alt="onecademy assistant logo"
-          style={{ width: "32px", height: "32px" }}
+        <iframe
+          ref={iframeRef}
+          src={ONECADEMY_IFRAME_URL}
+          width={'0px'}
+          height={'0px'}
         />
-      </IconButton>}
+      </Box>
+      {selectedText && selectedTextMouseUpPosition && (
+        <IconButton
+          onClick={onAskSelectedText}
+          sx={{
+            position: 'absolute',
+            top: selectedTextMouseUpPosition.mouseY,
+            left: selectedTextMouseUpPosition.mouseX,
+            backgroundColor:
+              mode === 'light'
+                ? DESIGN_SYSTEM_COLORS.gray100
+                : DESIGN_SYSTEM_COLORS.notebookG800,
+            ':hover': {
+              backgroundColor:
+                mode === 'light'
+                  ? DESIGN_SYSTEM_COLORS.gray200
+                  : DESIGN_SYSTEM_COLORS.notebookG600,
+            },
+          }}
+        >
+          <img
+            src={LOGO_URL}
+            alt="onecademy assistant logo"
+            style={{ width: '32px', height: '32px' }}
+          />
+        </IconButton>
+      )}
 
       <Box
         className="oassitant-bot"
         sx={{
-          position: "absolute",
+          position: 'absolute',
           zIndex: 999,
-          "*": {
-            boxSizing: "border-box",
+          '*': {
+            boxSizing: 'border-box',
             fontFamily: `"Inter", sans-serif`,
           },
         }}
       >
-
         {/* floating buttons */}
-        <Box sx={{ position: "fixed", bottom: "38px", right: "38px" }}>
+        <Box sx={{ position: 'fixed', bottom: '38px', right: '38px' }}>
           {displayAssistant && (
             <Button
               onClick={onCloseChat}
               sx={{
-                minWidth: "0px",
-                width: "52px",
-                height: "52px",
+                minWidth: '0px',
+                width: '52px',
+                height: '52px',
                 backgroundColor:
-                  mode === "light"
+                  mode === 'light'
                     ? DESIGN_SYSTEM_COLORS.gray50
                     : DESIGN_SYSTEM_COLORS.notebookG800,
-                borderRadius: "50%",
+                borderRadius: '50%',
                 boxShadow:
-                  "0px 1px 2px rgba(0, 0, 0, 0.06), 0px 1px 3px rgba(0, 0, 0, 0.1)",
+                  '0px 1px 2px rgba(0, 0, 0, 0.06), 0px 1px 3px rgba(0, 0, 0, 0.1)',
                 color:
-                  mode === "dark"
+                  mode === 'dark'
                     ? DESIGN_SYSTEM_COLORS.gray50
                     : DESIGN_SYSTEM_COLORS.gray800,
-                ":hover": {
+                ':hover': {
                   backgroundColor:
-                    mode === "light"
+                    mode === 'light'
                       ? DESIGN_SYSTEM_COLORS.gray250
                       : DESIGN_SYSTEM_COLORS.notebookG500,
                 },
@@ -310,15 +312,15 @@ function ChatApp() {
             <Button
               onClick={onOpenChat}
               sx={{
-                minWidth: "0px",
-                width: "80",
-                height: "80"
+                minWidth: '0px',
+                width: '80',
+                height: '80',
               }}
             >
               <RiveComponentMemoized
-                src={chrome.runtime.getURL("rive-assistant/idle.riv")}
+                src={chrome.runtime.getURL('rive-assistant/idle.riv')}
                 artboard="New Artboard"
-                animations={["Timeline 1"]}
+                animations={['Timeline 1']}
                 autoplay={true}
               />
             </Button>
@@ -343,13 +345,14 @@ function ChatApp() {
           isAuthenticated={isAuthenticated}
           isAuthenticatedRef={isAuthenticatedRef}
           sx={{
-            position: "fixed",
-            bottom: "112px",
-            right: "38px",
-            display: displayAssistant ? "flex" : "none"
+            position: 'fixed',
+            bottom: '112px',
+            right: '38px',
+            display: displayAssistant ? 'flex' : 'none',
           }}
+          selecteSidebar={selecteSidebar}
         />
-      </Box >
+      </Box>
     </>
   )
 }
@@ -358,6 +361,6 @@ const ChatAppWrapper = () => (
   <ThemeProvider theme={brandingLightTheme}>
     <ChatApp />
   </ThemeProvider>
-);
+)
 
-export default ChatAppWrapper;
+export default ChatAppWrapper

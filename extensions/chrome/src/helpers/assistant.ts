@@ -476,6 +476,7 @@ export type ProposeFlashCardParam = {
   title: string; // flashcard title
   node?: string;
   version: string;
+  flashcard:any;
 };
 
 export const proposeFlashcard = async ({
@@ -484,7 +485,8 @@ export const proposeFlashcard = async ({
   passageId,
   title,
   node,
-  version
+  version,
+  flashcard
 }: ProposeFlashCardParam) => {
   const headers: any = {
     "Content-Type": "application/json"
@@ -501,7 +503,8 @@ export const proposeFlashcard = async ({
       passageId,
       title,
       node,
-      version
+      version, 
+      tempflashcard:flashcard, 
     })
   });
   return ((await request.json()) || []) as INotebook[];

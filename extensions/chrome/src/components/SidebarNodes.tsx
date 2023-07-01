@@ -113,17 +113,22 @@ const getAction = (proposed: boolean, nodeId: string, flashcard: any) => {
         selection: 'request',
         notebooks: [],
         tabId: 0,
+        selecteSidebar: true,
       } as TAssistantNotebookMessage)
 
       // starting to propose
       console.log('-> ProposeIt')
     } else {
+      chrome.runtime.sendMessage({
+        type: 'OPEN_NODE',
+        nodeId,
+      } as any)
       // open in the notebook
       console.log('-> Open The Notebook', nodeId)
     }
   }
   return (
-    <Button onClick={onClick} variant="contained">
+    <Button onClick={onClick} variant="contained" sx={{ ml: '5px' }}>
       {action}
     </Button>
   )
@@ -189,14 +194,18 @@ function SidebarNodes() {
     const unsubscribe = onSnapshot(q, (querySnapshot) => {
       let _flashcards: any[] = []
       let _section = ''
+      let documentId = ''
       querySnapshot.forEach((doc) => {
         if (tabcUrl.includes(doc.data().link)) {
           _flashcards = doc.data().flashcards
           _section = doc.data().section
+          documentId = doc.id
         }
       })
       _flashcards.forEach((flashcard) => {
-        flashcard.id = flashcard.title
+        flashcard.section = _section
+        flashcard.link = tabcUrl
+        flashcard.flashcardId = documentId
       })
       console.log(_flashcards)
       setFlashcards(_flashcards)
@@ -293,16 +302,20 @@ function SidebarNodes() {
                 <Box
                   sx={{
                     display: 'flex',
-                    justifyContent: 'flex-end',
-                    mt: '15px',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
                   }}
                 >
-                  {getAction(flashcard.proposed, flashcard.nodeId, flashcard)}
+                  <Box sx={{ mt: '5px' }}>
+                    <NodeTypeIcon
+                      nodeType={flashcard.type || ''}
+                      fontSize="inherit"
+                    />
+                  </Box>
+                  <Box>
+                    {getAction(flashcard.proposed, flashcard.nodeId, flashcard)}
+                  </Box>
                 </Box>
-                <NodeTypeIcon
-                  nodeType={flashcard.type || ''}
-                  fontSize="inherit"
-                />
               </Paper>
             ))}
           </Paper>

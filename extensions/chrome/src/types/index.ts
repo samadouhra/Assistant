@@ -390,7 +390,8 @@ export type TAssistantNotebookMessage = {
   request: string,
   selection: string,
   tabId: number,
-  notebooks: INotebook[]
+  notebooks: INotebook[],
+  selecteSidebar:boolean
 } | {
   type: "CREATE_NOTEBOOK",
   notebookId: string,
