@@ -104,11 +104,11 @@ export const onAssistantActions = (
   } else if (message?.type === 'START_PROPOSING') {
     ;(async () => {
       const bookTabId = sender.tab?.id!
-      const notebooks = await getNotebooks(bookTabId)
+      const tabId = await findOrCreateNotebookTab()
+      const notebooks = await getNotebooks(tabId)
       await chrome.tabs.sendMessage(bookTabId, {
         type: 'LOADING_COMPLETED',
       })
-      const tabId = await findOrCreateNotebookTab()
       await chrome.tabs.update(tabId, {
         active: true,
       })
@@ -289,6 +289,28 @@ export const onAssistantActions = (
             detail: {
               type: 'OPEN_NODE',
               nodeId: message?.nodeId,
+            },
+          })
+          window.dispatchEvent(editorEvent)
+        },
+      })
+    })()
+  } else if (message?.type === 'CLEAR') {
+    ;(async () => {
+      const tabId = await findOrCreateNotebookTab()
+      await chrome.tabs.update(tabId, {
+        active: true,
+      })
+
+      await chrome.scripting.executeScript({
+        target: {
+          tabId: tabId,
+        },
+        args: [],
+        func: () => {
+          const editorEvent = new CustomEvent('assistant', {
+            detail: {
+              type: 'CLEAR',
             },
           })
           window.dispatchEvent(editorEvent)

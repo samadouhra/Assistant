@@ -102,7 +102,7 @@ const NodeTypeIcon: FC<any> = ({
   return renderIcon()
 }
 const getAction = (proposed: boolean, nodeId: string, flashcard: any) => {
-  const action = proposed ? 'Open in the Notebook' : 'Propose'
+  const action = proposed ? 'Open' : 'Propose'
   let onClick = () => {
     if (!proposed) {
       console.log({ proposed })
@@ -266,8 +266,8 @@ function SidebarNodes() {
                   borderRadius: '8px',
                   borderLeft:
                     'proposed' in flashcard && flashcard.proposed
-                      ? 'solid 6px #fd7373'
-                      : 'solid 6px #fdc473',
+                      ? 'solid 6px #fdc473'
+                      : 'solid 6px #fd7373',
                   ':hover': {
                     backgroundColor:
                       mode === 'light'

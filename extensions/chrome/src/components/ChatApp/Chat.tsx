@@ -606,7 +606,6 @@ export const Chat = forwardRef(
           )
           pushMessage(messageWithSelectedAction, getCurrentDateYYMMDD())
           removeActionOfAMessage(messageId, date)
-
           pushMessage(
             generateNodeKeepSelectionMessage(),
             getCurrentDateYYMMDD()
@@ -633,7 +632,19 @@ export const Chat = forwardRef(
               ? 'Improvement'
               : 'Parent'
           )
-          pushMessage(generateNodeSelectorMessage(), getCurrentDateYYMMDD())
+          const nodeClickEvent = new CustomEvent('node-selection', {
+            detail: {
+              type:
+                action.type === 'ProposeImprovementConfirm'
+                  ? 'Improvement'
+                  : 'Parent',
+            },
+          })
+          window.dispatchEvent(nodeClickEvent)
+          pushMessage(
+            generateNodeSelectorMessage(action.type),
+            getCurrentDateYYMMDD()
+          )
           setTimeout(scrollToTheEnd, 1000)
         }
       }
@@ -689,14 +700,27 @@ export const Chat = forwardRef(
 
           if (nodeSelection === 'Improvement') {
             pushMessage(
-              generateProposeImprovementConfirmation(action.data.node),
+              generateImprovementTypeSelectorMessage(),
               getCurrentDateYYMMDD()
             )
+            chrome.runtime.sendMessage({
+              type: 'CLEAR',
+            })
+            setTimeout(scrollToTheEnd, 1000)
           } else if (nodeSelection === 'Parent') {
-            pushMessage(
-              generateProposeChildConfirmation(action.data.node),
-              getCurrentDateYYMMDD()
-            )
+            console.log('-> StartProposeChild')
+            setIsLoading(true)
+            chrome.runtime.sendMessage({
+              type: 'PROPOSE_CHILD',
+              selectedNode: {
+                id: action.data.node.id,
+                title: action.data.node.title,
+                content: action.data.node.content,
+              },
+              flashcard: currentFlashcard,
+              bookTabId,
+              selecteSidebar,
+            })
           }
           setNodeSelection(null)
           setTimeout(scrollToTheEnd, 1000)
@@ -995,7 +1019,7 @@ export const Chat = forwardRef(
           flashcard: Flashcard
           token: string
         } = e?.detail || ({} as any)
-        
+
         chrome.runtime.sendMessage({
           type: 'PROPOSE_FLASHCARD',
           node: detail.node,
@@ -1198,7 +1222,9 @@ export const Chat = forwardRef(
                                   : DESIGN_SYSTEM_COLORS.gray900,
                             }}
                           >
-                            {c.type === 'READER' ? ASSISTANT_NAME : USER_NAME+" "}
+                            {c.type === 'READER'
+                              ? ASSISTANT_NAME
+                              : USER_NAME + ' '}
                             {/* {c.uname} */}
                           </Typography>
                           {c.type === 'READER' && (

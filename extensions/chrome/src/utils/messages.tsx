@@ -275,9 +275,9 @@ export const generateNodeProposeMessage = (
   return {
     actions: [],
     content:
-    flashcardsLength > 1
-    ? `**Node ${nodeIdx}:**\n**${node.title}**  \n\n${node.content}`
-    : `**${node.title}**  \n\n${node.content}`,
+      flashcardsLength > 1
+        ? `**Node ${nodeIdx}:**\n**${node.title}**  \n\n${node.content}`
+        : `**${node.title}**  \n\n${node.content}`,
     nodes: [],
     type: 'READER',
     hour: getCurrentHourHHMM(),
@@ -527,7 +527,7 @@ export const generateStartProposeChildConfirmation = (): MessageData => {
         variant: 'outlined',
       },
     ],
-    content: `Would you like to propose the selected text as child nodes?`,
+    content: `Would you like to propose the selected text as a child node?`,
     nodes: [],
     type: 'READER',
     hour: getCurrentHourHHMM(),
@@ -537,10 +537,13 @@ export const generateStartProposeChildConfirmation = (): MessageData => {
   }
 }
 
-export const generateNodeSelectorMessage = (): MessageData => {
+export const generateNodeSelectorMessage = (type: string): MessageData => {
   return {
     actions: [],
-    content: `Click the node in your notebook that represents this piece of text.`,
+    content:
+      type === 'ProposeImprovementConfirm'
+        ? `Choose a  node on 1Cademy that explains the same content as this potential node`
+        : `Choose a direct prerequisite node that one needs to learn first to be able to learn this potential node.`,
     nodes: [],
     type: 'READER',
     hour: getCurrentHourHHMM(),

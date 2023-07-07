@@ -7,7 +7,7 @@ import { Box, Button, IconButton, ThemeProvider } from '@mui/material'
 import { useState } from 'react'
 import { DESIGN_SYSTEM_COLORS } from '../utils/colors'
 import { Chat } from './ChatApp/Chat'
-import { LOGO_URL, NOTEBOOK_LINK } from '../utils/constants'
+import { LOGO_URL, NOTEBOOK_LINK, ONECADEMY_BASEURL } from '../utils/constants'
 import { useTheme } from '../hooks/useTheme'
 import {
   Flashcard,
@@ -54,26 +54,26 @@ function ChatApp() {
   >(undefined)
   const [notebooks, setNotebooks] = useState<INotebook[]>([])
 
-  // useEffect(() => {
-  //   if (window.location.href.startsWith(NOTEBOOK_LINK)) return;
-  //   chrome.runtime.onMessage.addListener((message, sender) => {
-  //     if (typeof message !== "object" || message === null) return;
-  //     if (message.type === "REQUEST_AUTHENTICATED") {
-  //       setIsAuthenticated(message.isAuthenticated);
-  //       isAuthenticatedRef.current = message.isAuthenticated;
-  //       if (!message.isAuthenticated) {
-  //         setTimeout(() => {
-  //           chrome.runtime.sendMessage(chrome.runtime.id, {
-  //             type: "REQUEST_ID_TOKEN"
-  //           });
-  //         }, 500);
-  //       }
-  //     }
-  //   });
-  //   chrome.runtime.sendMessage(chrome.runtime.id, {
-  //     type: "REQUEST_ID_TOKEN"
-  //   });
-  // }, []);
+  useEffect(() => {
+    chrome.runtime.onMessage.addListener((message, sender) => {
+      if (typeof message !== 'object' || message === null) return
+      if (message.type === 'REQUEST_AUTHENTICATED') {
+        console.log("REQUEST_AUTHENTICATED",message);
+        setIsAuthenticated(message.isAuthenticated)
+        isAuthenticatedRef.current = message.isAuthenticated
+        if (!message.isAuthenticated) {
+          setTimeout(() => {
+            chrome.runtime.sendMessage(chrome.runtime.id, {
+              type: 'REQUEST_ID_TOKEN',
+            })
+          }, 3000)
+        }
+      }
+    })
+    chrome.runtime.sendMessage(chrome.runtime.id, {
+      type: 'REQUEST_ID_TOKEN',
+    })
+  }, [])
 
   const [selectedTextMouseUpPosition, setSelectedTextMouseUpPosition] =
     useState<{ mouseX: number; mouseY: number } | null>(null)
@@ -122,6 +122,7 @@ function ChatApp() {
 
   useEffect(() => {
     const onDetectSelectedText = () => {
+      if (window.location.href.startsWith(NOTEBOOK_LINK)) return
       var selection = window.getSelection()
       if (!selection) {
         setSelectedTextMouseUpPosition(null)
@@ -308,23 +309,24 @@ function ChatApp() {
             </Button>
           )}
 
-          {!displayAssistant && (
-            <Button
-              onClick={onOpenChat}
-              sx={{
-                minWidth: '0px',
-                width: '80',
-                height: '80',
-              }}
-            >
-              <RiveComponentMemoized
-                src={chrome.runtime.getURL('rive-assistant/idle.riv')}
-                artboard="New Artboard"
-                animations={['Timeline 1']}
-                autoplay={true}
-              />
-            </Button>
-          )}
+          {!displayAssistant &&
+            !window.location.href.startsWith(ONECADEMY_BASEURL) && (
+              <Button
+                onClick={onOpenChat}
+                sx={{
+                  minWidth: '0px',
+                  width: '80',
+                  height: '80',
+                }}
+              >
+                <RiveComponentMemoized
+                  src={chrome.runtime.getURL('rive-assistant/idle.riv')}
+                  artboard="New Artboard"
+                  animations={['Timeline 1']}
+                  autoplay={true}
+                />
+              </Button>
+            )}
         </Box>
 
         {/* chat */}
