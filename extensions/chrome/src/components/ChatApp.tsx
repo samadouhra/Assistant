@@ -39,11 +39,11 @@ function ChatApp() {
     setNotebook: (notebook: any) => any
     setBookTabId: (bookTabId: any) => any
   }>({
-    pushMessage: () => {},
-    resetChat: () => {},
+    pushMessage: () => { },
+    resetChat: () => { },
     setCreatingNotebook: (creatingNotebook) => creatingNotebook,
-    setNotebook: () => {},
-    setBookTabId: () => {},
+    setNotebook: () => { },
+    setBookTabId: () => { },
   })
   const [isLoading, setIsLoading] = useState(false)
   const iframeRef = useRef<null | HTMLIFrameElement>(null)
@@ -54,26 +54,18 @@ function ChatApp() {
   >(undefined)
   const [notebooks, setNotebooks] = useState<INotebook[]>([])
 
-  // useEffect(() => {
-  //   chrome.runtime.onMessage.addListener((message, sender) => {
-  //     if (typeof message !== 'object' || message === null) return
-  //     if (message.type === 'REQUEST_AUTHENTICATED') {
-  //       console.log("REQUEST_AUTHENTICATED",message);
-  //       setIsAuthenticated(message.isAuthenticated)
-  //       isAuthenticatedRef.current = message.isAuthenticated
-  //       if (!message.isAuthenticated) {
-  //         setTimeout(() => {
-  //           chrome.runtime.sendMessage(chrome.runtime.id, {
-  //             type: 'REQUEST_ID_TOKEN',
-  //           })
-  //         }, 10000)
-  //       }
-  //     }
-  //   })
-  //   chrome.runtime.sendMessage(chrome.runtime.id, {
-  //     type: 'REQUEST_ID_TOKEN',
-  //   })
-  // }, [])
+  useEffect(() => {
+    chrome.runtime.onMessage.addListener((message, sender) => {
+      if (typeof message !== 'object' || message === null) return
+      if (message.type === 'REQUEST_AUTHENTICATED') {
+        setIsAuthenticated(message.isAuthenticated)
+        isAuthenticatedRef.current = message.isAuthenticated
+      }
+    })
+    chrome.runtime.sendMessage(chrome.runtime.id, {
+      type: 'REQUEST_ID_TOKEN',
+    })
+  }, [])
 
   const [selectedTextMouseUpPosition, setSelectedTextMouseUpPosition] =
     useState<{ mouseX: number; mouseY: number } | null>(null)

@@ -777,7 +777,7 @@ export const Chat = forwardRef(
           removeActionOfAMessage(messageId, date)
 
           setIsLoading(true)
-          console.log("-> ReplaceWithImprovement ",{
+          console.log("-> ReplaceWithImprovement ", {
             id: selectedNode?.id,
             title: selectedNode?.title,
             content: selectedNode?.content,
@@ -1177,11 +1177,10 @@ export const Chat = forwardRef(
             mode === 'dark'
               ? DESIGN_SYSTEM_COLORS.notebookG900
               : DESIGN_SYSTEM_COLORS.gray50,
-          border: `solid 2px ${
-            mode === 'light'
-              ? DESIGN_SYSTEM_COLORS.primary200
-              : DESIGN_SYSTEM_COLORS.primary400
-          }`,
+          border: `solid 2px ${mode === 'light'
+            ? DESIGN_SYSTEM_COLORS.primary200
+            : DESIGN_SYSTEM_COLORS.primary400
+            }`,
         }}
       >
         {/* header */}
@@ -1206,11 +1205,11 @@ export const Chat = forwardRef(
             flexGrow: 1,
             ...(!messagesObj.length &&
               !isLoading && {
-                backgroundImage: `url(${CHAT_BACKGROUND_IMAGE_URL})`,
-                backgroundRepeat: 'no-repeat',
-                backgroundPosition: 'center',
-                backgroundSize: '208px auto',
-              }),
+              backgroundImage: `url(${CHAT_BACKGROUND_IMAGE_URL})`,
+              backgroundRepeat: 'no-repeat',
+              backgroundPosition: 'center',
+              backgroundSize: '208px auto',
+            }),
           }}
         >
           {messagesObj.map((cur) => {
@@ -1220,18 +1219,16 @@ export const Chat = forwardRef(
                   <Divider
                     sx={{
                       ':before': {
-                        borderTop: `solid 1px ${
-                          mode === 'light'
-                            ? DESIGN_SYSTEM_COLORS.notebookG100
-                            : DESIGN_SYSTEM_COLORS.notebookG500
-                        }`,
+                        borderTop: `solid 1px ${mode === 'light'
+                          ? DESIGN_SYSTEM_COLORS.notebookG100
+                          : DESIGN_SYSTEM_COLORS.notebookG500
+                          }`,
                       },
                       ':after': {
-                        borderTop: `solid 1px ${
-                          mode === 'light'
-                            ? DESIGN_SYSTEM_COLORS.notebookG100
-                            : DESIGN_SYSTEM_COLORS.notebookG500
-                        }`,
+                        borderTop: `solid 1px ${mode === 'light'
+                          ? DESIGN_SYSTEM_COLORS.notebookG100
+                          : DESIGN_SYSTEM_COLORS.notebookG500
+                          }`,
                       },
                     }}
                   >
@@ -1342,8 +1339,8 @@ export const Chat = forwardRef(
                                 ? DESIGN_SYSTEM_COLORS.orange100
                                 : DESIGN_SYSTEM_COLORS.notebookO900
                               : mode === 'light'
-                              ? DESIGN_SYSTEM_COLORS.gray200
-                              : DESIGN_SYSTEM_COLORS.notebookG600,
+                                ? DESIGN_SYSTEM_COLORS.gray200
+                                : DESIGN_SYSTEM_COLORS.notebookG600,
                         }}
                       >
                         {c.nodes.length > 0 && (
@@ -1368,11 +1365,10 @@ export const Chat = forwardRef(
                             fontSize: '14px',
                             color: 'red',
                             '& *': {
-                              color: `${
-                                mode === 'dark'
-                                  ? DESIGN_SYSTEM_COLORS.gray25
-                                  : DESIGN_SYSTEM_COLORS.gray800
-                              } !important`,
+                              color: `${mode === 'dark'
+                                ? DESIGN_SYSTEM_COLORS.gray25
+                                : DESIGN_SYSTEM_COLORS.gray800
+                                } !important`,
                             },
                             lineHeight: '21px',
                           }}
@@ -1404,8 +1400,8 @@ export const Chat = forwardRef(
                             </Box>
                           )}
                           {c.practice &&
-                          c.practice.answered &&
-                          c.practice.totalQuestions ? (
+                            c.practice.answered &&
+                            c.practice.totalQuestions ? (
                             <Box sx={{ mt: '12px' }}>
                               <PieChart
                                 answers={c.practice.answered}
@@ -1451,10 +1447,10 @@ const mapAssistantResponseToMessage = (
   const message: MessageData = {
     actions: newMessage.actions
       ? newMessage.actions.map((c) => ({
-          title: c.title,
-          type: c.type,
-          variant: tempMap(c.variant as string),
-        }))
+        title: c.title,
+        type: c.type,
+        variant: tempMap(c.variant as string),
+      }))
       : [],
     content: newMessage.message,
     hour: getCurrentHourHHMM(),

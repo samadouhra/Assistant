@@ -59,12 +59,16 @@ export const onAssistantActions = (
 ) => {
   if (typeof message !== 'object' || message === null) return
   if (message?.type === 'REQUEST_ID_TOKEN') {
-    ;(async () => {
+    (async () => {
       const idToken = await getIdToken(sender.tab?.id!)
       chrome.tabs.sendMessage(sender.tab?.id!, {
         type: 'REQUEST_AUTHENTICATED',
         isAuthenticated: Boolean(idToken),
-      } as any)
+      } as any);
+      chrome.tabs.sendMessage(sender.tab?.id!, {
+        type: 'NOTEBOOK_ID_TOKEN',
+        token: idToken,
+      } as any);
     })()
   } else if (message?.type === 'SELECT_NOTEBOOK') {
     ;(async () => {
@@ -412,7 +416,7 @@ export const onCreateNotebook = (
   message: any,
   sender: chrome.runtime.MessageSender
 ) => {
-  ;(async () => {
+  (async () => {
     if (message?.messageType !== 'notebook:create-notebook') return
     const idToken = await getIdToken(sender.tab?.id!)
 
