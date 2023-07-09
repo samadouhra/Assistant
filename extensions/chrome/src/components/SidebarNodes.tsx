@@ -101,38 +101,6 @@ const NodeTypeIcon: FC<any> = ({
 
   return renderIcon()
 }
-const getAction = (proposed: boolean, nodeId: string, flashcard: any) => {
-  const action = proposed ? 'Open' : 'Propose'
-  let onClick = () => {
-    if (!proposed) {
-      console.log({ proposed })
-      chrome.runtime.sendMessage({
-        type: 'START_PROPOSING',
-        flashcards: [flashcard],
-        request: 'request',
-        selection: 'request',
-        notebooks: [],
-        tabId: 0,
-        selecteSidebar: true,
-      } as TAssistantNotebookMessage)
-
-      // starting to propose
-      console.log('-> ProposeIt')
-    } else {
-      chrome.runtime.sendMessage({
-        type: 'OPEN_NODE',
-        nodeId,
-      } as any)
-      // open in the notebook
-      console.log('-> Open The Notebook', nodeId)
-    }
-  }
-  return (
-    <Button onClick={onClick} variant="contained" sx={{ ml: '5px' }}>
-      {action}
-    </Button>
-  )
-}
 
 function SidebarNodes() {
   const db = getFirestore()
@@ -140,7 +108,56 @@ function SidebarNodes() {
   const [tabcUrl, setTabUrl] = useState<string>('')
   const [section, setSection] = useState<string>('')
   const [nodesWidth, setNodesWidth] = useState<number>(0)
+  const [loadingButton, setLoadingButton] = useState<boolean>(false)
   const { mode } = useTheme()
+  console.log(loadingButton)
+
+  const getAction = (proposed: boolean, nodeId: string, flashcard: any) => {
+    const action = proposed ? 'Open' : 'Propose'
+    let onClick = () => {
+      if (!proposed) {
+        console.log({ proposed })
+        setLoadingButton(true)
+        chrome.runtime.sendMessage(
+          {
+            type: 'START_PROPOSING',
+            flashcards: [flashcard],
+            request: 'request',
+            selection: 'request',
+            notebooks: [],
+            tabId: 0,
+            selecteSidebar: true,
+          } as TAssistantNotebookMessage,
+          (response) => {
+            console.log('response', response)
+            setTimeout(() => {
+              setLoadingButton(false)
+            }, 2000)
+          }
+        )
+
+        // starting to propose
+        console.log('-> ProposeIt')
+      } else {
+        chrome.runtime.sendMessage({
+          type: 'OPEN_NODE',
+          nodeId,
+        } as any)
+        // open in the notebook
+        console.log('-> Open The Notebook', nodeId)
+      }
+    }
+    return (
+      <Button
+        onClick={onClick}
+        variant="contained"
+        sx={{ ml: '5px' }}
+        disabled={loadingButton}
+      >
+        {action}
+      </Button>
+    )
+  }
 
   useEffect(() => {
     const handleScroll = () => {
@@ -148,6 +165,7 @@ function SidebarNodes() {
         location.protocol + '//' + location.host + location.pathname
       let scrollPosition = window.pageYOffset
       let sections = document.querySelectorAll('section')
+      let sectionLink = ''
       setNodesWidth((window.innerWidth - sections[1].offsetWidth) / 2 - 10)
       for (let i = 0; i < sections.length; i++) {
         let section = sections[i]
@@ -160,10 +178,20 @@ function SidebarNodes() {
                   .getElementsByClassName('subheadline save-1')[0]
                   ?.getElementsByTagName('a')[0]
               : headerElement?.getElementsByTagName('a')[0]
-          const sectionLink = baseURL + sectionElement?.getAttribute('href')
-          setTabUrl(sectionLink)
+
+          const accordianElement =
+            i === 0
+              ? headerElement.getElementsByClassName('subheadline save-1')[0]
+              : headerElement.getElementsByTagName('h2')[0]
+          const opened =
+            accordianElement?.getAttribute('data-accordion') !== 'closed'
+          const _sectionLink = baseURL + sectionElement?.getAttribute('href')
+          if (opened) {
+            sectionLink = _sectionLink
+          }
         }
       }
+      setTabUrl(sectionLink)
     }
     window.addEventListener('scroll', handleScroll)
     return () => {
@@ -186,6 +214,10 @@ function SidebarNodes() {
     }
   }, [])
   useEffect(() => {
+    if (!tabcUrl) {
+      setFlashcards([])
+      return
+    }
     const q = query(
       collection(db, 'tempFlashcards'),
       where('link', '==', tabcUrl)

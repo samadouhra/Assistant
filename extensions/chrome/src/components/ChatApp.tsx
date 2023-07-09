@@ -54,26 +54,26 @@ function ChatApp() {
   >(undefined)
   const [notebooks, setNotebooks] = useState<INotebook[]>([])
 
-  useEffect(() => {
-    chrome.runtime.onMessage.addListener((message, sender) => {
-      if (typeof message !== 'object' || message === null) return
-      if (message.type === 'REQUEST_AUTHENTICATED') {
-        console.log("REQUEST_AUTHENTICATED",message);
-        setIsAuthenticated(message.isAuthenticated)
-        isAuthenticatedRef.current = message.isAuthenticated
-        if (!message.isAuthenticated) {
-          setTimeout(() => {
-            chrome.runtime.sendMessage(chrome.runtime.id, {
-              type: 'REQUEST_ID_TOKEN',
-            })
-          }, 3000)
-        }
-      }
-    })
-    chrome.runtime.sendMessage(chrome.runtime.id, {
-      type: 'REQUEST_ID_TOKEN',
-    })
-  }, [])
+  // useEffect(() => {
+  //   chrome.runtime.onMessage.addListener((message, sender) => {
+  //     if (typeof message !== 'object' || message === null) return
+  //     if (message.type === 'REQUEST_AUTHENTICATED') {
+  //       console.log("REQUEST_AUTHENTICATED",message);
+  //       setIsAuthenticated(message.isAuthenticated)
+  //       isAuthenticatedRef.current = message.isAuthenticated
+  //       if (!message.isAuthenticated) {
+  //         setTimeout(() => {
+  //           chrome.runtime.sendMessage(chrome.runtime.id, {
+  //             type: 'REQUEST_ID_TOKEN',
+  //           })
+  //         }, 10000)
+  //       }
+  //     }
+  //   })
+  //   chrome.runtime.sendMessage(chrome.runtime.id, {
+  //     type: 'REQUEST_ID_TOKEN',
+  //   })
+  // }, [])
 
   const [selectedTextMouseUpPosition, setSelectedTextMouseUpPosition] =
     useState<{ mouseX: number; mouseY: number } | null>(null)
@@ -97,7 +97,7 @@ function ChatApp() {
     // );
     setIsLoading(true)
   }
-
+  console.log('displayAssistant', displayAssistant)
   const onOpenChat = () => {
     setDisplayAssistant(true)
     if (!selectedText) return
@@ -195,6 +195,7 @@ function ChatApp() {
         setFlashcards(message.flashcards)
         setNotebooks(message.notebooks)
         setSelecteSidebar(message.selecteSidebar)
+        chatRef.current.resetChat()
         chatRef.current.pushMessage(
           generateNotebookProposalApproval(
             message.request,

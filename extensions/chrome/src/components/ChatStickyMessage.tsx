@@ -21,7 +21,7 @@ export const ChatStickyMessage = () => {
           }`,
       }}
     >
-      <Typography
+{/*       <Typography
         sx={{
           color:
             mode === "light"
@@ -31,7 +31,7 @@ export const ChatStickyMessage = () => {
         }}
       >
         This conversation is recorded and can be viewable by instructors
-      </Typography>
+      </Typography> */}
     </Box>
   )
 }

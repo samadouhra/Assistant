@@ -344,6 +344,7 @@ export type MessageAction = {
   title: string;
   variant: ActionVariant;
   data?: any;
+  nodeSelectionType?: "Parent" | "Improvement";
 };
 
 export type MessageData = {

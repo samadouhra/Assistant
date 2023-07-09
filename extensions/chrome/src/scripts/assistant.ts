@@ -54,7 +54,8 @@ export const idTokenListener = (message: any) => {
 
 export const onAssistantActions = (
   message: any,
-  sender: chrome.runtime.MessageSender
+  sender: chrome.runtime.MessageSender,
+  sendResponse: (response: any) => void
 ) => {
   if (typeof message !== 'object' || message === null) return
   if (message?.type === 'REQUEST_ID_TOKEN') {
@@ -105,7 +106,10 @@ export const onAssistantActions = (
     ;(async () => {
       const bookTabId = sender.tab?.id!
       const tabId = await findOrCreateNotebookTab()
-      const notebooks = await getNotebooks(tabId)
+      let notebooks: any = []
+      while (!notebooks.length) {
+        notebooks = await getNotebooks(tabId)
+      }
       await chrome.tabs.sendMessage(bookTabId, {
         type: 'LOADING_COMPLETED',
       })
@@ -114,7 +118,7 @@ export const onAssistantActions = (
       })
 
       console.log({ message, tabId }, 'START_PROPOSING')
-      await chrome.tabs.sendMessage(tabId, {
+      const response = await chrome.tabs.sendMessage(tabId, {
         ...message,
         tabId: bookTabId,
         notebooks,
@@ -318,6 +322,7 @@ export const onAssistantActions = (
       })
     })()
   }
+  sendResponse({ response: 'Response data' })
 }
 
 export const onAskAssistant = (

@@ -567,17 +567,24 @@ export const Chat = forwardRef(
             id: notebook.documentId!,
             name: notebook.title,
           })
-
+          const nodeClickEvent = new CustomEvent('Notebook-selection', {
+            detail: {
+              id: notebook.documentId!,
+              name: notebook.title,
+            },
+          })
+          window.dispatchEvent(nodeClickEvent)
           const messageWithSelectedAction = generateUserActionAnswer(
             notebook.title
           )
           pushMessage(messageWithSelectedAction, getCurrentDateYYMMDD())
           removeActionOfAMessage(messageId, date)
-
-          pushMessage(
-            generateNotebookIntro(flashcards, selecteSidebar),
-            getCurrentDateYYMMDD()
-          )
+          if (!selecteSidebar) {
+            pushMessage(
+              generateNotebookIntro(flashcards, selecteSidebar),
+              getCurrentDateYYMMDD()
+            )
+          }
           setTimeout(scrollToTheEnd, 1000)
 
           setNodeIdx(0)
@@ -599,11 +606,16 @@ export const Chat = forwardRef(
 
       if (action.type === 'ContinueNodeSelection') {
         onClick = () => {
-          console.log('-> ContinueNodeSelection')
-
+          console.log('-> ContinueNodeSelection', action.nodeSelectionType)
           const messageWithSelectedAction = generateUserActionAnswer(
             action.title
           )
+          const nodeClickEvent = new CustomEvent('node-selection', {
+            detail: {
+              type: action.nodeSelectionType,
+            },
+          })
+          window.dispatchEvent(nodeClickEvent)
           pushMessage(messageWithSelectedAction, getCurrentDateYYMMDD())
           removeActionOfAMessage(messageId, date)
           pushMessage(
@@ -700,7 +712,10 @@ export const Chat = forwardRef(
 
           if (nodeSelection === 'Improvement') {
             pushMessage(
-              generateImprovementTypeSelectorMessage(),
+              generateImprovementTypeSelectorMessage({
+                selectedNode: 'selectedNode',
+                potentialNode: 'potentialNode',
+              }),
               getCurrentDateYYMMDD()
             )
             chrome.runtime.sendMessage({
@@ -738,7 +753,10 @@ export const Chat = forwardRef(
           removeActionOfAMessage(messageId, date)
 
           pushMessage(
-            generateImprovementTypeSelectorMessage(),
+            generateImprovementTypeSelectorMessage({
+              selectedNode: 'selectedNode',
+              potentialNode: 'potentialNode',
+            }),
             getCurrentDateYYMMDD()
           )
           setTimeout(scrollToTheEnd, 1000)
@@ -759,6 +777,11 @@ export const Chat = forwardRef(
           removeActionOfAMessage(messageId, date)
 
           setIsLoading(true)
+          console.log("-> ReplaceWithImprovement ",{
+            id: selectedNode?.id,
+            title: selectedNode?.title,
+            content: selectedNode?.content,
+          })
           chrome.runtime.sendMessage({
             type:
               action.type === 'ReplaceWithImprovement'
@@ -1042,17 +1065,51 @@ export const Chat = forwardRef(
     }, [nextFlashcard])
 
     useEffect(() => {
-      if (!nodeSelection) return
+      console.log('-> ConfirmNodeSelection 2', nodeSelection)
+      if (!nodeSelection || !currentFlashcard) return
+      console.log('Chat ', { nodeSelection })
       const listener = (e: any) => {
-        pushMessage(
-          generateConfirmNodeSelection(e.detail),
-          getCurrentDateYYMMDD()
-        )
+        console.log('-> ConfirmNodeSelection 1', nodeSelection)
+        console.log('-> e.detail.node Improvement', e.detail)
+        setSelectedNode(e.detail)
+        if (nodeSelection === 'Improvement') {
+          pushMessage(
+            generateImprovementTypeSelectorMessage({
+              selectedNode: e.detail.title,
+              potentialNode: currentFlashcard.title,
+            }),
+            getCurrentDateYYMMDD()
+          )
+          chrome.runtime.sendMessage({
+            type: 'CLEAR',
+          })
+          setTimeout(scrollToTheEnd, 1000)
+        } else if (nodeSelection === 'Parent') {
+          console.log('-> StartProposeChild')
+          setIsLoading(true)
+          chrome.runtime.sendMessage({
+            type: 'PROPOSE_CHILD',
+            selectedNode: {
+              id: e.detail.id,
+              title: e.detail.title,
+              content: e.detail.content,
+            },
+            flashcard: currentFlashcard,
+            bookTabId,
+            selecteSidebar,
+          })
+        }
+        setNodeSelection(null)
         setTimeout(scrollToTheEnd, 1000)
+        // pushMessage(
+        //   generateConfirmNodeSelection(e.detail),
+        //   getCurrentDateYYMMDD()
+        // )
+        // setTimeout(scrollToTheEnd, 1000)
       }
       window.addEventListener('node-selected', listener)
-      return () => window.removeEventListener('node-selected', listener)
-    }, [nodeSelection, pushMessage])
+      return () => window.removeEventListener('node-selection', listener)
+    }, [nodeSelection, messagesObj])
 
     useEffect(() => {
       if (!currentFlashcard) return
@@ -1196,12 +1253,6 @@ export const Chat = forwardRef(
                     direction={c.type === 'READER' ? 'row' : 'row-reverse'}
                     spacing="12px"
                   >
-                    {c.type === 'READER' && (
-                      <CustomAvatar
-                        imageUrl={LOGO_URL}
-                        alt="onecademy assistant logo"
-                      />
-                    )}
                     <Box>
                       <Box
                         sx={{
@@ -1212,6 +1263,12 @@ export const Chat = forwardRef(
                         }}
                       >
                         <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                          {c.type === 'READER' && (
+                            <CustomAvatar
+                              imageUrl={LOGO_URL}
+                              alt="onecademy assistant logo"
+                            />
+                          )}
                           <Typography
                             sx={{
                               fontWeight: 500,
@@ -1220,6 +1277,8 @@ export const Chat = forwardRef(
                                 mode === 'dark'
                                   ? DESIGN_SYSTEM_COLORS.gray25
                                   : DESIGN_SYSTEM_COLORS.gray900,
+                              ml: '4px',
+                              p: '4px',
                             }}
                           >
                             {c.type === 'READER'
@@ -1272,7 +1331,7 @@ export const Chat = forwardRef(
                       </Box>
                       <Box
                         sx={{
-                          p: '10px 14px',
+                          p: '10px 10px',
                           borderRadius:
                             c.type === 'WRITER'
                               ? '8px 0px 8px 8px'

@@ -195,7 +195,12 @@ export const generateNotebookIntro = (
     actions: [],
     content: selecteSidebar
       ? ` I'm going to assist you step-by-step to propose the potential node. `
-      : `I extracted ${flashcards.length} potential nodes from your selected text. I'm going to assist you step-by-step to propose a node for each of them that you find necessary.`,
+      : `I extracted ${flashcards.length} potential ` +
+        (flashcards.length === 1 ? `node` : `nodes`) +
+        `from your selected text. I'm going to assist you step-by-step to propose a node for` +
+        (flashcards.length === 1
+          ? ` it if you find it necessary`
+          : ` each of them that you find necessary.`),
     nodes: [],
     type: 'READER',
     hour: getCurrentHourHHMM(),
@@ -220,7 +225,7 @@ export const generateNotebookProposalApproval = (
         },
       },
       {
-        title: 'No',
+        title: 'Switch',
         type: 'ChooseNotebook',
         variant: 'outlined',
       },
@@ -276,8 +281,8 @@ export const generateNodeProposeMessage = (
     actions: [],
     content:
       flashcardsLength > 1
-        ? `**Node ${nodeIdx}:**\n**${node.title}**  \n\n${node.content}`
-        : `**${node.title}**  \n\n${node.content}`,
+        ? `I'm going to assist you step-by-step to propose the following potential node:  \n\n**Node ${nodeIdx}:**\n**${node.title}**  \n\n${node.content}`
+        : `I'm going to assist you step-by-step to propose the following potential node:  \n\n**${node.title}**  \n\n${node.content}`,
     nodes: [],
     type: 'READER',
     hour: getCurrentHourHHMM(),
@@ -327,7 +332,7 @@ export const generateNodeDiscoverMessage = (): MessageData => {
         variant: 'outlined',
       },
     ],
-    content: `Can you find any node on 1Cademy that explains the same content as this potential node?`,
+    content: `Can you find any node on 1Cademy that explains the exact same topic as this potential node?`,
     nodes: [],
     type: 'READER',
     hour: getCurrentHourHHMM(),
@@ -413,6 +418,7 @@ export const generateParentDiscoverMessage = (): MessageData => {
 export const generateConfirmNodeSelection = (node: {
   title: string
   [key: string]: any
+  nodeSelectionType: 'Parent' | 'Improvement'
 }): MessageData => {
   return {
     actions: [
@@ -427,6 +433,7 @@ export const generateConfirmNodeSelection = (node: {
       {
         title: 'No',
         type: 'ContinueNodeSelection',
+        nodeSelectionType: node.nodeSelectionType,
         variant: 'outlined',
       },
     ],
@@ -542,8 +549,8 @@ export const generateNodeSelectorMessage = (type: string): MessageData => {
     actions: [],
     content:
       type === 'ProposeImprovementConfirm'
-        ? `Choose a  node on 1Cademy that explains the same content as this potential node`
-        : `Choose a direct prerequisite node that one needs to learn first to be able to learn this potential node.`,
+        ? `Please choose a node on 1Cademy that explains the exact same topic as this potential node.`
+        : `Please Choose a direct prerequisite node that one needs to learn first to be able to learn this potential node.`,
     nodes: [],
     type: 'READER',
     hour: getCurrentHourHHMM(),
@@ -553,49 +560,33 @@ export const generateNodeSelectorMessage = (type: string): MessageData => {
   }
 }
 
-export const generateImprovementTypeSelectorMessage = (): MessageData => {
+export const generateImprovementTypeSelectorMessage = ({
+  selectedNode,
+  potentialNode,
+}: {
+  selectedNode: string
+  potentialNode: string
+}): MessageData => {
   return {
     actions: [
       {
-        title:
-          'Use the potential node title and content to generate an improvement proposal.',
+        title: 'Use only the title and content of the potential node.',
         type: 'ReplaceWithImprovement',
         variant: 'outlined',
       },
       {
-        title:
-          'Combine the current title and content of the node with the title and content of the potential node.',
+        title: 'Merge the chosen node with the potential node.',
         type: 'CombineWithImprovement',
         variant: 'outlined',
       },
-    ],
-    content: `How can I help you with improving the selected node?`,
-    nodes: [],
-    type: 'READER',
-    hour: getCurrentHourHHMM(),
-    id: generateRandomId(),
-    image: '',
-    video: '',
-  }
-}
-
-export const generateSkipOrCancelMessage = (): MessageData => {
-  return {
-    actions: [
       {
-        title:
-          'Use the potential node title and content to generate an improvement proposal.',
-        type: 'ReplaceWithImprovement',
-        variant: 'outlined',
-      },
-      {
-        title:
-          'Combine the current title and content of the node with the title and content of the potential node.',
-        type: 'CombineWithImprovement',
+        title: 'Choose a different node to improve.',
+        type: 'ContinueNodeSelection',
+        nodeSelectionType: 'Improvement',
         variant: 'outlined',
       },
     ],
-    content: `How can I help you with improving the selected node?`,
+    content: `How can I help you with improving the selected node **${selectedNode}** based on the potential node **${potentialNode}**`,
     nodes: [],
     type: 'READER',
     hour: getCurrentHourHHMM(),
