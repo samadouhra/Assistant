@@ -71,6 +71,7 @@ import {
   generateTopicNotFound,
   generateUserActionAnswer,
   generateWhereContinueExplanation,
+  reviseChildNodeMessage,
   reviseQuestionNodeMessage,
 } from '../../utils/messages'
 import SearchMessage from './SearchMessage'
@@ -791,6 +792,8 @@ export const Chat = forwardRef(
             bookTabId,
             selecteSidebar,
           })
+
+          pushMessage(reviseChildNodeMessage(),getCurrentDateYYMMDD())
         }
       }
 
@@ -1115,7 +1118,8 @@ export const Chat = forwardRef(
             bookTabId,
             selecteSidebar,
           })
-        }
+          pushMessage(reviseChildNodeMessage(),getCurrentDateYYMMDD())
+        } 
         setNodeSelection(null)
         setTimeout(scrollToTheEnd, 1000)
         // pushMessage(

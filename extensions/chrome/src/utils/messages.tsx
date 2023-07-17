@@ -665,3 +665,16 @@ export const reviseQuestionNodeMessage = (): MessageData => {
     video: '',
   }
 }
+
+export const reviseChildNodeMessage = (): MessageData => {
+  return {
+    actions: [],
+    content: `I just drafted the potential node as a child. Please revise and propose it.`,
+    nodes: [],
+    type: 'READER',
+    hour: getCurrentHourHHMM(),
+    id: generateRandomId(),
+    image: '',
+    video: '',
+  }
+}

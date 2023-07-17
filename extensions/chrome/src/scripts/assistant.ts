@@ -205,6 +205,7 @@ export const onAssistantActions = (
           referenceNode: NodeLinkType | undefined,
           bookUrl: string
         ) => {
+          const newBookUrl = message.flashcard.link ? message.flashcard.link : bookUrl
           console.log('proposing a child', {
             type: 'CHILD',
             selectedNode: message.selectedNode,
@@ -212,7 +213,7 @@ export const onAssistantActions = (
             title: message.flashcard?.title,
             content: message.flashcard?.content,
             referenceNode,
-            bookUrl: message.flashcard.link ? message.flashcard.link : bookUrl,
+            bookUrl: newBookUrl
           })
           const editorEvent = new CustomEvent('assistant', {
             detail: {
@@ -222,7 +223,7 @@ export const onAssistantActions = (
               title: message.flashcard?.title,
               content: message.flashcard?.content,
               referenceNode,
-              bookUrl,
+              bookUrl:newBookUrl
             },
           })
           window.dispatchEvent(editorEvent)
