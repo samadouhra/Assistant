@@ -59,16 +59,16 @@ export const onAssistantActions = (
 ) => {
   if (typeof message !== 'object' || message === null) return
   if (message?.type === 'REQUEST_ID_TOKEN') {
-    (async () => {
+    ;(async () => {
       const idToken = await getIdToken(sender.tab?.id!)
       chrome.tabs.sendMessage(sender.tab?.id!, {
         type: 'REQUEST_AUTHENTICATED',
         isAuthenticated: Boolean(idToken),
-      } as any);
+      } as any)
       chrome.tabs.sendMessage(sender.tab?.id!, {
         type: 'NOTEBOOK_ID_TOKEN',
         token: idToken,
-      } as any);
+      } as any)
     })()
   } else if (message?.type === 'SELECT_NOTEBOOK') {
     ;(async () => {
@@ -325,6 +325,81 @@ export const onAssistantActions = (
         },
       })
     })()
+  } else if (message?.type === 'GENERATE_QUESTION_NODE') {
+    ;(async () => {
+      console.log('GENERATE_QUESTION_NODE')
+      const tabId = sender.tab?.id!
+      const idToken = await getIdToken(tabId)
+      const notebookTabId: number = sender.tab?.id!
+
+      const headers: any = {
+        'Content-Type': 'application/json',
+      }
+      if (idToken) {
+        headers['Authorization'] = `Bearer ${idToken}`
+      }
+      const res = await fetch(
+        `${ENDPOINT_BASE}/assistant/generateQuestionNode`,
+        {
+          method: 'POST',
+          body: JSON.stringify({
+            nodeTitle: message?.flashcard?.title,
+            nodeContent: message?.flashcard?.content,
+          }),
+          headers,
+        }
+      )
+      const data = await res.json()
+      console.log(data)
+      await chrome.scripting.executeScript({
+        target: {
+          tabId: notebookTabId,
+        },
+        args: [message, data /* , referenceNode, bookUrl */],
+        func: (
+          message: any,
+          data: any
+          /*           referenceNode: NodeLinkType | undefined,
+          bookUrl: string */
+        ) => {
+          console.log('proposing a child Line 364', {
+            type: 'CHILD',
+            selectedNode: message.selectedNode,
+            flashcard: message.flashcard,
+            title: message.flashcard?.title,
+            content: message.flashcard?.content,
+            /*             referenceNode, */
+            /*   bookUrl: message.flashcard.link ? message.flashcard.link : bookUrl, */
+            detail: {
+              type: 'CHILD',
+              selectedNode: message.selectedNode,
+              flashcard: message.flashcard,
+              title: data.Stem,
+              content: '',
+              choices: data.Choices,
+              /*referenceNode,
+              bookUrl, */
+            },
+          })
+          console.log('--> data', data)
+          message.flashcard.type = 'Question'
+          const editorEvent = new CustomEvent('assistant', {
+            detail: {
+              type: 'CHILD',
+              selectedNode: message.selectedNode,
+              flashcard: message.flashcard,
+              title: data.Stem,
+              content: '',
+              choices: data.Choices,
+              /*referenceNode,
+              bookUrl, */
+            },
+          })
+          window.dispatchEvent(editorEvent)
+        },
+      })
+      console.log('generateQuestionNode', data)
+    })()
   }
   sendResponse({ response: 'Response data' })
 }
@@ -416,7 +491,7 @@ export const onCreateNotebook = (
   message: any,
   sender: chrome.runtime.MessageSender
 ) => {
-  (async () => {
+  ;(async () => {
     if (message?.messageType !== 'notebook:create-notebook') return
     const idToken = await getIdToken(sender.tab?.id!)
 

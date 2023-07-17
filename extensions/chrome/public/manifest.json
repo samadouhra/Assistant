@@ -64,8 +64,8 @@
   },
   "short_name": "1Cademy Assistant Helper",
   "update_url": "https://clients2.google.com/service/update2/crx",
-  "version": "0.0.0.7",
-  "version_name": "0.0.0.7",
+  "version": "0.0.0.8",
+  "version_name": "0.0.0.8",
   "web_accessible_resources": [
     {
       "resources": [

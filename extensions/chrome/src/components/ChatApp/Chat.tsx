@@ -9,6 +9,7 @@ import {
   Button,
   Divider,
   IconButton,
+  Paper,
   Stack,
   SxProps,
   Typography,
@@ -63,12 +64,14 @@ import {
   generateParentDiscoverMessage,
   generateProposeChildConfirmation,
   generateProposeImprovementConfirmation,
+  generateQuestions,
   generateSearchNodeMessage,
   generateStartProposeChildConfirmation,
   generateTopicMessage,
   generateTopicNotFound,
   generateUserActionAnswer,
   generateWhereContinueExplanation,
+  reviseQuestionNodeMessage,
 } from '../../utils/messages'
 import SearchMessage from './SearchMessage'
 import moment from 'moment'
@@ -78,6 +81,7 @@ import { ChatFooter } from '../ChatFooter'
 import { ChatStickyMessage } from '../ChatStickyMessage'
 import { PieChart } from '../Charts/PieComponent'
 import { INotebook } from '../../types/INotebook'
+import { setLogLevel } from 'firebase/firestore'
 
 const tempMap = (variant: string): ActionVariant => {
   if (variant === 'outline') return 'outlined'
@@ -148,6 +152,19 @@ export const Chat = forwardRef(
     const [selectedNode, setSelectedNode] = useState<TNode | null>(null)
     const [creatingNotebook, setCreatingNotebook] = useState<boolean>(false)
     const [bookTabId, setBookTabId] = useState<number>(0)
+    const [proposedNode, setProposedNode] = useState<string>('')
+
+    useEffect(() => {
+      scrollChatToBottom()
+    }, [messagesObj])
+
+    const scrollChatToBottom = () => {
+      chatElementRef.current?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'end',
+        inline: 'nearest',
+      })
+    }
 
     const pushMessage = useCallback(
       (message: MessageData, currentDateYYMMDD: string) => {
@@ -325,9 +342,10 @@ export const Chat = forwardRef(
     const nextFlashcard = useCallback((delay = 500) => {
       setFlashcards((flashcards: any[]) => {
         // end potential nodes flow
-        if (!flashcards.length) {
-          pushMessage(generateBackToReadingMessage(), getCurrentDateYYMMDD())
-          setTimeout(scrollToTheEnd, 1000)
+        console.log('flashcards', flashcards)
+        if (!flashcards || !flashcards.length) {
+          // pushMessage(generateBackToReadingMessage(), getCurrentDateYYMMDD())
+          // setTimeout(scrollToTheEnd, 1000)
           return
         }
 
@@ -698,71 +716,6 @@ export const Chat = forwardRef(
           setDisplayAssistant(false)
         }
       }
-
-      if (action.type === 'ConfirmNodeSelection') {
-        onClick = () => {
-          console.log('-> ConfirmNodeSelection', nodeSelection)
-          setSelectedNode(action.data.node)
-
-          const messageWithSelectedAction = generateUserActionAnswer(
-            action.title
-          )
-          pushMessage(messageWithSelectedAction, getCurrentDateYYMMDD())
-          removeActionOfAMessage(messageId, date)
-
-          if (nodeSelection === 'Improvement') {
-            pushMessage(
-              generateImprovementTypeSelectorMessage({
-                selectedNode: 'selectedNode',
-                potentialNode: 'potentialNode',
-              }),
-              getCurrentDateYYMMDD()
-            )
-            chrome.runtime.sendMessage({
-              type: 'CLEAR',
-            })
-            setTimeout(scrollToTheEnd, 1000)
-          } else if (nodeSelection === 'Parent') {
-            console.log('-> StartProposeChild')
-            setIsLoading(true)
-            chrome.runtime.sendMessage({
-              type: 'PROPOSE_CHILD',
-              selectedNode: {
-                id: action.data.node.id,
-                title: action.data.node.title,
-                content: action.data.node.content,
-              },
-              flashcard: currentFlashcard,
-              bookTabId,
-              selecteSidebar,
-            })
-          }
-          setNodeSelection(null)
-          setTimeout(scrollToTheEnd, 1000)
-        }
-      }
-
-      if (action.type === 'StartProposeImprovement') {
-        onClick = () => {
-          console.log('-> StartProposeImprovement')
-
-          const messageWithSelectedAction = generateUserActionAnswer(
-            action.title
-          )
-          pushMessage(messageWithSelectedAction, getCurrentDateYYMMDD())
-          removeActionOfAMessage(messageId, date)
-
-          pushMessage(
-            generateImprovementTypeSelectorMessage({
-              selectedNode: 'selectedNode',
-              potentialNode: 'potentialNode',
-            }),
-            getCurrentDateYYMMDD()
-          )
-          setTimeout(scrollToTheEnd, 1000)
-        }
-      }
-
       if (
         action.type === 'ReplaceWithImprovement' ||
         action.type === 'CombineWithImprovement'
@@ -777,7 +730,7 @@ export const Chat = forwardRef(
           removeActionOfAMessage(messageId, date)
 
           setIsLoading(true)
-          console.log("-> ReplaceWithImprovement ", {
+          console.log('-> ReplaceWithImprovement ', {
             id: selectedNode?.id,
             title: selectedNode?.title,
             content: selectedNode?.content,
@@ -866,10 +819,42 @@ export const Chat = forwardRef(
           pushMessage(messageWithSelectedAction, getCurrentDateYYMMDD())
           removeActionOfAMessage(messageId, date)
 
+          // pushMessage(
+          //   generateExitPotentialNodesMessage(),
+          //   getCurrentDateYYMMDD()
+          // )
+          setTimeout(scrollToTheEnd, 1000)
+        }
+      }
+      if (action.type === 'proposeQuestionNode') {
+        onClick = () => {
+          console.log('-> proposeQuestionNode', currentFlashcard)
+          chrome.runtime.sendMessage({
+            type: 'GENERATE_QUESTION_NODE',
+            selectedNode: {
+              id: proposedNode,
+              title: selectedNode?.title,
+              content: selectedNode?.content,
+            },
+            flashcard: currentFlashcard,
+            bookTabId,
+            selecteSidebar,
+          })
+          pushMessage(reviseQuestionNodeMessage(), getCurrentDateYYMMDD())
+          removeActionOfAMessage(messageId, date)
+          setIsLoading(false)
+          setTimeout(scrollToTheEnd, 1000)
+        }
+      }
+
+      if (action.type === 'SkipQuestionNode') {
+        onClick = () => {
+          console.log('-> proposeQuestionNode', currentFlashcard)
           pushMessage(
             generateExitPotentialNodesMessage(),
             getCurrentDateYYMMDD()
           )
+          removeActionOfAMessage(messageId, date)
           setTimeout(scrollToTheEnd, 1000)
         }
       }
@@ -880,6 +865,19 @@ export const Chat = forwardRef(
         </Button>
       )
     }
+
+    useEffect(() => {
+      setTimeout(scrollToTheEnd, 2000)
+    }, [isLoading])
+
+    useEffect(() => {
+      console.log('-> ConfirmNodeSelection 2', nodeSelection)
+      const listener = (e: any) => {
+        setIsLoading(true)
+      }
+      window.addEventListener('proposed-node-loading', listener)
+      return () => window.removeEventListener('proposed-node-loading', listener)
+    }, [pushMessage])
 
     useEffect(() => {
       // following listener only for non-notebook tabs
@@ -1041,8 +1039,9 @@ export const Chat = forwardRef(
           proposal: string
           flashcard: Flashcard
           token: string
+          proposedType?: 'Parent' | 'Improvement'
         } = e?.detail || ({} as any)
-
+        setProposedNode(detail.node)
         chrome.runtime.sendMessage({
           type: 'PROPOSE_FLASHCARD',
           node: detail.node,
@@ -1051,6 +1050,11 @@ export const Chat = forwardRef(
           token: detail.token,
           bookTabId,
         })
+        pushMessage(
+          generateQuestions(false, detail.proposedType),
+          getCurrentDateYYMMDD()
+        )
+        setIsLoading(false)
       }
       window.addEventListener('propose-flashcard', listener)
       return () => window.removeEventListener('propose-flashcard', listener)
@@ -1065,6 +1069,20 @@ export const Chat = forwardRef(
     }, [nextFlashcard])
 
     useEffect(() => {
+      const listener = (e: any) => {
+        console.log(e.detail)
+        pushMessage(
+          generateQuestions(true),
+          getCurrentDateYYMMDD()
+        )
+        setIsLoading(false)
+      }
+      window.addEventListener('question-node-proposed', listener)
+      return () =>
+        window.removeEventListener('question-node-proposed', listener)
+    }, [nextFlashcard])
+
+    useEffect(() => {
       console.log('-> ConfirmNodeSelection 2', nodeSelection)
       if (!nodeSelection || !currentFlashcard) return
       console.log('Chat ', { nodeSelection })
@@ -1072,7 +1090,7 @@ export const Chat = forwardRef(
         console.log('-> ConfirmNodeSelection 1', nodeSelection)
         console.log('-> e.detail.node Improvement', e.detail)
         setSelectedNode(e.detail)
-        if (nodeSelection === 'Improvement') {
+        if (e.detail.nodeSelectionType === 'Improvement') {
           pushMessage(
             generateImprovementTypeSelectorMessage({
               selectedNode: e.detail.title,
@@ -1084,9 +1102,8 @@ export const Chat = forwardRef(
             type: 'CLEAR',
           })
           setTimeout(scrollToTheEnd, 1000)
-        } else if (nodeSelection === 'Parent') {
+        } else if (e.detail.nodeSelectionType === 'Parent') {
           console.log('-> StartProposeChild')
-          setIsLoading(true)
           chrome.runtime.sendMessage({
             type: 'PROPOSE_CHILD',
             selectedNode: {
@@ -1108,7 +1125,7 @@ export const Chat = forwardRef(
         // setTimeout(scrollToTheEnd, 1000)
       }
       window.addEventListener('node-selected', listener)
-      return () => window.removeEventListener('node-selection', listener)
+      return () => window.removeEventListener('node-selected', listener)
     }, [nodeSelection, messagesObj])
 
     useEffect(() => {
@@ -1177,10 +1194,11 @@ export const Chat = forwardRef(
             mode === 'dark'
               ? DESIGN_SYSTEM_COLORS.notebookG900
               : DESIGN_SYSTEM_COLORS.gray50,
-          border: `solid 2px ${mode === 'light'
-            ? DESIGN_SYSTEM_COLORS.primary200
-            : DESIGN_SYSTEM_COLORS.primary400
-            }`,
+          border: `solid 2px ${
+            mode === 'light'
+              ? DESIGN_SYSTEM_COLORS.primary200
+              : DESIGN_SYSTEM_COLORS.primary400
+          }`,
         }}
       >
         {/* header */}
@@ -1205,11 +1223,11 @@ export const Chat = forwardRef(
             flexGrow: 1,
             ...(!messagesObj.length &&
               !isLoading && {
-              backgroundImage: `url(${CHAT_BACKGROUND_IMAGE_URL})`,
-              backgroundRepeat: 'no-repeat',
-              backgroundPosition: 'center',
-              backgroundSize: '208px auto',
-            }),
+                backgroundImage: `url(${CHAT_BACKGROUND_IMAGE_URL})`,
+                backgroundRepeat: 'no-repeat',
+                backgroundPosition: 'center',
+                backgroundSize: '208px auto',
+              }),
           }}
         >
           {messagesObj.map((cur) => {
@@ -1219,16 +1237,18 @@ export const Chat = forwardRef(
                   <Divider
                     sx={{
                       ':before': {
-                        borderTop: `solid 1px ${mode === 'light'
-                          ? DESIGN_SYSTEM_COLORS.notebookG100
-                          : DESIGN_SYSTEM_COLORS.notebookG500
-                          }`,
+                        borderTop: `solid 1px ${
+                          mode === 'light'
+                            ? DESIGN_SYSTEM_COLORS.notebookG100
+                            : DESIGN_SYSTEM_COLORS.notebookG500
+                        }`,
                       },
                       ':after': {
-                        borderTop: `solid 1px ${mode === 'light'
-                          ? DESIGN_SYSTEM_COLORS.notebookG100
-                          : DESIGN_SYSTEM_COLORS.notebookG500
-                          }`,
+                        borderTop: `solid 1px ${
+                          mode === 'light'
+                            ? DESIGN_SYSTEM_COLORS.notebookG100
+                            : DESIGN_SYSTEM_COLORS.notebookG500
+                        }`,
                       },
                     }}
                   >
@@ -1339,8 +1359,8 @@ export const Chat = forwardRef(
                                 ? DESIGN_SYSTEM_COLORS.orange100
                                 : DESIGN_SYSTEM_COLORS.notebookO900
                               : mode === 'light'
-                                ? DESIGN_SYSTEM_COLORS.gray200
-                                : DESIGN_SYSTEM_COLORS.notebookG600,
+                              ? DESIGN_SYSTEM_COLORS.gray200
+                              : DESIGN_SYSTEM_COLORS.notebookG600,
                         }}
                       >
                         {c.nodes.length > 0 && (
@@ -1365,10 +1385,11 @@ export const Chat = forwardRef(
                             fontSize: '14px',
                             color: 'red',
                             '& *': {
-                              color: `${mode === 'dark'
-                                ? DESIGN_SYSTEM_COLORS.gray25
-                                : DESIGN_SYSTEM_COLORS.gray800
-                                } !important`,
+                              color: `${
+                                mode === 'dark'
+                                  ? DESIGN_SYSTEM_COLORS.gray25
+                                  : DESIGN_SYSTEM_COLORS.gray800
+                              } !important`,
                             },
                             lineHeight: '21px',
                           }}
@@ -1377,6 +1398,41 @@ export const Chat = forwardRef(
                             text={c.content}
                             customClass="one-react-markdown"
                           />
+                          {c.markDownContent && (
+                            <Paper
+                              elevation={3}
+                              sx={{
+                                overflow: 'hidden',
+                                listStyle: 'none',
+                                mb: '10px',
+                                padding: {
+                                  xs: '5px 10px',
+                                  sm: '12px 16px 10px 16px',
+                                },
+                                background:
+                                  mode === 'light'
+                                    ? DESIGN_SYSTEM_COLORS.gray100
+                                    : DESIGN_SYSTEM_COLORS.notebookG700,
+                                borderRadius: '8px',
+                                borderLeft: 'solid 6px #fd7373',
+
+                                ':hover': {
+                                  backgroundColor:
+                                    mode === 'light'
+                                      ? DESIGN_SYSTEM_COLORS.gray250
+                                      : DESIGN_SYSTEM_COLORS.notebookG500,
+                                },
+                                ml: '3px',
+                                mt: '10px',
+                              }}
+                            >
+                              <MarkdownRender
+                                text={c.markDownContent}
+                                customClass="one-react-markdown"
+                              />
+                            </Paper>
+                          )}
+
                           {c.image && (
                             <img
                               src={c.image}
@@ -1400,8 +1456,8 @@ export const Chat = forwardRef(
                             </Box>
                           )}
                           {c.practice &&
-                            c.practice.answered &&
-                            c.practice.totalQuestions ? (
+                          c.practice.answered &&
+                          c.practice.totalQuestions ? (
                             <Box sx={{ mt: '12px' }}>
                               <PieChart
                                 answers={c.practice.answered}
@@ -1422,11 +1478,13 @@ export const Chat = forwardRef(
                     </Box>
                   </Stack>
                 ))}
-                {isLoading && <SearchMessage />}
+                {isLoading && <SearchMessage oneSingleAnimation={true} />}
               </Fragment>
             )
           })}
-          {!messagesObj?.length && isLoading ? <SearchMessage /> : null}
+          {!messagesObj?.length && isLoading ? (
+            <SearchMessage oneSingleAnimation={false} />
+          ) : null}
         </Stack>
 
         {/* footer options */}
@@ -1447,10 +1505,10 @@ const mapAssistantResponseToMessage = (
   const message: MessageData = {
     actions: newMessage.actions
       ? newMessage.actions.map((c) => ({
-        title: c.title,
-        type: c.type,
-        variant: tempMap(c.variant as string),
-      }))
+          title: c.title,
+          type: c.type,
+          variant: tempMap(c.variant as string),
+        }))
       : [],
     content: newMessage.message,
     hour: getCurrentHourHHMM(),

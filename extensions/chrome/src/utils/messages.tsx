@@ -279,10 +279,11 @@ export const generateNodeProposeMessage = (
 ): MessageData => {
   return {
     actions: [],
-    content:
+    content: `I'm going to assist you step-by-step to propose the following potential node: `,
+    markDownContent:
       flashcardsLength > 1
-        ? `I'm going to assist you step-by-step to propose the following potential node:  \n\n**Node ${nodeIdx}:**\n**${node.title}**  \n\n${node.content}`
-        : `I'm going to assist you step-by-step to propose the following potential node:  \n\n**${node.title}**  \n\n${node.content}`,
+        ? `\n\n**Node ${nodeIdx}:**\n**${node.title}**  \n\n${node.content}`
+        : `\n\n**${node.title}**  \n\n${node.content}`,
     nodes: [],
     type: 'READER',
     hour: getCurrentHourHHMM(),
@@ -381,7 +382,7 @@ export const generateExitPotentialNodesMessage = (): MessageData => {
         variant: 'outlined',
       },
     ],
-    content: `Then, would you like to go back to the original document to continue reading it?`,
+    content: `Would you like to go back to the original document to continue reading it?`,
     nodes: [],
     type: 'READER',
     hour: getCurrentHourHHMM(),
@@ -586,7 +587,7 @@ export const generateImprovementTypeSelectorMessage = ({
         variant: 'outlined',
       },
     ],
-    content: `How can I help you with improving the selected node **${selectedNode}** based on the potential node **${potentialNode}**`,
+    content: `How can I help you with improving the selected node  **${selectedNode}**  based on the potential node **${potentialNode}**`,
     nodes: [],
     type: 'READER',
     hour: getCurrentHourHHMM(),
@@ -610,7 +611,52 @@ export const generateBackToReadingMessage = (): MessageData => {
         variant: 'outlined',
       },
     ],
-    content: `Then, would you like to go back to the original document to continue reading it?`,
+    content: `Would you like to go back to the original document to continue reading it?`,
+    nodes: [],
+    type: 'READER',
+    hour: getCurrentHourHHMM(),
+    id: generateRandomId(),
+    image: '',
+    video: '',
+  }
+}
+
+export const generateQuestions = (
+  second: boolean = false,
+  typeImprovement?: string
+): MessageData => {
+  return {
+    actions: [
+      {
+        title: 'Yes',
+        type: 'proposeQuestionNode',
+        variant: 'outlined',
+      },
+      {
+        title: 'No',
+        type: 'SkipQuestionNode',
+        variant: 'outlined',
+      },
+    ],
+    content: second
+      ? ` Would you like me to help you with proposing another multiple-choice question for this new node?`
+      : typeImprovement === 'Parent'
+      ? `Congratulations! Your new child node is approved!`
+      : `Congratulations! Your new changes to the node got approved` +
+        `\n\n \n\nWould you like me to help you with proposing some multiple-choice questions for this new node?`,
+    nodes: [],
+    type: 'READER',
+    hour: getCurrentHourHHMM(),
+    id: generateRandomId(),
+    image: '',
+    video: '',
+  }
+}
+
+export const reviseQuestionNodeMessage = (): MessageData => {
+  return {
+    actions: [],
+    content: `I just drafted a question node for you. Please revise and propose it.`,
     nodes: [],
     type: 'READER',
     hour: getCurrentHourHHMM(),
