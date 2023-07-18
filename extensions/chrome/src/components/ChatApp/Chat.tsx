@@ -227,6 +227,7 @@ export const Chat = forwardRef(
     ])
 
     const nextFlashcard = useCallback((delay = 500) => {
+      setIsLoading(false)
       setFlashcards((flashcards: any[]) => {
         // end potential nodes flow
         console.log('flashcards', flashcards)
@@ -1208,6 +1209,9 @@ export const Chat = forwardRef(
     }
 
     const onClearChat = () => {
+      chrome.runtime.sendMessage({
+        type: 'CLEAR',
+      })
       setMessagesObj([])
       setNotebook(null)
       setIsLoading(false)

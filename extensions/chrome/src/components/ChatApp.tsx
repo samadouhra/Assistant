@@ -106,6 +106,9 @@ function ChatApp() {
   const onCloseChat = () => {
     setDisplayAssistant(false)
     setIsLoading(false)
+    chrome.runtime.sendMessage({
+      type: 'CLEAR',
+    })
   }
 
   const onAskSelectedText = () => {
@@ -186,6 +189,9 @@ function ChatApp() {
     const listenWorker = async (message: TAssistantNotebookMessage) => {
       console.log(message, 'START_PROPOSING')
       if (message.type === 'START_PROPOSING') {
+        chrome.runtime.sendMessage({
+          type: 'CLEAR',
+        })
         chatRef.current.setBookTabId(message.tabId)
         setDisplayAssistant(true)
         setFlashcards(message.flashcards)
@@ -201,7 +207,7 @@ function ChatApp() {
         const _oldNotebook = previouseNotebook.notebook
 
         const oldNotebook: Notebook =
-          previouseNotebook &&
+          _oldNotebook &&
           message.notebooks.find(
             (n: INotebook) => n.documentId === _oldNotebook.id
           )
