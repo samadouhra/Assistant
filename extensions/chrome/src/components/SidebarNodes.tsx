@@ -174,9 +174,11 @@ function SidebarNodes() {
           const headerElement = section.getElementsByTagName('header')[0]
           const sectionElement =
             i === 0
-              ? headerElement
-                  .getElementsByClassName('subheadline save-1')[0]
-                  ?.getElementsByTagName('a')[0]
+              ? (
+                  headerElement.getElementsByClassName(
+                    'subheadline save-1'
+                  )[0] || headerElement.getElementsByClassName('subheadline')[0]
+                )?.getElementsByTagName('a')[0]
               : headerElement?.getElementsByTagName('a')[0]
 
           const accordianElement =
