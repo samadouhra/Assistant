@@ -40,7 +40,7 @@ function ChatApp() {
     setCreatingNotebook: (creatingNotebook: any) => any
     setNotebook: (notebook: any) => any
     setBookTabId: (bookTabId: any) => any
-    nextFlashcard:(delay:number)=>void
+    nextFlashcard: (delay: number) => void
   }>({
     pushMessage: () => {},
     resetChat: () => {},
@@ -183,7 +183,7 @@ function ChatApp() {
     // following listener only for notebook tabs
     if (!window.location.href.startsWith(NOTEBOOK_LINK)) return
 
-    const listenWorker = (message: TAssistantNotebookMessage) => {
+    const listenWorker = async (message: TAssistantNotebookMessage) => {
       console.log(message, 'START_PROPOSING')
       if (message.type === 'START_PROPOSING') {
         chatRef.current.setBookTabId(message.tabId)
@@ -193,12 +193,24 @@ function ChatApp() {
         setNotebooks(notebooksMapped)
         setSelecteSidebar(message.selecteSidebar)
         chatRef.current.resetChat()
-        const oldNotebook = notebook
-          ? notebook
-          : {
-              name: message.notebooks[0].title || '',
-              id: message.notebooks[0].documentId || '',
-            }
+        const previouseNotebook: { notebook: Notebook } =
+          (await chrome.storage.local.get(['notebook'])) as {
+            notebook: Notebook
+          }
+
+        const _oldNotebook = previouseNotebook.notebook
+
+        const oldNotebook: Notebook =
+          previouseNotebook &&
+          message.notebooks.find(
+            (n: INotebook) => n.documentId === _oldNotebook.id
+          )
+            ? _oldNotebook
+            : {
+                name: message.notebooks[0].title || '',
+                id: message.notebooks[0].documentId || '',
+              }
+
         if (notebooksMapped.length > 1) {
           console.log('>1 nts')
           // if there are many notebook we will ask to the user to choose one
@@ -206,6 +218,7 @@ function ChatApp() {
             generateNotebookProposalApproval(message.request, oldNotebook),
             getCurrentDateYYMMDD()
           )
+          setNotebook(oldNotebook)
         }
         if (notebooksMapped.length === 1) {
           console.log('=1 nts')
@@ -225,7 +238,7 @@ function ChatApp() {
           // setNodeIdx(0)
           chatRef.current.nextFlashcard(2000)
         }
-        if(!notebooksMapped.length) console.log('=0 nts')
+        if (!notebooksMapped.length) console.log('=0 nts')
 
         setIsLoading(false)
       }

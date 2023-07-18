@@ -149,7 +149,7 @@ export const Chat = forwardRef(
     const { mode } = useTheme()
     const [userMessage, setUserMessage] = useState('')
     // to store number during proposing nodes
-    const [nodeIdx, setNodeIdx] = useState<number>(0)// TODO: remove
+    const [nodeIdx, setNodeIdx] = useState<number>(0) // TODO: remove
     const [nodeSelection, setNodeSelection] = useState<
       'Parent' | 'Child' | 'Improvement' | null
     >(null)
@@ -262,10 +262,16 @@ export const Chat = forwardRef(
           setCreatingNotebook,
           setNotebook,
           setBookTabId,
-          nextFlashcard
+          nextFlashcard,
         }
       },
-      [pushMessage, setNotebook, setCreatingNotebook, setBookTabId,nextFlashcard]
+      [
+        pushMessage,
+        setNotebook,
+        setCreatingNotebook,
+        setBookTabId,
+        nextFlashcard,
+      ]
     )
 
     const removeActionOfAMessage = (messageId: string, date: string) => {
@@ -370,8 +376,6 @@ export const Chat = forwardRef(
         setSpeakingMessageId('')
       }
     }, [])
-
-    
 
     const onDisplayNextNodeToBeDisplayed = (
       nodesToBeDisplayed: NodeLinkType[]
@@ -585,11 +589,13 @@ export const Chat = forwardRef(
       }
 
       if (action.type === 'NotebookSelected') {
-        onClick = () => {
+        onClick = async () => {
           console.log('-> NotebookSelected')
           const notebook = action?.data?.notebook
           if (!notebook) return
-
+          await chrome.storage.local.set({
+            notebook,
+          } as { notebook: Notebook })
           setNotebook(notebook)
           const nodeClickEvent = new CustomEvent('Notebook-selection', {
             detail: notebook,
@@ -998,7 +1004,7 @@ export const Chat = forwardRef(
       // following listener only for notebook tabs
       if (!window.location.href.startsWith(NOTEBOOK_LINK)) return
 
-      const listenWorker = (
+      const listenWorker = async (
         message: TAssistantResponseMessage | TAssistantNotebookMessage
       ) => {
         if (message.type === 'CREATE_NOTEBOOK') {
@@ -1008,6 +1014,20 @@ export const Chat = forwardRef(
             id: message.notebookId,
             name: message.notebookTitle,
           } as Notebook)
+
+          await chrome.storage.local.set({
+            notebook: {
+              id: message.notebookId,
+              name: message.notebookTitle,
+            },
+          } as { notebook: Notebook })
+          const nodeClickEvent = new CustomEvent('Notebook-selection', {
+            detail: {
+              id: message.notebookId,
+              name: message.notebookTitle,
+            },
+          })
+          window.dispatchEvent(nodeClickEvent)
           setIsLoading(false)
 
           pushMessage(
