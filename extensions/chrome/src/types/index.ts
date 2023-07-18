@@ -343,7 +343,7 @@ export type MessageAction = {
     | 'ChatNotebookCreate'
   title: string
   variant: ActionVariant
-  data?: any
+  data?: {notebook:Notebook}
   nodeSelectionType?: 'Parent' | 'Improvement'
 }
 

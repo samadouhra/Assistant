@@ -46,9 +46,9 @@ import { getCurrentDateYYMMDD, getCurrentHourHHMM } from '../../utils/date'
 import { Theme } from '@mui/system'
 import { generateRandomId } from '../../utils/others'
 import {
-  generateBackToReadingMessage,
+  // generateBackToReadingMessage,
   generateConfirmContinueWithPotentialNodeMessage,
-  generateConfirmNodeSelection,
+  // generateConfirmNodeSelection,
   generateContinueDisplayingNodeMessage,
   generateExitPotentialNodesMessage,
   generateExplainSelectedText,
@@ -61,9 +61,9 @@ import {
   generateNodeSelectorMessage,
   generateNotebookIntro,
   generateNotebookListMessage,
-  generateParentDiscoverMessage,
-  generateProposeChildConfirmation,
-  generateProposeImprovementConfirmation,
+  // generateParentDiscoverMessage,
+  // generateProposeChildConfirmation,
+  // generateProposeImprovementConfirmation,
   generateQuestions,
   generateSearchNodeMessage,
   generateStartProposeChildConfirmation,
@@ -97,7 +97,7 @@ type ChatProps = {
   setFlashcards: any
   currentFlashcard: Flashcard | undefined
   setCurrentFlashcard: any
-  notebooks: INotebook[]
+  notebooks: Notebook[]
   setNotebooks: any
   // setIsLoading: React.Dispatch<React.SetStateAction<boolean>>,
   selectedText: string
@@ -109,6 +109,8 @@ type ChatProps = {
     current: boolean
   }
   selecteSidebar: boolean
+  notebook: Notebook | null
+  setNotebook: React.Dispatch<React.SetStateAction<Notebook | null>>
 }
 
 export const Chat = forwardRef(
@@ -130,10 +132,11 @@ export const Chat = forwardRef(
       isAuthenticatedRef,
       sx,
       selecteSidebar,
+      notebook,
+      setNotebook,
     }: ChatProps,
     ref
   ) => {
-    const [notebook, setNotebook] = useState<Notebook | null>(null)
     const [messagesObj, setMessagesObj] = useState<Message[]>([])
     const [speakingMessageId, setSpeakingMessageId] = useState<string>('')
     const chatElementRef = useRef<HTMLDivElement | null>(null)
@@ -146,7 +149,7 @@ export const Chat = forwardRef(
     const { mode } = useTheme()
     const [userMessage, setUserMessage] = useState('')
     // to store number during proposing nodes
-    const [nodeIdx, setNodeIdx] = useState<number>(0)
+    const [nodeIdx, setNodeIdx] = useState<number>(0)// TODO: remove
     const [nodeSelection, setNodeSelection] = useState<
       'Parent' | 'Child' | 'Improvement' | null
     >(null)
@@ -223,6 +226,33 @@ export const Chat = forwardRef(
       setNodeIdx,
     ])
 
+    const nextFlashcard = useCallback((delay = 500) => {
+      setFlashcards((flashcards: any[]) => {
+        // end potential nodes flow
+        console.log('flashcards', flashcards)
+        if (!flashcards || !flashcards.length) {
+          // pushMessage(generateBackToReadingMessage(), getCurrentDateYYMMDD())
+          // setTimeout(scrollToTheEnd, 1000)
+          return flashcards
+        }
+
+        let newFlashcards = [...flashcards]
+        const flashcard = newFlashcards.shift()
+        const flashcardEvent = new CustomEvent('flashcard-start', {
+          detail: {
+            flashcard,
+          },
+        })
+        // adding node message with delay to look good
+        setTimeout(() => {
+          window.dispatchEvent(flashcardEvent)
+          setTimeout(scrollToTheEnd, 500)
+        }, delay)
+        return newFlashcards
+      })
+      setNodeIdx((nodeIdx) => nodeIdx + 1)
+    }, [])
+
     useImperativeHandle(
       ref,
       () => {
@@ -232,9 +262,10 @@ export const Chat = forwardRef(
           setCreatingNotebook,
           setNotebook,
           setBookTabId,
+          nextFlashcard
         }
       },
-      [pushMessage, setNotebook, setCreatingNotebook, setBookTabId]
+      [pushMessage, setNotebook, setCreatingNotebook, setBookTabId,nextFlashcard]
     )
 
     const removeActionOfAMessage = (messageId: string, date: string) => {
@@ -340,32 +371,7 @@ export const Chat = forwardRef(
       }
     }, [])
 
-    const nextFlashcard = useCallback((delay = 500) => {
-      setFlashcards((flashcards: any[]) => {
-        // end potential nodes flow
-        console.log('flashcards', flashcards)
-        if (!flashcards || !flashcards.length) {
-          // pushMessage(generateBackToReadingMessage(), getCurrentDateYYMMDD())
-          // setTimeout(scrollToTheEnd, 1000)
-          return
-        }
-
-        let newFlashcards = [...flashcards]
-        const flashcard = newFlashcards.shift()
-        const flashcardEvent = new CustomEvent('flashcard-start', {
-          detail: {
-            flashcard,
-          },
-        })
-        // adding node message with delay to look good
-        setTimeout(() => {
-          window.dispatchEvent(flashcardEvent)
-          setTimeout(scrollToTheEnd, 500)
-        }, delay)
-        return newFlashcards
-      })
-      setNodeIdx((nodeIdx) => nodeIdx + 1)
-    }, [])
+    
 
     const onDisplayNextNodeToBeDisplayed = (
       nodesToBeDisplayed: NodeLinkType[]
@@ -581,20 +587,16 @@ export const Chat = forwardRef(
       if (action.type === 'NotebookSelected') {
         onClick = () => {
           console.log('-> NotebookSelected')
-          const notebook = action?.data?.notebook as INotebook
-          setNotebook({
-            id: notebook.documentId!,
-            name: notebook.title,
-          })
+          const notebook = action?.data?.notebook
+          if (!notebook) return
+
+          setNotebook(notebook)
           const nodeClickEvent = new CustomEvent('Notebook-selection', {
-            detail: {
-              id: notebook.documentId!,
-              name: notebook.title,
-            },
+            detail: notebook,
           })
           window.dispatchEvent(nodeClickEvent)
           const messageWithSelectedAction = generateUserActionAnswer(
-            notebook.title
+            notebook.name
           )
           pushMessage(messageWithSelectedAction, getCurrentDateYYMMDD())
           removeActionOfAMessage(messageId, date)
@@ -770,32 +772,32 @@ export const Chat = forwardRef(
         }
       }
 
-      if (action.type === 'StartProposeChild') {
-        onClick = () => {
-          console.log('-> StartProposeChild')
+      // if (action.type === 'StartProposeChild') {
+      //   onClick = () => {
+      //     console.log('-> StartProposeChild')
 
-          const messageWithSelectedAction = generateUserActionAnswer(
-            action.title
-          )
-          pushMessage(messageWithSelectedAction, getCurrentDateYYMMDD())
-          removeActionOfAMessage(messageId, date)
+      //     const messageWithSelectedAction = generateUserActionAnswer(
+      //       action.title
+      //     )
+      //     pushMessage(messageWithSelectedAction, getCurrentDateYYMMDD())
+      //     removeActionOfAMessage(messageId, date)
 
-          setIsLoading(true)
-          chrome.runtime.sendMessage({
-            type: 'PROPOSE_CHILD',
-            selectedNode: {
-              id: selectedNode?.id,
-              title: selectedNode?.title,
-              content: selectedNode?.content,
-            },
-            flashcard: currentFlashcard,
-            bookTabId,
-            selecteSidebar,
-          })
+      //     setIsLoading(true)
+      //     chrome.runtime.sendMessage({
+      //       type: 'PROPOSE_CHILD',
+      //       selectedNode: {
+      //         id: selectedNode?.id,
+      //         title: selectedNode?.title,
+      //         content: selectedNode?.content,
+      //       },
+      //       flashcard: currentFlashcard,
+      //       bookTabId,
+      //       selecteSidebar,
+      //     })
 
-          pushMessage(reviseChildNodeMessage(),getCurrentDateYYMMDD())
-        }
-      }
+      //     pushMessage(reviseChildNodeMessage(),getCurrentDateYYMMDD())
+      //   }
+      // }
 
       if (action.type === 'ProceedPotentialNodes') {
         onClick = () => {
@@ -843,9 +845,9 @@ export const Chat = forwardRef(
             bookTabId,
             selecteSidebar,
           })
-          pushMessage(reviseQuestionNodeMessage(), getCurrentDateYYMMDD())
+
           removeActionOfAMessage(messageId, date)
-          setIsLoading(false)
+          setIsLoading(true)
           setTimeout(scrollToTheEnd, 1000)
         }
       }
@@ -1053,6 +1055,7 @@ export const Chat = forwardRef(
           token: detail.token,
           bookTabId,
         })
+        console.log('->pushMessage:1')
         pushMessage(
           generateQuestions(false, detail.proposedType),
           getCurrentDateYYMMDD()
@@ -1074,10 +1077,7 @@ export const Chat = forwardRef(
     useEffect(() => {
       const listener = (e: any) => {
         console.log(e.detail)
-        pushMessage(
-          generateQuestions(true),
-          getCurrentDateYYMMDD()
-        )
+        pushMessage(generateQuestions(true), getCurrentDateYYMMDD())
         setIsLoading(false)
       }
       window.addEventListener('question-node-proposed', listener)
@@ -1118,8 +1118,8 @@ export const Chat = forwardRef(
             bookTabId,
             selecteSidebar,
           })
-          pushMessage(reviseChildNodeMessage(),getCurrentDateYYMMDD())
-        } 
+          pushMessage(reviseChildNodeMessage(), getCurrentDateYYMMDD())
+        }
         setNodeSelection(null)
         setTimeout(scrollToTheEnd, 1000)
         // pushMessage(
@@ -1163,6 +1163,15 @@ export const Chat = forwardRef(
         }, 2000)
       }, 2000)
     }, [currentFlashcard, setNodeIdx, pushMessage, setNodeSelection])
+
+    useEffect(() => {
+      const listener = (e: any) => {
+        setIsLoading(false)
+        pushMessage(reviseQuestionNodeMessage(), getCurrentDateYYMMDD())
+      }
+      window.addEventListener('stop-loader', listener)
+      return () => window.removeEventListener('stop-loader', listener)
+    }, [])
 
     const formatDate = (date: string) => {
       const _date = new Date()

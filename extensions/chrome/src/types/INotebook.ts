@@ -1,7 +1,7 @@
 import { Timestamp } from "firebase/firestore";
 
 export type INotebook = {
-  documentId?: string;
+  documentId: string;
   conversation?: string; // If this property has id of conversation then we don't include this notebook in notebook list but, we list them in conversation
   defaultTagId?: string;
   defaultTagName?: string;

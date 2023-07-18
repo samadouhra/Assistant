@@ -1,6 +1,6 @@
 import { getCurrentHourHHMM } from './date'
 import { generateRandomId } from './others'
-import { Flashcard, MessageAction, MessageData, NodeLinkType } from '../types'
+import { Flashcard, MessageAction, MessageData, NodeLinkType, Notebook } from '../types'
 import { INotebook } from '../types/INotebook'
 
 export const generateContinueDisplayingNodeMessage = (
@@ -157,7 +157,12 @@ export const generateTopicMessage = (
 ): MessageData => {
   const _flashcards = flashcards.filter((flashcard) => !flashcard.proposed)
 
-  const actions = [
+  type ActionButton = {
+    title: string,
+      type: string,
+      variant: string,
+  }
+  const actions:ActionButton[] = [
     {
       title: 'Explain it',
       type: 'TeachContent',
@@ -212,7 +217,7 @@ export const generateNotebookIntro = (
 
 export const generateNotebookProposalApproval = (
   request: string,
-  notebook: INotebook
+  notebook: Notebook
 ): MessageData => {
   return {
     actions: [
@@ -230,7 +235,7 @@ export const generateNotebookProposalApproval = (
         variant: 'outlined',
       },
     ],
-    content: `Would you like to propose the child/improvement in the current notebook "${notebook.title}", or switch it to another notebook?`,
+    content: `Would you like to propose the child/improvement in the current notebook "${notebook.name}", or switch it to another notebook?`,
     nodes: [],
     type: 'READER',
     hour: getCurrentHourHHMM(),
@@ -243,10 +248,10 @@ export const generateNotebookProposalApproval = (
 
 export const generateNotebookListMessage = (
   request: string,
-  notebooks: INotebook[]
+  notebooks: Notebook[]
 ): MessageData => {
   const actions: MessageAction[] = notebooks.map((notebook) => ({
-    title: notebook.title,
+    title: notebook.name,
     type: 'NotebookSelected',
     variant: 'outlined',
     data: {
@@ -392,61 +397,61 @@ export const generateExitPotentialNodesMessage = (): MessageData => {
   }
 }
 
-export const generateParentDiscoverMessage = (): MessageData => {
-  return {
-    actions: [
-      {
-        title: 'Yes',
-        type: 'ProposeChidParentConfirm',
-        variant: 'outlined',
-      },
-      {
-        title: 'No',
-        type: 'StartSkipOrCancel',
-        variant: 'outlined',
-      },
-    ],
-    content: `Can you find a node on 1Cademy that is a prerequisite to learning this potential node?`,
-    nodes: [],
-    type: 'READER',
-    hour: getCurrentHourHHMM(),
-    id: generateRandomId(),
-    image: '',
-    video: '',
-  }
-}
+// export const generateParentDiscoverMessage = (): MessageData => {
+//   return {
+//     actions: [
+//       {
+//         title: 'Yes',
+//         type: 'ProposeChidParentConfirm',
+//         variant: 'outlined',
+//       },
+//       {
+//         title: 'No',
+//         type: 'StartSkipOrCancel',
+//         variant: 'outlined',
+//       },
+//     ],
+//     content: `Can you find a node on 1Cademy that is a prerequisite to learning this potential node?`,
+//     nodes: [],
+//     type: 'READER',
+//     hour: getCurrentHourHHMM(),
+//     id: generateRandomId(),
+//     image: '',
+//     video: '',
+//   }
+// }
 
-export const generateConfirmNodeSelection = (node: {
-  title: string
-  [key: string]: any
-  nodeSelectionType: 'Parent' | 'Improvement'
-}): MessageData => {
-  return {
-    actions: [
-      {
-        title: 'Yes',
-        type: 'ConfirmNodeSelection',
-        variant: 'outlined',
-        data: {
-          node,
-        },
-      },
-      {
-        title: 'No',
-        type: 'ContinueNodeSelection',
-        nodeSelectionType: node.nodeSelectionType,
-        variant: 'outlined',
-      },
-    ],
-    content: `Did you select "${node.title}"?`,
-    nodes: [],
-    type: 'READER',
-    hour: getCurrentHourHHMM(),
-    id: generateRandomId(),
-    image: '',
-    video: '',
-  }
-}
+// export const generateConfirmNodeSelection = (node: {
+//   title: string
+//   [key: string]: any
+//   nodeSelectionType: 'Parent' | 'Improvement'
+// }): MessageData => {
+//   return {
+//     actions: [
+//       {
+//         title: 'Yes',
+//         type: 'ConfirmNodeSelection',
+//         variant: 'outlined',
+//         data: {
+//           node,
+//         },
+//       },
+//       {
+//         title: 'No',
+//         type: 'ContinueNodeSelection',
+//         nodeSelectionType: node.nodeSelectionType,
+//         variant: 'outlined',
+//       },
+//     ],
+//     content: `Did you select "${node.title}"?`,
+//     nodes: [],
+//     type: 'READER',
+//     hour: getCurrentHourHHMM(),
+//     id: generateRandomId(),
+//     image: '',
+//     video: '',
+//   }
+// }
 
 export const generateNodeKeepSelectionMessage = (): MessageData => {
   return {
@@ -461,65 +466,65 @@ export const generateNodeKeepSelectionMessage = (): MessageData => {
   }
 }
 
-export const generateProposeImprovementConfirmation = (node: {
-  title: string
-  [key: string]: any
-}): MessageData => {
-  return {
-    actions: [
-      {
-        title: 'Yes',
-        type: 'StartProposeImprovement',
-        variant: 'outlined',
-        data: {
-          node,
-        },
-      },
-      {
-        title: 'No',
-        type: 'StartSkipOrCancel',
-        variant: 'outlined',
-      },
-    ],
-    content: `Would you like to propose an improvement to that node?`,
-    nodes: [],
-    type: 'READER',
-    hour: getCurrentHourHHMM(),
-    id: generateRandomId(),
-    image: '',
-    video: '',
-  }
-}
+// export const generateProposeImprovementConfirmation = (node: {
+//   title: string
+//   [key: string]: any
+// }): MessageData => {
+//   return {
+//     actions: [
+//       {
+//         title: 'Yes',
+//         type: 'StartProposeImprovement',
+//         variant: 'outlined',
+//         data: {
+//           node,
+//         },
+//       },
+//       {
+//         title: 'No',
+//         type: 'StartSkipOrCancel',
+//         variant: 'outlined',
+//       },
+//     ],
+//     content: `Would you like to propose an improvement to that node?`,
+//     nodes: [],
+//     type: 'READER',
+//     hour: getCurrentHourHHMM(),
+//     id: generateRandomId(),
+//     image: '',
+//     video: '',
+//   }
+// }
 
-export const generateProposeChildConfirmation = (node: {
-  title: string
-  [key: string]: any
-}): MessageData => {
-  return {
-    actions: [
-      {
-        title: 'Yes',
-        type: 'StartProposeChild',
-        variant: 'outlined',
-        data: {
-          node,
-        },
-      },
-      {
-        title: 'No',
-        type: 'StartSkipOrCancel',
-        variant: 'outlined',
-      },
-    ],
-    content: `Would you like to propose a child node to this node?`,
-    nodes: [],
-    type: 'READER',
-    hour: getCurrentHourHHMM(),
-    id: generateRandomId(),
-    image: '',
-    video: '',
-  }
-}
+// export const generateProposeChildConfirmation = (node: {
+//   title: string
+//   [key: string]: any
+// }): MessageData => {
+//   return {
+//     actions: [
+//       {
+//         title: 'Yes',
+//         type: 'StartProposeChild',
+//         variant: 'outlined',
+//         data: {
+//           node,
+//         },
+//       },
+//       {
+//         title: 'No',
+//         type: 'StartSkipOrCancel',
+//         variant: 'outlined',
+//       },
+//     ],
+//     content: `Would you like to propose a child node to this node?`,
+//     nodes: [],
+//     type: 'READER',
+//     hour: getCurrentHourHHMM(),
+//     id: generateRandomId(),
+//     image: '',
+//     video: '',
+//   }
+// }
 
 export const generateStartProposeChildConfirmation = (): MessageData => {
   return {
@@ -597,29 +602,29 @@ export const generateImprovementTypeSelectorMessage = ({
   }
 }
 
-export const generateBackToReadingMessage = (): MessageData => {
-  return {
-    actions: [
-      {
-        title: 'Yes',
-        type: 'BackToBook',
-        variant: 'outlined',
-      },
-      {
-        title: 'No',
-        type: 'CompleteChat',
-        variant: 'outlined',
-      },
-    ],
-    content: `Would you like to go back to the original document to continue reading it?`,
-    nodes: [],
-    type: 'READER',
-    hour: getCurrentHourHHMM(),
-    id: generateRandomId(),
-    image: '',
-    video: '',
-  }
-}
+// export const generateBackToReadingMessage = (): MessageData => {
+//   return {
+//     actions: [
+//       {
+//         title: 'Yes',
+//         type: 'BackToBook',
+//         variant: 'outlined',
+//       },
+//       {
+//         title: 'No',
+//         type: 'CompleteChat',
+//         variant: 'outlined',
+//       },
+//     ],
+//     content: `Would you like to go back to the original document to continue reading it?`,
+//     nodes: [],
+//     type: 'READER',
+//     hour: getCurrentHourHHMM(),
+//     id: generateRandomId(),
+//     image: '',
+//     video: '',
+//   }
+// }
 
 export const generateQuestions = (
   second: boolean = false,
@@ -640,9 +645,9 @@ export const generateQuestions = (
     ],
     content: second
       ? ` Would you like me to help you with proposing another multiple-choice question for this new node?`
-      : typeImprovement === 'Parent'
-      ? `Congratulations! Your new child node is approved!`
-      : `Congratulations! Your new changes to the node got approved` +
+      : (typeImprovement === 'Parent'
+          ? `Congratulations! Your new child node is approved!`
+          : `Congratulations! Your new changes to the node got approved`) +
         `\n\n \n\nWould you like me to help you with proposing some multiple-choice questions for this new node?`,
     nodes: [],
     type: 'READER',

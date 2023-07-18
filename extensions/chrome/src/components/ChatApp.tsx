@@ -24,6 +24,7 @@ import { ONECADEMY_IFRAME_URL } from '../utils/constants'
 import { getCurrentDateYYMMDD } from '../utils/date'
 import { RiveComponentMemoized } from './ChatApp/RiveMemoized'
 import { INotebook } from '../types/INotebook'
+import { mapINotebookToNotebook } from '../helpers/map'
 
 function ChatApp() {
   const [displayAssistant, setDisplayAssistant] = useState(false)
@@ -32,18 +33,21 @@ function ChatApp() {
   const isAuthenticatedRef = useRef<boolean>(false)
   const [conversationId, setConversationId] = useState('')
   const [selecteSidebar, setSelecteSidebar] = useState<boolean>(false)
+  const [notebook, setNotebook] = useState<Notebook | null>(null)
   const chatRef = useRef<{
     pushMessage: (message: MessageData, currentDateYYMMDD: string) => void
     resetChat: () => void
     setCreatingNotebook: (creatingNotebook: any) => any
     setNotebook: (notebook: any) => any
     setBookTabId: (bookTabId: any) => any
+    nextFlashcard:(delay:number)=>void
   }>({
-    pushMessage: () => { },
-    resetChat: () => { },
+    pushMessage: () => {},
+    resetChat: () => {},
     setCreatingNotebook: (creatingNotebook) => creatingNotebook,
-    setNotebook: () => { },
-    setBookTabId: () => { },
+    setNotebook: () => {},
+    setBookTabId: () => {},
+    nextFlashcard: () => {},
   })
   const [isLoading, setIsLoading] = useState(false)
   const iframeRef = useRef<null | HTMLIFrameElement>(null)
@@ -52,7 +56,7 @@ function ChatApp() {
   const [currentFlashcard, setCurrentFlashcard] = useState<
     Flashcard | undefined
   >(undefined)
-  const [notebooks, setNotebooks] = useState<INotebook[]>([])
+  const [notebooks, setNotebooks] = useState<Notebook[]>([])
 
   useEffect(() => {
     chrome.runtime.onMessage.addListener((message, sender) => {
@@ -185,16 +189,44 @@ function ChatApp() {
         chatRef.current.setBookTabId(message.tabId)
         setDisplayAssistant(true)
         setFlashcards(message.flashcards)
-        setNotebooks(message.notebooks)
+        const notebooksMapped = message.notebooks.map(mapINotebookToNotebook)
+        setNotebooks(notebooksMapped)
         setSelecteSidebar(message.selecteSidebar)
         chatRef.current.resetChat()
-        chatRef.current.pushMessage(
-          generateNotebookProposalApproval(
-            message.request,
-            message.notebooks?.[0] || {}
-          ),
-          getCurrentDateYYMMDD()
-        )
+        const oldNotebook = notebook
+          ? notebook
+          : {
+              name: message.notebooks[0].title || '',
+              id: message.notebooks[0].documentId || '',
+            }
+        if (notebooksMapped.length > 1) {
+          console.log('>1 nts')
+          // if there are many notebook we will ask to the user to choose one
+          chatRef.current.pushMessage(
+            generateNotebookProposalApproval(message.request, oldNotebook),
+            getCurrentDateYYMMDD()
+          )
+        }
+        if (notebooksMapped.length === 1) {
+          console.log('=1 nts')
+          // if there is only 1 notebook, we select automatically
+          setNotebook(oldNotebook)
+          const nodeClickEvent = new CustomEvent('Notebook-selection', {
+            detail: oldNotebook,
+          })
+          // window.dispatchEvent(nodeClickEvent)
+
+          if (!message.selecteSidebar) {
+            chatRef.current.pushMessage(
+              generateNotebookIntro(flashcards, selecteSidebar),
+              getCurrentDateYYMMDD()
+            )
+          }
+          // setNodeIdx(0)
+          chatRef.current.nextFlashcard(2000)
+        }
+        if(!notebooksMapped.length) console.log('=0 nts')
+
         setIsLoading(false)
       }
     }
@@ -346,6 +378,8 @@ function ChatApp() {
             display: displayAssistant ? 'flex' : 'none',
           }}
           selecteSidebar={selecteSidebar}
+          notebook={notebook}
+          setNotebook={setNotebook}
         />
       </Box>
     </>
